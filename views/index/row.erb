@@ -1,0 +1,4 @@
+<tr class="<%= kind %>"><th scope="row"><a href="/l/<%= lid %>"><%= name %></a><span class="changed"><%= changed %></span></th>
+<td class="state"><%= state %></td><td><%= counts.crit_met %>/<%= counts.crit %></td>
+<td><span><%= counts.verified %>/<%= counts.pieces %> verified</span><% if counts.kept.positive? %>, <span><%= counts.kept %> kept</span><% end %></td></tr>
+<% unless needs.empty? %><tr class="<%= kind %> state-line"><td colspan="4"><%= needs %></td></tr><% end %>

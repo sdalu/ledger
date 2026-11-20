@@ -1,0 +1,1 @@
+<span class="rating" role="img" aria-label="risk <%= rating %> out of 10"><span class="meter"><% 10.times do |step| %><span<% if step < [rating, 10].min %> class="is-on"<% end %>></span><% end %></span><%= rating %>/10</span>

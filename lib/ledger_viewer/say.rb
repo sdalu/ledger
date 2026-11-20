@@ -1,0 +1,131 @@
+# frozen_string_literal: true
+
+require_relative "refusal"
+require_relative "render/text"
+require_relative "say_all"
+require_relative "say_answer"
+require_relative "say_word"
+
+module LedgerViewer
+    # What a posted form says, checked against the ledger as the engine
+    # reads it (the Dump's Hash), by the rules of ledger-serve.py's
+    # do_POST: the entries to append, or the Refusal that names why
+    # nothing is. SayAll is its say-all.
+    class Say
+        include SayAll
+        include SayAnswer
+        include SayWord
+
+        MAX_TEXT = 4000
+        # What a send is: the fields between the time and the text, the
+        # text, and the card the page goes back to.
+        Body = Data.define(:fields, :text, :anchor)
+        KINDS = { /\AO\p{Nd}+\z/ => :answer,
+                  /\AP\p{Nd}+\z/ => :comment }.freeze
+        FILLED = %w[choice notes order picks word].freeze
+
+        def initialize(data, form)
+            @data = data
+            @form = form
+            @text = clean(form["text"])
+            @planned = pieces.select { it["status"] == "planned" }
+                             .map { it["id"] }
+        end
+
+        # The one entry the form makes, as a one-element list.
+        def one
+            ref = @form["ref"]
+            ref = nil if ref.empty?
+            fields = { "ref" => ref }
+            kind = kind_of(ref)
+            check(kind, ref, fields)
+            nothing! unless something?(fields)
+            too_long!(fields)
+            [Body.new(fields:, text: @text, anchor: anchor(kind, ref))]
+        end
+
+        private
+
+        def check(kind, ref, fields)
+            case kind
+            when :answer then answer(ref, fields)
+            when :word then word(ref, fields)
+            when :comment then comment(ref)
+            when :order then order(fields)
+            when :unknown then refuse(400, "Unknown kind of entry.")
+            end
+        end
+
+        def kind_of(ref)
+            kind = base_kind(ref)
+            kind == :comment && !@form["word"].empty? ? :word : kind
+        end
+
+        def base_kind(ref)
+            return :note if ref.nil?
+            return :order if ref == "order"
+
+            KINDS.find { |rx, _| rx.match?(ref) }&.last || :unknown
+        end
+
+        # A planned piece takes a comment before it goes out; one
+        # awaiting the user's word takes one too, to ask before giving it.
+        def comment(ref)
+            return if @planned.include?(ref) || !words_of(piece(ref)).empty?
+
+            refuse(409, "#{ref} is neither planned nor awaiting your " \
+                        "word; send it as a note.")
+        end
+
+        def order(fields)
+            proposed = @form["order"].split(LIST).reject(&:empty?)
+            unless @planned.length >= 2 && proposed.sort == @planned.sort
+                refuse(400, "The order must name each planned piece once: " \
+                            "#{@planned.join(", ")}.")
+            end
+            waits!(proposed)
+            fields["order"] = proposed
+        end
+
+        def waits!(proposed)
+            after = pieces.to_h { [it["id"], it["after"]] }
+            proposed.each_with_index do |ref, at|
+                late = after.fetch(ref, []) & proposed.drop(at + 1)
+                next if late.empty?
+
+                refuse(400, "#{ref} waits for #{late.join(", ")}: " \
+                            "put it after.")
+            end
+        end
+
+        def something?(fields)
+            return true unless @text.empty?
+
+            FILLED.any? { fields[it] && !fields[it].empty? }
+        end
+
+        def nothing! = refuse(400, "Nothing to send.")
+
+        def too_long!(fields)
+            notes = fields.fetch("notes", {}).values
+            return unless @text.length > MAX_TEXT ||
+                          notes.any? { it.length > MAX_TEXT }
+
+            refuse(400, "Keep each box under #{MAX_TEXT} characters.")
+        end
+
+        # Where the page goes back to: the card acted on.
+        def anchor(kind, ref)
+            return "inbox" if %i[note order].include?(kind)
+            return "q-#{ref}" if kind == :answer
+
+            words_of(piece(ref)).empty? ? "piece-#{ref}" : "p-#{ref}"
+        end
+
+        def pieces = @data["pieces"]
+        def piece(ref) = pieces.find { it["id"] == ref }
+        def words_of(piece) = piece ? piece["words"].map(&:first) : []
+        def refuse(status, why) = raise(Refusal.new(status, why))
+        def clean(text) = Render::Text.strip(text.gsub("\r\n", "\n"))
+    end
+end

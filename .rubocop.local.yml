@@ -1,0 +1,21 @@
+# Project relaxations, layered ON TOP of the house Ruby rules: the
+# Rakefile writes a temporary config that inherits from both, house
+# first, so an entry here can only ever relax a rule already in force.
+#
+# Not named .rubocop.yml on purpose. RuboCop would load that file
+# ALONE and silently drop the house rules, which is the opposite of
+# what this file is for. Copy it to the project root as
+# .rubocop.local.yml, and give every entry added later its reason.
+
+# A rake namespace is a table of tasks, and preflight.rake is a list
+# of independent probes -- gems, files, tools, addresses -- that share
+# a printer. Splitting either to satisfy a line count scatters the
+# commands across files without making any one of them easier to
+# find. The rule is right about logic and wrong about tables.
+Metrics/BlockLength:
+  Exclude:
+    - "rakelib/*.rake"
+
+Metrics/ModuleLength:
+  Exclude:
+    - "rakelib/*.rake"

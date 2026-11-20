@@ -1,0 +1,6 @@
+/vendor/
+/.bundle/
+/config/tls/
+/tls/
+/test/local.rb
+/tmp/

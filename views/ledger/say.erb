@@ -1,0 +1,2 @@
+<%# <%== carries the parts SayForm built, each with its own escaping. %>
+<form class="say" method="post" action="/l/<%= lid %>/say"><input type="hidden" name="token" value="<%= token %>"><input type="hidden" name="ref" value="<%= ref %>"><% unless replaces.empty? %><input type="hidden" name="replaces" value="<%= replaces %>"><% end %><%== middle %><%== box %><div class="actions"><button type="submit"><%== icon("send") %><%= submit %></button><%== after %></div></form>

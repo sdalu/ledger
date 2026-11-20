@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ledger viewer</title>
+<link rel="stylesheet" href="<%= to("/viewer.css", false) %>">
+</head>
+<body>
+<main>
+<%# the view's own markup, already escaped where it holds data %>
+<%== yield %>
+</main>
+</body>
+</html>

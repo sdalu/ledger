@@ -1,0 +1,36 @@
+#!/bin/sh
+# ledger-viewer -- serve the live ledgers: resolve the checkout, refuse
+# the two contradicting modes, exec puma at config.ru. Nothing to
+# source: every setting is in config/, which config/puma.rb and
+# config.ru read themselves. `rake server` execs this; it also works on
+# its own.
+set -eu
+
+# $0 is the path this was invoked by, a symlink's own when linked from
+# ~/bin: follow the chain, readlink without -f being the portable one.
+self=$0
+while [ -L "$self" ]; do
+    link=$(readlink -- "$self")
+    case $link in
+        /*) self=$link ;;
+        *)  self=$(dirname -- "$self")/$link ;;
+    esac
+done
+root=$(cd -- "$(dirname -- "$self")/.." && pwd)
+
+# PRODUCTION=1 names the environment rather than leaving it to an unset
+# RACK_ENV; DEBUG=1 is for editing. lib/ledger_viewer.rb refuses the
+# pair too, for whatever starts it some other way.
+if [ "${PRODUCTION:-}" = 1 ]; then
+    if [ "${DEBUG:-}" = 1 ]; then
+        printf '%s: PRODUCTION=1 and DEBUG=1 contradict each other; pick one.\n' \
+               "${0##*/}" >&2
+        exit 2
+    fi
+    RACK_ENV=production
+    export RACK_ENV
+fi
+
+cd -- "$root"
+
+exec bundle exec puma -C config/puma.rb config.ru "$@"

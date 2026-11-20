@@ -1,0 +1,2 @@
+<%# <%== carries the pictures and the note, built by SayForm. %>
+<fieldset class="pick"><legend class="item"><%= item %></legend><%== inside %><div class="opts"><% options.each_with_index do |option, i| %><span class="opt"><input type="radio" id="<%= fid %>-i<%= at %>c<%= i %>" name="pick:<%= item %>" value="<%= option %>"<% if picked == option %> checked<% end %>><label for="<%= fid %>-i<%= at %>c<%= i %>"><%= codes[i] %></label></span><% end %></div><%== note %></fieldset>

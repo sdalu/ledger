@@ -1,0 +1,2 @@
+<%# <%== carries the tip's attributes and box, built by the caller. %>
+<figure class="mockup"><pre class="figure-text"><%= body %><%== "\n…" if cut %></pre><figcaption><span><%= label %></span><span class="mock-tools"><button type="button" class="a-expand" data-src="<%= url %>" data-kind="text" data-label="<%= label %>" hidden<%== attrs %>><%== icon("maximize-2") %>Expand</button><%== box %><a href="<%= url %>" target="_blank" rel="noopener"><%== icon("external-link") %>Open in a new tab</a></span></figcaption></figure>

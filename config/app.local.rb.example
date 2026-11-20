@@ -1,0 +1,45 @@
+# -*- ruby -*-
+# frozen_string_literal: true
+
+# What is true of THIS machine. Copy to
+# ~/.config/ledger-viewer/app.local.rb, outside the checkout (which is
+# pushed, and this file holds a secret); it is evaluated at boot and
+# must end in a Hash. $LEDGER_VIEWER_LOCAL names another file instead
+# (a sandbox run). The checkout's config/app.local.rb is not read.
+# tls_dir (default ~/.config/ledger-viewer/tls) is where rake tls keeps
+# the certificate and key, and may be set here too.
+# The values below are documentation values: replace them.
+
+{
+    # The directories searched for ledgers (three levels down, for git
+    # projects), or a ledger file named directly.
+    roots: ["/srv/projects"],
+
+    # What signs browsers' sessions: 32 characters at least, kept here
+    # because one made up per boot would sign everybody out at every
+    # restart. For example: ruby -rsecurerandom -e 'puts SecureRandom.hex(32)'
+    session_secret: "replace-this-with-32-or-more-random-characters",
+
+    # Where puma listens, when not the program's default. Name each
+    # address rather than 0.0.0.0. Plain host:port or tcp://host:port.
+    bind: "tcp://127.0.0.1:4590",
+
+    # Networks whose callers need no sign-in, to be named only when
+    # wanted (the program's default is none: everyone signs in). Each is
+    # 192.0.2.0/24, ::1/128 or one address, and is checked against the
+    # socket's peer address, never a forwarded header; one that does not
+    # parse stops the start. Left out of the values here so that this
+    # file is not a way in as it stands:
+    #   lan: ["192.0.2.0/24"],
+
+    # HTTPS, from a certificate authority (rake tls:cert asks it, rake
+    # check:certificates says whether it will be accepted). nil serves
+    # plain http. root is what `rake tls:root` prints, compared with
+    # what the authority itself prints; names: (optional) replaces the
+    # bound addresses as what the certificate must name.
+    tls: {
+        ca:       "http://ca.example.com:4580",
+        protocol: "own",
+        root:     "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+    }
+}

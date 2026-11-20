@@ -1,0 +1,11 @@
+<h1>Accept an invitation</h1>
+<p data-greeting hidden></p>
+<form data-page="invite" data-check="<%= to("/session/invite/check", false) %>"
+      data-endpoint="<%= to("/session/invite", false) %>"
+      data-next="<%= to("/sign-in", false) %>" hidden>
+<p><label>New password <input name="password" type="password"
+   autocomplete="new-password" required></label></p>
+<p><button>Set password</button></p>
+</form>
+<p class="problem" role="alert" hidden></p>
+<script src="<%= to("/pages.js", false) %>"></script>

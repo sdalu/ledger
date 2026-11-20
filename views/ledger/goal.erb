@@ -1,0 +1,2 @@
+<%# <%== carries the paragraphs and the words, built by Goals. %>
+<section class="goal"><%== parts.join %><details class="goal-words"<% unless key.empty? %> id="<%= key %>"<% end %><% if opened %> open<% end %>><summary><%= said %></summary><blockquote><div class="md"><%== words %></div></blockquote></details></section>

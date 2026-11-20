@@ -1,0 +1,1 @@
+<details<% unless body.empty? %> open<% end %>><summary>Comment on <%= what %></summary><% if asks %><p class="comment-needed" id="<%= needed %>">Needed for <%= what %>: <%= for_what %></p><% end %><textarea name="note:<%= key %>" maxlength="4000"<% if asks %> aria-describedby="<%= needed %>"<% end %> aria-label="Comment on <%= what %>"><%= body %></textarea></details>

@@ -1,0 +1,10 @@
+<h1>What waits on you</h1>
+<p class="queue-summary"><%= summary %></p>
+<% if queue.empty? %><p class="queue-empty">Nothing waits on you.</p><% else %><ol class="queue"><%== queue.join %></ol><% end %>
+<% unless noid.empty? %><ul class="queue-noid"><%== noid.join %></ul><% end %>
+<div class="index-panels">
+<% unless theirs.empty? %><section class="theirs"><h2>The sessions' turn</h2><ul><%== theirs.join %></ul></section><% end %>
+<section class="ledgers"><h2>Ledgers</h2>
+<% if rows.empty? %><p>No live ledger under the roots given.</p><% else %><table><thead><tr><th scope="col">Ledger</th><th scope="col">State</th><th scope="col">Criteria</th><th scope="col">Pieces</th></tr></thead><tbody><%== rows.join %></tbody></table><% end %>
+</section></div>
+<%== partial("shared/legend", key: "index") %>

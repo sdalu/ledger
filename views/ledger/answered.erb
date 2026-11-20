@@ -1,0 +1,2 @@
+<%# <%== carries the chips. %>
+<h3 id="answered-today">Answered today</h3><ul class="entries answered"><% lines.each do |line| %><li class="is-done"><%== chip(line.id) %> <a class="text" href="#dec-<%= line.at %>"><%= line.title %></a><% unless line.letter.empty? %><div class="meta">chose <%= line.letter %></div><% end %></li><% end %></ul>

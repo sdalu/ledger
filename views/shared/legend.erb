@@ -1,0 +1,14 @@
+<%# <%== carries markup the helpers built: chips, icons, escaped inside. %>
+<details class="legend" id="<%= key %>-legend">
+<summary><%== icon("info") %>What the ids and colours mean</summary>
+<dl>
+<% legend_ids.each do |letter, meaning| %>
+<dt><%== chip("#{letter}12") %></dt><dd><%= meaning %></dd>
+<% end %>
+</dl>
+<dl>
+<% legend_colours.each do |css, meaning| %>
+<dt><span class="swatch <%= css %>"></span></dt><dd><%= meaning %></dd>
+<% end %>
+</dl>
+</details>

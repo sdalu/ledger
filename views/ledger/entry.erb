@@ -1,0 +1,2 @@
+<%# <%== carries the chips, the inline text and the parts built by Entry. %>
+<li class="<%= cls %>"<%== anchor %>><% if card %><div class="card-head"><h3 class="text"><%== inline(text) %></h3> <span class="head-tags"><%== tags %><%== extra %></span></div><%== kase %><%== detail %><%== rest %><% elsif !extra.empty? %><div class="row-head"><%== tags %> <span class="text"><%== inline(text) %></span><%== extra %></div><%== rest %><% else %><%== tags %> <span class="text"><%== inline(text) %></span><%== rest %><% end %></li>

@@ -1,0 +1,2 @@
+<%# <%== carries the meaning, drawn by inline(), which escapes it. %>
+<strong><%= code %></strong><% unless meaning.empty? %> = <%== inline(meaning) %><% end %><% if chosen %> <span class="tag">recommended</span><% end %><% unless reason.empty? %><span class="why"><%== inline(reason) %></span><% end %>
