@@ -135,16 +135,20 @@ const [base, ledger, which] = process.argv.slice(2);
     const t = h.querySelector('.text').getBoundingClientRect(), g = h.querySelector('.head-tags').getBoundingClientRect();
     return g.top < t.bottom && g.left >= t.right - 1;
   }));
-  // status, id and trash together at the end of the head, the id last
-  // before the trash, one icon (24 px) apart
+  // status, id, the why icon and the trash together at the end of the head:
+  // the icon beside the id, then the trash one icon (24 px) apart
   const gap = await p.evaluate(() => {
     const h = [...document.querySelectorAll('#flight + ul .card-head')].find(x => x.querySelector('.drop-fold'));
     const s = h.querySelector('.tag.status').getBoundingClientRect(), d = h.querySelector('.drop-fold').getBoundingClientRect();
     const id = h.querySelector('.tag:not(.status)').getBoundingClientRect();
-    return {gap: d.left - id.right, together: id.left - s.right < 16 && s.right <= id.left,
+    const w = h.querySelector('.why-icon').getBoundingClientRect();
+    // beside: as close to the id as the id is to the status
+    return {gap: d.left - w.right,
+            beside: w.left - id.right >= 0 && w.left - id.right <= id.left - s.right + 1,
+            together: id.left - s.right < 16 && s.right <= id.left,
             end: h.getBoundingClientRect().right - d.right < 40};
   });
-  t('the tags sit by the trash, one icon apart', Math.abs(gap.gap - 24) <= 1 && gap.together && gap.end);
+  t('the tags sit by the trash, one icon apart', Math.abs(gap.gap - 24) <= 1 && gap.beside && gap.together && gap.end);
 
   // R20: a card's status is one pill: tapping the word opens its meaning
   // inside the same pill, after the word and without repeating it
