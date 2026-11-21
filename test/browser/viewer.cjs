@@ -59,6 +59,16 @@ const [base, ledger, which] = process.argv.slice(2);
   t('id and title one card head', s.head);
   t('text figure drawn in the card', s.figure);
   t('quote disabled until a selection', s.quoteOff);
+// A1: an id is used once, so each label names its own control
+t('A1: no id repeats on the ledger page', await p.evaluate(() => {
+  const seen = new Set();
+  return [...document.querySelectorAll('[id]')].every(x => !seen.has(x.id) && seen.add(x.id));
+}));
+// A2: the status pill opens from a target of at least 24 px each way
+t('A2: the status pill\'s summary is at least 24 px', await p.evaluate(() => {
+  const sums = [...document.querySelectorAll('.status-fold > summary')];
+  return sums.length > 0 && sums.every(x => { const r = x.getBoundingClientRect(); return r.width >= 24 && r.height >= 24; });
+}));
   // U3: wide, the side list and the goal's words are open and the list stands beside the waiting section
   t('wide: the sections and the goal\'s words open, the list beside the page', await p.evaluate(() => {
     const sec = document.querySelector('details.sections'), w = document.querySelector('.ledger-main > .goal > .goal-words');

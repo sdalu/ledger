@@ -657,11 +657,25 @@
   .status-fold {
     cursor: pointer;
     & > summary {
-      display: inline;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35em;
       min-block-size: 1.5rem;
+      min-inline-size: 1.5rem;
       list-style: none;
       &::-webkit-details-marker { display: none; }
+      /* the chevron says the pill opens; it turns when it has */
+      &::after {
+        content: "";
+        inline-size: 0.4em;
+        block-size: 0.4em;
+        border-inline-end: 2px solid currentColor;
+        border-block-end: 2px solid currentColor;
+        rotate: 45deg;
+        translate: 0 -0.1em;
+      }
     }
+    &[open] > summary::after { rotate: -135deg; translate: 0 0.1em; }
     & > .status-says { font-weight: 400; &::before { content: "\2014\00a0" / ""; } }
     &[open] {
       display: inline-flex;

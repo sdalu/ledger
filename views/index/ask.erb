@@ -3,4 +3,4 @@
 <% unless wait.empty? %><span class="wait"><%= wait %></span><% end %>
 <div class="question"><span class="title"><%== chip(id) %> <strong><%= title %></strong></span>
 <span class="where"><a href="/l/<%= lid %>"><%= name %></a> · <%= what %><%= risk %></span></div>
-<a class="answer" href="/l/<%= lid %>#<%= anchor %>"><%= label %><span class="visually-hidden"> <%= id %></span><%== icon("arrow-right") %></a></li>
+<a class="answer" href="/l/<%= lid %>#<%= anchor %>"><%= label %><span class="visually-hidden"> <%= title %> in <%= name %></span><%== icon("arrow-right") %></a></li>
