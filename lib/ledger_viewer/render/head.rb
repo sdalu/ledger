@@ -27,6 +27,7 @@ module LedgerViewer
                 data = @reading
                 path = @entry.path
                 { lid: @lid, nxt: next_step, tiles:, close: @word.close(data),
+                  abandon: @word.abandon(data),
                   path: Clock.short(path), status: data.status_text,
                   name: Helpers.project_name(@entry.project, path),
                   updated: Clock.updated(data.updated),

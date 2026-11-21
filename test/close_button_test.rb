@@ -63,6 +63,16 @@ class CloseButtonTest < ViewerTest
         assert_equal [409, 1], [last_response.status, entries.length]
     end
 
+    def test_your_messages_list_it_as_close_asked
+        finish
+        sign_in
+        say([%w[ref close]])
+        https "/l/#{@lid}"
+
+        assert_match(/<span class="meta">close asked · /, last_response.body)
+        refute_includes last_response.body, "malformed line"
+    end
+
     def test_the_session_closes_it_taking_the_entry
         finish
         sign_in

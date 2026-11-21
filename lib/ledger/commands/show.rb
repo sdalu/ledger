@@ -2,12 +2,17 @@
 
 require "json"
 
+require "ledger/abandon"
+
 module Ledger
     module Commands
         # `show PATH [ID] [--json]`: the whole ledger as Markdown, or one
-        # item as `key: value` lines; either one as JSON v1.
+        # item as `key: value` lines; either one as JSON v1. PATH is a live
+        # ledger's address or `L<id>`, live or closed; a closed one's
+        # Markdown ends with the line saying how it closed (Abandon.line).
         class Show < CLI::Command
             USAGE = "PATH [ID]"
+            LEDGER = /\AL([1-9]\d*)\z/
             SUMMARY = "the whole ledger as Markdown, or one item's fields " \
                       "and links"
             # The lists of the JSON document an id's letter is looked up in.
@@ -24,29 +29,39 @@ module Ledger
             end
 
             def run(path, ref = nil)
-                snapshot = snapshot(path)
-                return ledger(path, snapshot) unless ref
+                id = row(path)[:id]
+                snapshot = Snapshot.read(journal.db, id)
+                return ledger(id, snapshot) unless ref
 
-                item = item(path, snapshot, ref) or
+                item = item(id, snapshot, ref) or
                     refuse("#{ref} #{UNKNOWN} #{path}")
                 @out.puts @opts[:json] ? json(item) : text(item)
                 0
             end
 
-            def ledger(path, snapshot)
+            # The ledger row PATH names: an address, or L<id>.
+            def row(path)
+                match = LEDGER.match(path) or return journal.ledger(path)
+
+                journal.ledger_by_id(match[1].to_i)
+            end
+
+            def ledger(id, snapshot)
                 if @opts[:json]
-                    @out.puts Render::Json.generate(Read.ledger(journal, path))
+                    @out.puts Render::Json.generate(Read.ledger(journal, id))
                 else
                     @out.print Render::Markdown.render(snapshot)
+                    closed = Abandon.line(journal.db, snapshot.ledger)
+                    @out.puts "\n#{closed}" if closed
                 end
                 0
             end
 
-            def item(path, snapshot, ref)
+            def item(id, snapshot, ref)
                 return noticed(snapshot, ref) if ref.start_with?("Z")
 
                 lists = LISTS.fetch(ref[0], [])
-                doc = Read.ledger(journal, path)
+                doc = Read.ledger(journal, id)
                 found = doc.values_at(*lists).flatten.find { it[:id] == ref }
                 found && with_links(found, doc[:links], ref)
             end

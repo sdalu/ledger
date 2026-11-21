@@ -178,3 +178,133 @@ class CloseAfterActionTest < CommandCase
         refute_includes out, "after action:"
     end
 end
+
+# `close --abandon`: an unfinished ledger closed in one event, its open
+# pieces dropped and its open questions closed by the user's decision,
+# the history kept; a close is not undone.
+class CloseAbandonTest < CommandCase
+    NEW = ["new", "--title", "Build a part", "--route",
+           "opus, effort: high"].freeze
+    DONE = ["--status", "verified", "--verified-by", "me",
+            "--evidence", "tests pass"].freeze
+
+    def setup
+        super
+        @session = ENV.delete("CLAUDE_CODE_SESSION_ID")
+        5.times { ok("piece", BETA, *NEW) }
+        ok("piece", BETA, "P2", "--status", "out", "--session", "s1")
+        ok("piece", BETA, "P3", "--status", "blocked")
+        ok("piece", BETA, "P4", *DONE)
+        ok("ask", BETA, "Which palette wins?", "--title", "Palette choice",
+           "--problem", "nothing chosen yet", "--risk", "2/10 — a redraw",
+           "--no-picture", "words alone")
+    end
+
+    def teardown
+        ENV.delete("CLAUDE_CODE_SESSION_ID")
+        ENV["CLAUDE_CODE_SESSION_ID"] = @session if @session
+        super
+    end
+
+    def statuses
+        db[:pieces].where(ledger_id: @beta).order(:n).select_map(:status)
+    end
+
+    def last_argv = JSON.parse(db[:events].reverse(:id).get(:argv))
+
+    def test_one_event_closes_it_and_its_argv_holds_the_flag
+        events = db[:events].count
+        out = ok("close", BETA, "--abandon")
+
+        assert_includes out.lines(chomp: true),
+                        "abandoned: #{BETA} (L#{@beta})"
+        assert_equal [events + 1, true],
+                     [db[:events].count, last_argv.include?("--abandon")]
+    end
+
+    def test_the_open_pieces_are_dropped_and_the_questions_closed
+        ok("close", BETA, "--abandon")
+
+        assert_equal %w[dropped dropped dropped verified dropped], statuses
+        refute_nil db[:questions].where(ledger_id: @beta).get(:closed_at)
+        decision = db[:decisions].where(ledger_id: @beta).first
+        assert_equal ["O1: abandoned with the ledger", "user", "O1"],
+                     decision.values_at(:body, :by, :subject)
+    end
+
+    # As `word --word drop` drops one: a dropped piece awaits nothing.
+    def test_a_dropped_piece_keeps_no_awaits_nor_scope
+        ok("piece", BETA, "P5", "--problem", "it waits", "--risk",
+           "4/10 — a bad push", "--awaits", "start, other (the shots)",
+           "--scope", "start = begin it | other = look at them")
+        refute_empty db[:piece_awaits].all
+        ok("close", BETA, "--abandon")
+
+        assert_empty db[:piece_awaits].all
+        assert_empty db[:piece_scopes].all
+    end
+
+    def test_the_history_stays_and_nothing_undoes_it
+        ok("close", BETA, "--abandon")
+        before = state
+
+        assert_equal 2, cli("undo", BETA)[0]
+        assert_equal before, state
+        assert_operator db[:events].where(ledger_id: @beta).count, :>, 1
+    end
+
+    def test_an_entry_pending_still_refuses_it
+        Ledger::Inbox.append(@journal, BETA, [{ "text" => "wait" }],
+                             actor: "viewer:anna")
+        before = state
+        code, out, err = cli("close", BETA, "--abandon")
+
+        assert_equal 1, code
+        assert_includes out, "FAIL inbox -- the user's entries not filed yet"
+        refute_includes out, "final-"
+        assert_includes err, "not abandoned; an entry is pending"
+        assert_equal before, state
+    end
+
+    # The viewer's Abandon: shown with the command that files it, taken
+    # in the close's own event.
+    def test_the_abandon_asked_from_the_viewer_is_taken
+        Ledger::Inbox.append(@journal, BETA, [{ "ref" => "abandon",
+                                                "text" => "" }],
+                             actor: "viewer:anna")
+        assert_includes ok("inbox", BETA),
+                        "the word to abandon the ledger: ledger close PATH " \
+                        "--abandon --take N<n>"
+        ok("close", BETA, "--abandon", "--take", "N1")
+        taken = db[:inbox_entries].where(ledger_id: @beta).get(:taken_id)
+        assert_equal db[:events].where(ledger_id: @beta).max(:id), taken
+    end
+
+    def test_show_tells_it_apart
+        gamma = finished_gamma
+        ok("close", BETA, "--abandon")
+
+        assert_match(/\n\nabandoned: \d{4}-/, ok("show", "L#{@beta}"))
+        assert_match(/\n\nclosed: \d{4}-/, ok("show", "L#{gamma}"))
+    end
+
+    def test_stats_tells_it_apart
+        finished_gamma
+        ok("close", BETA, "--abandon")
+
+        assert_equal "closed ledgers: 1 finished, 1 abandoned",
+                     ok("stats").lines(chomp: true).last
+        assert_equal({ "finished" => 1, "abandoned" => 1 },
+                     JSON.parse(ok("stats", "--json"))["closed"])
+        refute JSON.parse(ok("stats", "L#{@beta}", "--json")).key?("closed")
+    end
+
+    # A second ledger, finished and closed; its id.
+    def finished_gamma
+        gamma = "/work/gamma/LEDGER.md"
+        ok("new", gamma, *GOAL)
+        ok("criterion", gamma, "D1", "--met", "seen")
+        ok("close", gamma)
+        db[:ledgers].where(place: "/work/gamma").get(:id)
+    end
+end

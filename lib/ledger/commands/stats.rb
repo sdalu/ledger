@@ -2,14 +2,16 @@
 
 require "json"
 
+require "ledger/abandon"
 require "ledger/stats"
 
 module Ledger
     module Commands
         # `stats [PATH] [--json]`: a track record per route, one row per
         # group, over every ledger, live and closed, or one ledger: a live
-        # one by its address, any one by L<id>. Reads only: no event, no
-        # beat.
+        # one by its address, any one by L<id>; over every ledger, a last
+        # line counts the closed ones, finished and abandoned (Abandon).
+        # Reads only: no event, no beat.
         class Stats < CLI::Command
             USAGE = "[PATH]"
             SUMMARY = "a track record per route over every ledger or one: " \
@@ -27,8 +29,23 @@ module Ledger
 
             def run(path = nil)
                 groups = Ledger::Stats.read(journal.db, ledgers(path))
-                @out.puts @opts[:json] ? json(groups) : text(groups)
+                closed = path ? nil : closed_counts
+                @out.puts @opts[:json] ? json(groups, closed) : text(groups)
+                @out.puts closed_line(closed) if closed && !@opts[:json]
                 0
+            end
+
+            # Over every ledger, the closed ones: {finished:, abandoned:}.
+            def closed_counts
+                db = journal.db
+                ids = db[:ledgers].exclude(closed_at: nil).select_map(:id)
+                abandoned = Abandon.ids(db, ids).size
+                { finished: ids.size - abandoned, abandoned: }
+            end
+
+            def closed_line(counts)
+                "closed ledgers: #{counts[:finished]} finished, " \
+                    "#{counts[:abandoned]} abandoned"
             end
 
             def ledgers(path)
@@ -39,9 +56,11 @@ module Ledger
                 [(row || journal.ledger(path))[:id]]
             end
 
-            def json(groups)
+            # `closed` only over every ledger.
+            def json(groups, closed)
                 JSON.generate(schema: Render::Json::SCHEMA, kind: "stats",
-                              groups: groups.map { group(it) })
+                              groups: groups.map { group(it) },
+                              **({ closed: } if closed))
             end
 
             def group(group)

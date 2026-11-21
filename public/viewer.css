@@ -573,9 +573,10 @@
     & .drop-says { font-size: 0.875rem; }
   }
 
-  /* the ledger's Close, under the next step when the status proposes it:
-     the summary opens the request, the form's button alone sends it */
-  .close-fold {
+  /* the ledger's Close, under the next step when the status proposes it,
+     and its Abandon, on any live ledger: the summary opens the request,
+     the form's button alone sends it */
+  :is(.close-fold, .abandon-fold) {
     justify-self: start;
     & > summary {
       display: inline-flex;
@@ -593,8 +594,10 @@
       &:hover { background: var(--inset); }
     }
     &[open] > summary { background: var(--inset); }
-    & .close-title { font-size: 1rem; font-weight: 700; line-height: 1.35; }
-    & .close-says { font-size: 0.875rem; }
+    & :is(.close-title, .abandon-title) { font-size: 1rem; font-weight: 700; line-height: 1.35; }
+    & :is(.close-says, .abandon-says) { font-size: 0.875rem; }
+    /* abandoning drops work: its button says so as a drop's does */
+    & .say button.a-abandon { border-color: var(--fail); background: var(--fail); }
   }
 
   /* a card's status is a disclosure inside its own pill: opened, the meaning

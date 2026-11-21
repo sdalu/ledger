@@ -25,12 +25,12 @@ module LedgerViewer
 
             module_function
 
-            # The kind of an inbox entry by its ref: note, order, answer,
-            # comment, or nil.
+            # The kind of an inbox entry by its ref: note, order, close,
+            # abandon, answer, comment, or nil.
             def kind(ref)
                 case ref
                 when nil then "note"
-                when "order" then "order"
+                when "order", "close", "abandon" then ref
                 when /\AO\d+\z/ then "answer"
                 when /\AP\d+\z/ then "comment"
                 end

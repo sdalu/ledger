@@ -1,41 +1,54 @@
 # frozen_string_literal: true
 
+require "ledger/abandon"
 require "ledger/after_action"
 require "ledger/commands/answer"
 
 module Ledger
     module Commands
-        # `close PATH [--take N<n>...]`: a finished ledger leaves the live
-        # ones, its row kept with `closed_at`; refused while `--final`
-        # fails or an entry of the viewer is pending. `--take` files the
-        # entries that asked for it (the viewer's Close) in the same event.
+        # `close PATH [--abandon] [--take N<n>...]`: a ledger leaves the
+        # live ones, its row kept with `closed_at`; refused while an entry
+        # of the viewer is pending, and while `--final` fails unless it is
+        # abandoned (Abandon: its open pieces dropped, its open questions
+        # closed, in the same event). `--take` files the entries that
+        # asked for it (the viewer's Close or Abandon) in the same event.
         # A close done prints its after-action block (AfterAction) first.
         class Close < CLI::Command
             include Taking
 
             USAGE = "PATH"
-            SYNOPSIS = "PATH [--take N<n>...]"
-            SUMMARY = "close a finished ledger; refused while check --final " \
-                      "fails or an entry is pending"
+            SYNOPSIS = "PATH [--abandon] [--take N<n>...]"
+            SUMMARY = "close a finished ledger, or abandon an unfinished " \
+                      "one; refused while check --final fails (unless " \
+                      "--abandon) or an entry is pending"
 
-            # The FAIL lines of a ledger not finished.
+            # The FAIL lines of a ledger not closed.
             class Unfinished < Error
                 attr_reader :lines
 
-                def initialize(lines)
-                    super("not closed; --final fails")
+                def initialize(lines, message)
+                    super(message)
                     @lines = lines
                 end
             end
 
             private
 
-            def flags(parser) = take_flag(parser)
+            def flags(parser)
+                parser.on(Abandon::FLAG, "close it unfinished: open pieces " \
+                                         "dropped, open questions closed") do
+                    @opts[:abandon] = true
+                end
+                take_flag(parser)
+            end
+
+            def abandon? = @opts.fetch(:abandon, false)
 
             def run(path)
                 id, noticed = closing(path)
                 AfterAction.lines(journal.db, id).each { @out.puts it }
-                @out.puts "closed: #{Address.parse(path)} (L#{id})"
+                done = abandon? ? "abandoned" : "closed"
+                @out.puts "#{done}: #{Address.parse(path)} (L#{id})"
                 carry(noticed)
                 0
             rescue Unfinished => e
@@ -44,11 +57,13 @@ module Ledger
                 1
             end
 
-            # The one write: the entries --take names taken, then the close.
+            # The one write: the entries --take names taken, an abandon's
+            # drops and decisions, then the close.
             def closing(path)
                 ids = takes
                 write(path) do |change|
                     take(change, ids)
+                    Abandon.write(change, journal.db) if abandon?
                     close(change)
                 end.value
             end
@@ -56,21 +71,36 @@ module Ledger
             # -> [ledger id, noticed lines]; Unfinished when a rule fails.
             def close(change)
                 snapshot = Snapshot.read(journal.db, change.ledger_id)
-                failed = reports(snapshot).reject { it[1] }
-                raise(Unfinished, failed.map { fail_line(*it) }) if failed.any?
-
+                passes!(snapshot)
                 change.update(:ledgers, change.ledger_id, closed_at: Write.now)
                 [change.ledger_id, noticed(snapshot)]
             end
 
+            def passes!(snapshot)
+                failed = reports(snapshot).reject { it[1] }
+                return if failed.empty?
+
+                raise Unfinished.new(failed.map { fail_line(*it) }, refusal)
+            end
+
+            def refusal
+                return "not closed; --final fails" unless abandon?
+
+                "not abandoned; an entry is pending"
+            end
+
             def noticed(snapshot) = snapshot.noticed.map { it[:line] }
 
+            # The rules a close passes; an abandon passes the inbox's alone.
             def reports(snapshot)
                 waiting = snapshot.inbox_entries.reject { it[:taken_id] }
                                   .map { "N#{it[:n]}" }
-                [*Checks.run(snapshot, final: true),
-                 ["inbox", waiting.empty?,
-                  "the user's entries not filed yet: #{waiting.join(", ")}"]]
+                inbox = ["inbox", waiting.empty?,
+                         "the user's entries not filed yet: " \
+                         "#{waiting.join(", ")}"]
+                return [inbox] if abandon?
+
+                [*Checks.run(snapshot, final: true), inbox]
             end
 
             def fail_line(name, _ok, detail)

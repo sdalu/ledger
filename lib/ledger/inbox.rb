@@ -20,8 +20,9 @@ module Ledger
     module Inbox
         STAMP = "%Y-%m-%d %H:%M:%S"
         # What an entry is about: a question, a piece, the order, or the
-        # ledger itself (close).
-        REF = /\A(?:order|close|[OP][1-9]\d*)\z/
+        # ledger itself (close, abandon).
+        REF = /\A(?:order|close|abandon|[OP][1-9]\d*)\z/
+        REFS = "O<n>, P<n>, order, close or abandon"
         # Fields the journal gives, never the caller.
         GIVEN = %w[id at].freeze
 
@@ -57,8 +58,7 @@ module Ledger
             ref = fields["ref"]
             return fields if ref.nil? || REF.match?(ref.to_s)
 
-            raise Refused,
-                  "ref is O<n>, P<n>, order or close, not #{ref.inspect}"
+            raise Refused, "ref is #{REFS}, not #{ref.inspect}"
         end
 
         def self.insert(change, fields, now)
