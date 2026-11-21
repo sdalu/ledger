@@ -734,7 +734,13 @@ ledger: an entry from the user waits on ADDRESS; run ledger inbox ADDRESS
   rewrites the record when the line starts a turn there. `--once` makes
   one pass.
 
-What the user sets up, once:
+What the user sets up, once. `rake waker:install` does the first two
+in `~/.claude/settings.json` (`SETTINGS=PATH` for another file):
+merged in, every other key and hook kept, a hook already running the
+same `ledger hook` word (as the skill's `ledger-hook.sh`) left alone,
+the file backed up to `settings.json.bak-waker` with its mode kept, and
+the probe's directory made; run twice, it changes nothing.
+`rake waker:uninstall` takes out exactly what it added.
 
 - **The hooks**, registered in their settings: `session-start` on
   SessionStart and `stamp` on Stop, each `command -v ledger >/dev/null
