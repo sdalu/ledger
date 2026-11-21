@@ -10,7 +10,8 @@ module LedgerViewer
             SLOTS = { "__ICON_X__" => "x",
                       "__ICON_MAXIMIZE__" => "maximize-2",
                       "__ICON_REFRESH__" => "refresh-cw" }.freeze
-            LOOK = { skip: false, ledger: false, styles: [].freeze }.freeze
+            LOOK = { skip: false, ledger: false, index: false,
+                     styles: [].freeze }.freeze
 
             def initialize(views, scope, stylesheet, javascript)
                 @views = views
@@ -21,7 +22,8 @@ module LedgerViewer
 
             # How a page looks beyond its body (LOOK): skip, the link past
             # the page's head to what waits; ledger, the page is a
-            # ledger's, which the script and the style address; styles,
+            # ledger's, which the script and the style address; index,
+            # the page is the index, whose rows the script swaps; styles,
             # more stylesheets' text, after the viewer's.
             def html(title:, body:, stamp:, **look)
                 unknown = look.keys - LOOK.keys

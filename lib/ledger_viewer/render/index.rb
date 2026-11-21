@@ -21,7 +21,7 @@ module LedgerViewer
                 entries.each { found.add(it, readings.fetch(it.id)) }
                 queue = queue_of(found.queue)
                 body = @scope.partial("index/body", **parts(found, queue))
-                @page.html(title: title(queue), body:, stamp:)
+                @page.html(title: title(queue), body:, stamp:, index: true)
             end
 
             private

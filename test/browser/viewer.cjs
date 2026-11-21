@@ -27,7 +27,13 @@ const [base, ledger, which] = process.argv.slice(2);
   const p = await b.newPage({viewport: {width: 1300, height: 900}});
   const errors = [];
   p.on('pageerror', e => errors.push(String(e)));
-  p.on('response', r => { if (r.status() >= 400) errors.push(r.status() + ' ' + r.url()); });
+  // a 500 the checks answer themselves (failing, below) is not a failed request
+  p.on('response', r => { if (r.status() >= 400 && r.headers()['x-check'] !== 'fallback') errors.push(r.status() + ' ' + r.url()); });
+  // the page's background fetch of itself answers 500: the way to the
+  // fallback of a change made elsewhere, the note on a ledger page and a
+  // reload on the index; the page's own loads go through
+  const failing = route => route.request().resourceType() === 'fetch'
+    ? route.fulfill({status: 500, headers: {'x-check': 'fallback'}, body: 'refused by the check'}) : route.continue();
 
   await p.goto(base + '/');
   const href = await p.getAttribute('ol.queue a.answer', 'href');
@@ -187,7 +193,9 @@ const [base, ledger, which] = process.argv.slice(2);
   t('the drop icon\'s tip shows on keyboard focus, as a line, not a column',
     dt.shown && dt.wide && dt.lines <= 2 && dt.centred);
 
-  // a draft changed and left holds the reload, and says the ledger changed
+  // a draft changed and left holds the reload, and says the ledger changed;
+  // the note is the fallback, reached here by a fetch of the page that fails
+  await p.route(base + page, failing);
   await p.evaluate(() => { document.querySelector('details.order-fold').open = true; });
   await p.fill('input[name="order"]', 'P3, P1');
   await p.click('h1');
@@ -258,7 +266,9 @@ const [base, ledger, which] = process.argv.slice(2);
     f.dispatchEvent(new Event('submit', {cancelable: true}));
     return sessionStorage.getItem(key) === null;
   }));
-  // the index is a queue to glance at: it still reloads quietly
+  await p.unroute(base + page, failing);
+  // the index is a queue to glance at: when its rows cannot be drawn anew
+  // it still reloads quietly
   await p.goto(base + '/');
   t('R5: a neutral id chip in the legend splits in gray: a pale letter, a solid number', await p.evaluate(() => {
     const lg = document.querySelector('#index-legend'); if (!lg) return false;
@@ -267,18 +277,79 @@ const [base, ledger, which] = process.argv.slice(2);
     const l = getComputedStyle(c.querySelector('.l')).backgroundColor, n = getComputedStyle(c.querySelector('.n')).backgroundColor;
     return l !== n && n !== 'rgba(0, 0, 0, 0)';
   }));
+  await p.route(base + '/', failing);
   await p.waitForTimeout(1500);
   await p.evaluate(() => { window.__mark = 1; });
   touch();
   await p.waitForTimeout(4500);
-  t('V6: a clean index reloads by itself', await p.evaluate(() => window.__mark === undefined));
+  t('V6: a clean index whose fetch fails reloads by itself', await p.evaluate(() => window.__mark === undefined));
   // the stream pushes it: within 3 s, before the 3 s fallback poll could
   await p.goto(base + '/');
   await p.waitForTimeout(1500);
   await p.evaluate(() => { window.__mark = 1; });
   touch();
   await p.waitForTimeout(2500);
-  t('a clean index reloads within 3 s while its EventSource is open', await p.evaluate(() => window.__mark === undefined));
+  t('a clean index whose fetch fails reloads within 3 s while its EventSource is open', await p.evaluate(() => window.__mark === undefined));
+  await p.unroute(base + '/', failing);
+  // V7: a clean index draws its changed rows again in place, without a reload
+  await p.goto(base + '/');
+  await p.waitForTimeout(1500);
+  const rowOf = () => document.querySelector('tr[data-key^="r:"]').textContent;
+  const rowWas = await p.evaluate(rowOf);
+  await p.evaluate(() => { window.__mark = 1; });
+  run('piece', 'P2', '--status', 'dropped');
+  await p.waitForFunction(w => document.querySelector('tr[data-key^="r:"]').textContent !== w, rowWas, {timeout: 6000}).catch(() => {});
+  t('V7: a clean index draws a changed row in place, without a reload', await p.evaluate(w =>
+    window.__mark === 1 && document.querySelector('tr[data-key^="r:"]').textContent !== w, rowWas));
+  run('undo');
+  // V7: a ledger page draws a card changed elsewhere in place: no reload,
+  // no note, and a fold open elsewhere stays open
+  await p.goto(base + page);
+  await p.waitForTimeout(1500);
+  await p.evaluate(() => { window.__mark = 1; document.querySelector('details.done-fold[id$="-facts"]').open = true; });
+  run('piece', 'P1', '--what', 'the range, documented where the API is');
+  const what = () => /documented where the API is/.test(document.getElementById('piece-P1').textContent);
+  await p.waitForFunction(what, null, {timeout: 6000}).catch(() => {});
+  t('V7: a card changed elsewhere is drawn anew in place, without a reload or a note', await p.evaluate(what)
+    && await p.evaluate(() => window.__mark === 1 && !document.querySelector('.stale-note')));
+  t('V7: a fold open elsewhere stays open', await p.evaluate(() => document.querySelector('details.done-fold[id$="-facts"]').open));
+  run('undo');
+  await p.waitForFunction(() => !/documented where the API is/.test(document.getElementById('piece-P1').textContent), null, {timeout: 6000}).catch(() => {});
+  // V7: a card being written in is not drawn anew: it says it changed, and
+  // its Update draws it, keeping the text
+  await p.evaluate(() => { document.querySelector('#p-P4 details.comment-box').open = true; });
+  await p.fill('#say-P4-word', 'my words, not sent');
+  await p.click('h1');
+  run('piece', 'P4', '--plan', 'commit it, then deploy the build on Friday');
+  await p.waitForSelector('#p-P4 .changed-line', {timeout: 6000}).catch(() => {});
+  t('V7: a held card keeps its text and says "Changed since you started" as a polite status', await p.evaluate(() => {
+    const c = document.getElementById('p-P4'), l = c.querySelector('.changed-line');
+    return !!l && l.getAttribute('role') === 'status' && /^Changed since you started/.test(l.textContent.trim())
+      && document.getElementById('say-P4-word').value === 'my words, not sent' && !/on Friday/.test(c.textContent)
+      && !document.querySelector('.stale-note');
+  }));
+  t('V7: its Update button is a 44 px target', await p.evaluate(() =>
+    document.querySelector('#p-P4 .changed-line button').getBoundingClientRect().height >= 44));
+  await p.click('#p-P4 .changed-line button');
+  await p.waitForFunction(() => /on Friday/.test(document.getElementById('p-P4').textContent), null, {timeout: 5000}).catch(() => {});
+  t('V7: Update draws the card anew and keeps the text', await p.evaluate(() => {
+    const c = document.getElementById('p-P4');
+    return /on Friday/.test(c.textContent) && !c.querySelector('.changed-line')
+      && document.getElementById('say-P4-word').value === 'my words, not sent';
+  }));
+  run('undo');
+  // V7: a status change moving a section count draws the card and the
+  // counts anew, with no note and no reload
+  await p.goto(base + page);
+  await p.waitForTimeout(1500);
+  const flightWas = await p.evaluate(() => Number(document.querySelector('#flight .count').textContent));
+  await p.evaluate(() => { window.__mark = 1; });
+  run('piece', 'P2', '--status', 'dropped');
+  await p.waitForFunction(() => !document.querySelector('#flight + ul #piece-P2'), null, {timeout: 6000}).catch(() => {});
+  t('V7: a piece dropped elsewhere leaves Unfinished for the record and its count drops, no note, no reload', await p.evaluate(w =>
+    window.__mark === 1 && !document.querySelector('#flight + ul #piece-P2') && !!document.querySelector('details.done-fold #piece-P2')
+    && Number(document.querySelector('#flight .count').textContent) === w - 1 && !document.querySelector('.stale-note'), flightWas));
+  run('undo');
 
   // W5: a stream lost for 10 s is shown, apart from the changed note, and
   // goes when the stream returns

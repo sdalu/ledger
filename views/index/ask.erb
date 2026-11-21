@@ -1,5 +1,5 @@
 <%# <%== carries markup the helpers built: the chip and the icon. %>
-<li class="is-ask">
+<li class="is-ask" data-key="q:<%= lid %>:<%= anchor %>">
 <% unless wait.empty? %><span class="wait"><%= wait %></span><% end %>
 <div class="question"><span class="title"><%== chip(id) %> <strong><%= title %></strong></span>
 <span class="where"><a href="/l/<%= lid %>"><%= name %></a> · <%= what %><%= risk %></span></div>

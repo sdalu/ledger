@@ -59,6 +59,17 @@ class IndexTest < ViewerTest
         refute_includes last_response.body, "beta"
     end
 
+    # What the script swaps on a change elsewhere: a page it knows by
+    # its kind, and rows it knows by their key.
+    def test_the_index_names_its_kind_and_keys_its_rows
+        sign_in
+        https "/"
+        lid = Digest::SHA1.hexdigest(Fixture.alpha(@dir))[0, 10]
+
+        assert_includes last_response.body, 'data-page="index"'
+        assert_includes last_response.body, %(data-key="r:#{lid}")
+    end
+
     def test_a_new_event_moves_the_stamp
         sign_in
         https "/stamp"

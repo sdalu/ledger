@@ -360,10 +360,20 @@ checks, noticed lines) and Dependencies (each after or by piece not
 settled, each deferred condition). A stalled piece says so in the side
 list too (`out · stalled 2 h · with sonnet`).
 A question already answered counts as the session's turn, not the
-user's. Every request reads the journal, and the index reloads itself
-within three seconds of a ledger changing, unless a form differs from
-what the server sent, a box is being typed in, or a mockup is open. A
-ledger page never reloads by itself: a note says *Ledger changed* with
+user's. Every request reads the journal. When a ledger changes, the
+page shown fetches itself again and draws anew only the parts the
+server now draws differently: on a ledger page the head, the cards, the
+section counts, the side list, the record folds and your messages; on
+the index its rows. The page does not move and the focus stays, and a
+fold keeps its open state. A part you hold (a form in it differing from
+what the server sent, the focus in it, its picture open, or an item of
+the tray from it) is left as it is and says *Changed since you started*
+with an *Update* button, which draws it anew and puts back what was
+typed or chosen where its field still is. A change outside those parts
+(the goal, the note or the order form, a section coming or going), or a
+page that cannot be fetched, falls back: the index reloads itself
+unless a form differs from what the server sent, a box is being typed
+in, or a mockup is open, and a ledger page says *Ledger changed* with
 a *Refresh* button, which reloads and returns to the same scroll
 position and open folds, and puts back what was picked or typed in an
 answer form and not sent (kept in `sessionStorage` per ledger and item,
@@ -696,8 +706,8 @@ user. On the network, sign-in is the authentication: name a `lan`
 network only where every device on it is the user's.
 
 The viewer is pushed changes over server-sent events (`GET /events`): a
-page reloads, or notes that the ledger changed when a draft is open,
-within about a second of a ledger write. The 3 s poll of `/stamp`
+page draws its changed parts anew, or falls back to the note or the
+reload, within about a second of a ledger write. The 3 s poll of `/stamp`
 remains as the fallback, slowed to 30 s while the stream is open. A sent
 card reads `sent HH:MM · unfiled for N min`, a filed entry reads `filed
 at HH:MM` (the take event's time), and the header reads `Ledger updated
