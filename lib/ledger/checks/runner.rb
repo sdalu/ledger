@@ -8,6 +8,7 @@ require "ledger/checks/hints"
 require "ledger/checks/links"
 require "ledger/checks/open"
 require "ledger/checks/pieces"
+require "ledger/checks/sides"
 
 module Ledger
     # The check rules of `ledger check` (docs/journal.md, section 5), in
@@ -41,6 +42,8 @@ module Ledger
             rule("self-routed", Pieces.method(:self_routed)),
             rule("links", Links.method(:problems)),
             rule("pieces-awaits", Awaits.method(:problems)),
+            rule("pictures", Sides.method(:problems),
+                 prefix: "no before/after: "),
             rule("titles", ->(d) { Pieces.titles(d) + Open.titles(d) }),
             rule("details", ->(d) { Pieces.details(d) + Open.details(d) }),
             rule("codes", Codes.method(:problems)),

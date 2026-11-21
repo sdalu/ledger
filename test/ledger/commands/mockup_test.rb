@@ -131,7 +131,8 @@ end
 class MockupRefusalTest < MockupCase
     def test_a_picture_is_always_for_a_question
         assert_refused("mockup", BETA, file("a.png"),
-                       "a picture is always for a question: add --question")
+                       "a picture is always for a question or a piece: add " \
+                       "--question O<n> or --piece P<n>")
     end
 
     def test_the_question_must_be_open
@@ -182,5 +183,69 @@ class MockupRefusalTest < MockupCase
         assert_refused("mockup", BETA, "usage: ledger mockup PATH FILE...")
         assert_refused("mockup", "--question", "O1",
                        "usage: ledger mockup PATH FILE...")
+    end
+end
+
+# `mockup --piece`: one file placed as a piece's before or after.
+class MockupPieceTest < MockupCase
+    def setup
+        super
+        ok("piece", BETA, "new", "--title", "Fix the reorder", "--route",
+           "sonnet, effort: low")
+    end
+
+    def side(name, role, *)
+        ok("mockup", BETA, file(name), "--piece", "P1", "--#{role}", *)
+    end
+
+    def sides = db[:piece_pictures].order(:position).select_map(%i[role name])
+
+    def test_each_role_is_placed_before_first
+        out = side("after.png", "after")
+        side("before.png", "before")
+        assert_equal [%w[before before.png], %w[after after.png]], sides
+        assert_equal "placed after.png as P1 after", out.lines.first.chomp
+        assert_equal %w[after.png before.png],
+                     db[:pictures].order(:id).select_map(:name)
+    end
+
+    def test_replace_takes_the_earlier_side_away_and_keeps_its_blob
+        side("b1.png", "before")
+        side("b2.png", "before", "--replace")
+        assert_equal [%w[before b2.png]], sides
+        assert_equal %w[b1.png b2.png], db[:pictures].order(:id)
+                                                     .select_map(:name)
+    end
+
+    def test_a_second_side_without_replace_is_refused
+        side("b1.png", "before")
+        assert_refused("mockup", BETA, file("b2.png"), "--piece", "P1",
+                       "--before", "P1 has its before (b1.png); add " \
+                                   "--replace to swap it")
+    end
+
+    def test_one_side_of_a_piece_and_not_a_question
+        png = file("a.png")
+        assert_refused("mockup", BETA, png, "--piece", "P1",
+                       "--piece places one side: --before or --after")
+        assert_refused("mockup", BETA, png, "--piece", "P1", "--before",
+                       "--after", "--piece places one side")
+        assert_refused("mockup", BETA, png, "--piece", "P1", "--before",
+                       "--question", "O1",
+                       "--question and --piece are exclusive")
+        assert_refused("mockup", BETA, png, "--piece", "P9", "--before",
+                       "no P9 under Pieces in #{BETA}")
+    end
+
+    def test_one_file_for_a_piece
+        png = file("a.png")
+        assert_refused("mockup", BETA, png, file("b.png"), "--piece", "P1",
+                       "--before", "--piece places one file")
+        file("dir/x.png")
+        assert_refused("mockup", BETA, File.join(@src, "dir"), "--piece",
+                       "P1", "--before", "--piece places one file, not a " \
+                                         "directory")
+        assert_refused("mockup", BETA, png, "--question", "O1", "--before",
+                       "--before and --after are for --piece")
     end
 end

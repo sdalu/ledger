@@ -622,6 +622,8 @@
 
   /* what an `other (…)` word needs, said on its card */
   .entries > li > .needed { margin-block-start: var(--space-xs); font-weight: 600; }
+  /* why a piece awaiting a word shows no before/after: said, not pressed */
+  .entries li .no-picture { margin-block-start: var(--space-xs); font-size: 0.875rem; color: var(--muted); }
   /* the way to a piece's or a decision's links page: a quiet icon beside its
      id chip, its sentence said on hover and to a screen reader */
   .why-icon {

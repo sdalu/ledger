@@ -82,26 +82,32 @@ module LedgerViewer
             end
 
             # `before-X` and its after, one tile with a side each.
-            def pair(name)
-                before = @pairs.fetch(name)
-                sides = [["Before", before], ["After", name]].map do |word, n|
-                    side(name, n, word)
+            def pair(name) = sides(@pairs.fetch(name), name, name)
+
+            # BEFORE and AFTER, one tile with a side each, under LABEL.
+            def sides(before, after, label)
+                sides = [["Before", before], ["After", after]].map do |word, n|
+                    side(label, n, word)
                 end
                 html = @scope.partial(
                     "ledger/mock_pair",
-                    { sides:, label: name, before: url(before),
-                      after: url(name) }
+                    { sides:, label:, before: url(before), after: url(after) }
                 )
-                Part.new(name, html, true)
+                Part.new(label, html, true)
             end
 
             def side(label, name, word)
+                @scope.partial("ledger/mock_side",
+                               button: side_button(label, name, word))
+            end
+
+            # NAME's thumbnail under WORD (Before or After).
+            def side_button(label, name, word)
                 text = "#{label} (#{word.downcase})"
                 kind = Folder.kind(name)
                 inner = thumb(url(name), kind, text) +
                         %(<span class="side-name">#{word}</span>)
-                @scope.partial("ledger/mock_side",
-                               button: button(name, kind, inner, text))
+                button(name, kind, inner, text)
             end
 
             def text(name)

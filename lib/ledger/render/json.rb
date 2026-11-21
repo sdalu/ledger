@@ -287,6 +287,10 @@ module Ledger
                     { id: "P#{piece[:n]}", **head(piece), **links(piece),
                       **prose(piece), **state(piece), brief: brief(piece),
                       criteria: criteria(piece), returns: returns(piece),
+                      pictures: @derive.pictures(piece).map do |row|
+                          row.slice(:role, :name)
+                      end,
+                      no_picture: piece[:no_picture],
                       line: @markdown.line("P#{piece[:n]}") }
                 end
 

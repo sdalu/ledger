@@ -287,3 +287,30 @@ class PieceReturnTest < PieceCase
         assert_equal "out", row[:status]
     end
 end
+
+# `piece --no-picture WHY`: why a piece awaiting a word shows no
+# before/after; the pictures check refuses the word without it.
+class PieceNoPictureTest < PieceCase
+    DONE = ["--status", "verified", "--verified-by", "me", "--evidence",
+            "green"].freeze
+
+    def test_the_reason_is_stored_and_kept
+        add(*CASE, *DONE, "--awaits", "commit", "--no-picture", "a rename")
+        assert_equal "a rename", row[:no_picture]
+        ok("piece", BETA, "P1", "--plan", "commit it")
+        assert_equal "a rename", row[:no_picture]
+    end
+
+    def test_an_empty_reason_is_refused
+        refused(*NEW, *ROUTE, "--no-picture", " ",
+                "--no-picture says why the piece needs no picture")
+    end
+
+    def test_awaiting_a_finishing_word_without_a_picture_is_refused
+        add(*CASE, *DONE)
+        refused("P1", "--awaits", "commit, push",
+                "piece: refused, pictures -- no before/after: P1 " \
+                "(awaits commit, push)")
+        ok("piece", BETA, "P1", "--awaits", "other (a look)")
+    end
+end

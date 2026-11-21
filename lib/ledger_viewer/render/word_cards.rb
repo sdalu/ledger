@@ -23,7 +23,7 @@ module LedgerViewer
                 prior = @reading.unfiled_on(piece["id"]).select { it["word"] }
                 ids = prior.map { it["id"] }
                 form = @kit.word.word(piece, ids, last)
-                needed = needed(piece)
+                needed = below(piece)
                 return receipt(piece, last, needed, form) if last
 
                 "#{card(piece)}#{needed}#{form}</li>"
@@ -50,6 +50,10 @@ module LedgerViewer
                 [piece["route_text"], (wait unless waited.empty?)]
                     .reject { it.to_s.empty? }.join(" · ")
             end
+
+            # What the card says under its head: what an other word
+            # needs, then the piece's before/after or why it has none.
+            def below(piece) = needed(piece) + @kit.mockups.sides(piece)
 
             def needed(piece)
                 others = Reading.words(piece).select { it.first == "other" }

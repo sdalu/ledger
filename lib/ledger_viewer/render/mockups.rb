@@ -1,20 +1,20 @@
 # frozen_string_literal: true
 
 require_relative "text"
-require_relative "tiles"
+require_relative "piece_tiles"
 
 module LedgerViewer
     module Render
         # The pictures a question names, and a flag for each one still
         # pending. Each name is one Tiles::Part, a tile in the card's
-        # strip or a figure loose in it.
+        # strip or a figure loose in it. And a piece's before/after.
         class Mockups
             # reading: the ledger's Reading; bytes: answers the bytes of
             # the picture of one file a name is.
             def initialize(scope, lid, reading, bytes)
                 @scope = scope
                 @reading = reading
-                @tiles = Tiles.new(scope, lid, files(reading), bytes)
+                @tiles = PieceTiles.new(scope, lid, files(reading), bytes)
             end
 
             # [the card's part, {item => the tiles for that item}] of a
@@ -26,6 +26,25 @@ module LedgerViewer
                 loose, inside = split(shown, items)
                 [flags(pictures) + missing.join + lay(loose),
                  inside.transform_values { lay(it) }]
+            end
+
+            # A piece's before/after, drawn side by side, and its reason
+            # for none, a muted line; "" when it has neither.
+            def sides(piece)
+                names = piece.fetch("pictures", [])
+                             .to_h { [it["role"], it["name"]] }
+                why = piece["no_picture"].to_s
+                reason = %(<p class="no-picture">no picture: ) \
+                         "#{Text.escape(why)}</p>"
+                "#{pair(piece, names)}#{reason unless why.empty?}"
+            end
+
+            # The before/after tile in a strip of its own.
+            def pair(piece, names)
+                return "" if names.empty?
+
+                tile = @tiles.roles(names, "#{piece["id"]} before/after")
+                %(<div class="mock-strip">#{tile.html}</div>)
             end
 
             private

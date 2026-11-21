@@ -154,3 +154,17 @@ class UndoRowsTest < UndoCase
                                          .map(&:b)
     end
 end
+
+# undo of a piece's picture.
+class UndoPiecePictureTest < CommandCase
+    def test_an_undone_piece_picture_is_taken_away
+        ok("piece", BETA, "new", "--title", "Fix the reorder", "--route",
+           "sonnet, effort: low")
+        file = File.join(@dir, "before.png")
+        File.binwrite(file, "png")
+        ok("mockup", BETA, file, "--piece", "P1", "--before")
+        ok("undo", BETA)
+        assert_empty db[:piece_pictures].all
+        assert_equal ["before.png"], db[:pictures].select_map(:name)
+    end
+end

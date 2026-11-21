@@ -133,8 +133,8 @@ class JsonTest < JsonCase
              inbox asked status fails].freeze
     PIECE = %i[id status kept_reason route route_text title detail done_when
                evidence after for awaits scope problem risk plan verified_by
-               claim ready stalled settled brief criteria returns
-               line].freeze
+               claim ready stalled settled brief criteria returns pictures
+               no_picture line].freeze
     QUESTION = %i[id title detail problem risk recommend choices items by see
                   pictures preparing preparing_status asked_since line].freeze
 

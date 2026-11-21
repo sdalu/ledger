@@ -8,10 +8,11 @@ module Ledger
     module Commands
         # `piece PATH new|P<n> [--status --route --title --what --done-when
         # --evidence --after --for --problem --risk --plan --scope --awaits
-        # --verified-by --session --by --cause]`: add a piece or change one;
-        # `--by X<n>` writes the decision's led_to edge to it, `--status
-        # out` claims it for the session (U12), `--status planned` on a
-        # piece out or back records its return with `--cause`.
+        # --verified-by --session --by --cause --no-picture]`: add a piece
+        # or change one; `--by X<n>` writes the decision's led_to edge to
+        # it, `--status out` claims it for the session (U12), `--status
+        # planned` on a piece out or back records its return with
+        # `--cause`, `--no-picture WHY` says why it needs no before/after.
         class Piece < CLI::Command
             USAGE = "PATH TARGET"
             SYNOPSIS = "PATH new|P<n> [--FIELD VALUE...]"
@@ -49,11 +50,21 @@ module Ledger
                 FLAGS.each do |name, what|
                     parser.on("--#{name} VALUE", what) { @opts[name] = it }
                 end
+                no_picture_flag(parser)
                 parser.on("--claim", "take over an out piece's claim for " \
                                      "this session; the status stays") do
                     @opts["claim"] = true
                 end
                 dry_run(parser)
+            end
+
+            # Spelled "--no-picture WHY", OptionParser would read the
+            # negation of a --picture switch and leave WHY behind.
+            def no_picture_flag(parser)
+                parser.on("--no-picture", "=WHY", String,
+                          "why the piece needs no before/after") do |why|
+                    @opts["no-picture"] = why
+                end
             end
 
             def run(path, target)
@@ -399,6 +410,19 @@ module Ledger
                 end
             end
 
+            # Why the piece needs no before/after; an empty why is
+            # refused, and none is ever cleared.
+            def no_picture
+                return unless @opts.key?("no-picture")
+
+                why = @opts["no-picture"].strip
+                if why.empty?
+                    refuse("--no-picture says why the piece needs no " \
+                           "picture")
+                end
+                @row[:no_picture] = why
+            end
+
             def kept(reason)
                 refuse("--status 'kept: REASON' says why") if reason.empty?
                 @row.merge!(status: "kept", kept_reason: reason)
@@ -452,7 +476,8 @@ module Ledger
             include PieceFlags
             include PieceCause
 
-            COLUMNS = (%i[status kept_reason dash title detail risk_rating] +
+            COLUMNS = (%i[status kept_reason dash title detail risk_rating
+                          no_picture] +
                        NO_ROUTE.keys + PROSE.values).freeze
             NEW = COLUMNS.to_h { [it, nil] }
                          .merge(status: "planned", dash: true).freeze
@@ -466,7 +491,7 @@ module Ledger
                 @opts = opts
                 @row = (old || NEW).slice(*COLUMNS)
                 [method(:what), method(:prose), method(:route),
-                 method(:status)].each(&:call)
+                 method(:status), method(:no_picture)].each(&:call)
                 @awaits = awaits_of(awaits)
                 @scopes = scopes_of(scopes)
                 complete

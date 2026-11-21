@@ -4,9 +4,9 @@ require_relative "ledger_commands"
 
 # The ledger test/browser/viewer.cjs expects, made by bin/ledger's
 # words in the caller's journal: the goal, D1, F1, the pieces P1 to P4,
-# the questions O1 to O3 with O1's two pictures (mockups/ beside this
-# file), and the inbox the viewer sent, N1 about O3 waiting and N2
-# taken.
+# the questions O1 to O3 with O1's two pictures and P4's before/after
+# (mockups/ beside this file), and the inbox the viewer sent, N1 about
+# O3 waiting and N2 taken.
 module BrowserFixture
     MOCKUPS = File.join(__dir__, "browser_fixture", "mockups")
     GOAL = ["--goal", "fix the calendar, the noise $\\sigma^2$ **bounded**",
@@ -25,7 +25,7 @@ module BrowserFixture
          "--problem", "the reorder fix is ready, not committed",
          "--risk", "2/10 — the fix waits; nothing breaks",
          "--plan", "commit it, then deploy the build",
-         "--awaits", "commit, deploy", "--status", "verified",
+         "--status", "verified",
          "--verified-by", "me",
          "--evidence", "suite green, see [P99](#piece-P99)"]
     ].freeze
@@ -76,10 +76,17 @@ module BrowserFixture
         QUESTIONS.each { run.call("ask", *it) }
     end
 
-    # O1's pictures: page.html in P1's pending place, then flow.txt.
+    # O1's pictures: page.html in P1's pending place, then flow.txt;
+    # P4's before and after, then the words it awaits, which ask for
+    # them.
     def self.pictures(run)
         %w[page.html flow.txt].each do |name|
             run.call("mockup", File.join(MOCKUPS, name), "--question", "O1")
         end
+        %w[before after].each do |role|
+            run.call("mockup", File.join(MOCKUPS, "reorder-#{role}.svg"),
+                     "--piece", "P4", "--#{role}")
+        end
+        run.call("piece", "P4", "--awaits", "commit, deploy")
     end
 end

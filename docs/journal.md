@@ -322,6 +322,35 @@ Sequel.migration do
 end
 ```
 
+```ruby
+# frozen_string_literal: true
+
+# lib/ledger/migrations/003_piece_pictures.rb (sketch)
+Sequel.migration do
+    change do
+        create_table(:piece_pictures) do # mockup --piece P<n> --before|--after
+            primary_key :id
+            foreign_key :piece_id, :pieces, null: false
+            Integer :position, null: false
+            String :role, null: false    # before | after
+            String :name, null: false    # a pictures.name of this ledger
+            index :piece_id
+        end
+        alter_table(:pieces) do
+            add_column :no_picture, String # P, --no-picture's why
+        end
+    end
+end
+```
+
+**A piece's before/after.** A piece awaiting a word that changes
+something the user sees shows it: `mockup PATH FILE --piece P<n>
+--before|--after` stores one file as a `pictures` row and a
+`piece_pictures` row naming it as that side (position 0 before, 1
+after); `piece P<n> --no-picture WHY` stores in `pieces.no_picture` why
+it needs none. Both go through the write path, so `undo` and `restore`
+take a side or a reason back; the blobs stay, as for a question (S1).
+
 **A piece's returns.** A piece out or back that goes back to planned
 (a retry) says why: `piece P<n> --status planned --cause C` writes a
 `piece_returns` row in the same event as the status, its time and actor
@@ -349,6 +378,7 @@ schema makes impossible (section 5):
 | piece_awaits | `word` in the list; `what <> ''` iff other |
 | piece_criteria | `mark IN (' ','x','-')` |
 | piece_returns | `from_status IN ('out','back')`; `cause IN ('brief','split','depth','contract','env')` |
+| piece_pictures | `role IN ('before','after')` |
 | questions | `risk_rating BETWEEN 0 AND 10` |
 | question_sees, question_pictures | exactly one target column set |
 | pictures | `name <> ''`; `type` in the served list |
@@ -358,7 +388,8 @@ schema makes impossible (section 5):
 A `pictures.name` is unique per ledger with its `path`; a mockup placed
 as a directory is one `name` with a row per file, `path` the file's
 place under it, the page the viewer opens being the one `mockup`'s
-picking rule names. A `question_pictures.name` is checked by the
+picking rule names. A `question_pictures.name` or a
+`piece_pictures.name` is checked by the
 writer against `pictures` of the same ledger (a foreign key cannot name
 a non-unique column). `links.to_row` is a row id in the table
 `to_kind` names (`X` decisions, `O` questions, `F` facts, `C`
@@ -460,8 +491,8 @@ event (`undo`, `undoes` = that event). One level: when the last such
 event is an undo, "nothing to undo". A `pictures` row is never written
 to `event_rows` (its bytes would double the journal) and never
 reverted: undoing a `mockup` event puts back the question's
-`question_pictures` rows alone, the blobs stay, as the files on disk
-stayed (S1).
+`question_pictures` rows, or the piece's `piece_pictures` rows, alone;
+the blobs stay, as the files on disk stayed (S1).
 
 **Restore (U1).** `restore ADDRESS --to E<n>` reverts, in one
 `restore` event, every item-changing event of the ledger after `E<n>`,
@@ -533,11 +564,12 @@ command's refusal, exit 2, nothing written.
 | `close PATH [--take N<n>…]` | the after-action block, read from the ledger's events once the close is written: `after action:`, then each of these lines that has an item: `returned: P2 (depth), P5 (unrecorded)` (every return, its cause from `piece_returns`, `unrecorded` without a row), `blocked: P4` (the pieces ever blocked), `stalled: P6 (2.5 h)` (the pieces with a span out over an hour, the longest), `answered: O1 12 min, O3 2.1 h` (each closed question, from the event inserting it to the event writing its `answers` edge; `O3 (no ask record)` or `O3 (no answer record)` when that event or edge is not found), `by me: X4` (the decisions by me); with none of these, the block is the one line `after action: nothing returned, blocked or stalled`; the returns, blocked pieces and spans are those `stats` counts, from the events still in force. Then `closed: ADDRESS (L<id>)`, then `noticed, to carry: N` and the lines; `--take` takes the entries (the viewer's Close, `ref` `close`) in the close's event | `--final` fails (FAIL lines, exit 1), a refused close taking nothing; inbox pending besides the entries taken; an entry unknown or taken |
 | `inbox PATH [--wait [--timeout S] \| --follow [--quiet S]]` | the pending entries, or "inbox: nothing pending"; polls the ledger's newest event id each second | `--wait` timeout exit 1 |
 | `take PATH N<n>…` | `taken: …; pending: …`; one `take` event setting `taken_id` | unknown id; "already taken at TIME: another session filed it" |
-| `piece PATH new\|P<n> [--status --route --title --what --done-when --evidence --after --for --problem --risk --plan --scope --awaits --verified-by --session --by X<n> --cause C --claim --dry-run]` | the new id (new), `claimed: P<n> from HOLDER` (`--claim`), the piece line, status line | target shape; no such piece; title, detail; scope grammar or a word not awaited; new without title; awaiting without problem and rated risk; no route and not kept; a return (`--status planned` from out or back) without `--cause` or with a cause not in `brief`, `split`, `depth`, `contract`, `env`; `--cause` on any other change; out without a session, or out under another holder; `--claim` on a new piece, with `--status`, without a session, or on a piece not out; verified without `--verified-by`; checks |
+| `piece PATH new\|P<n> [--status --route --title --what --done-when --evidence --after --for --problem --risk --plan --scope --awaits --verified-by --session --by X<n> --cause C --claim --no-picture WHY --dry-run]` | the new id (new), `claimed: P<n> from HOLDER` (`--claim`), the piece line, status line | target shape; no such piece; title, detail; scope grammar or a word not awaited; new without title; awaiting without problem and rated risk; no route and not kept; a return (`--status planned` from out or back) without `--cause` or with a cause not in `brief`, `split`, `depth`, `contract`, `env`; `--cause` on any other change; out without a session, or out under another holder; `--claim` on a new piece, with `--status`, without a session, or on a piece not out; verified without `--verified-by`; an empty `--no-picture`; checks (`pictures`: awaiting commit, deploy, push or merge without a before and an after or a reason) |
 | `ask PATH QUESTION --title [--choices --by --items --see --problem --risk --recommend] (--mockup N \| --pending P \| --no-picture WHY) [--replaces O<n>] [--dry-run]` | the id, the line, a warning at 7–8 options, the picker card (dry run), status line | title, detail; problem and rated risk; empty question; not exactly one picture decision; pending piece missing or dropped; no picture of that name in the journal; `--by` dropped; option grammar; `--items` without `--choices`; `--replaces` not open or with an untaken entry; checks |
 | `answer PATH O<n> --decision [--date] [--take N…] [--replaces X<n>] [--dry-run]` | the id (`X<n>`), the decision line, the take line, status line | not open; empty decision; unknown or already taken entry; checks |
 | `word PATH P<n> --word W [--date] [--take N…] [--dry-run]` | the id (`X<n>`), the decision line, the piece line, the take line, status line | not P<n>; no piece; empty; awaits no word; a word not awaited; unknown or taken entry; checks |
-| `mockup PATH FILE\|DIR… --question O<n> [--name] [--replace]` | `placed …` per file, the question line, `viewer: /l/ID (…/m/ID/NAME)` | no question; symlink; missing; nothing; a name `mockup:` cannot spell; a type not served; not open; a name already placed; `--name` not placed; no single page, image or text to pick |
+| `mockup PATH FILE\|DIR… --question O<n> [--name] [--replace]` | `placed …` per file, the question line, `viewer: /l/ID (…/m/ID/NAME)` | neither `--question` nor `--piece`; `--before` or `--after` with `--question`; symlink; missing; nothing; a name `mockup:` cannot spell; a type not served; not open; a name already placed; `--name` not placed; no single page, image or text to pick |
+| `mockup PATH FILE --piece P<n> --before\|--after [--replace]` | `placed FILE as P<n> ROLE`, status line; `--replace` takes the piece's earlier picture of that side away (its blob stays) | with `--question`; not P<n>; no such piece; not exactly one of `--before`, `--after`; more than one file, or a directory; that side already placed, without `--replace`; symlink; missing; a name `mockup:` cannot spell; a type not served; a name already placed |
 | `choice PATH O<n> (--add \| --drop) [--dry-run]` | the question line, the card (dry run), status line | not O<n>; not open; no choices; `--add` without ` = `; `--drop` unknown; option grammar; checks |
 | `fact PATH TEXT [--dry-run]` | the id, the line, status line | no ` — pointer` (text and pointer split at the first ` — `); checks |
 | `constraint PATH QUOTE --where W [--dry-run]` | the id, the line, status line | empty quote; empty where |
@@ -593,6 +625,7 @@ per rule, its commands spelled for `bin/ledger`
 | self-routed | no piece in flight, awaiting no word, routed `peer:` to the ledger's own project | `checks/pieces.rb` |
 | links | every link names a row of this ledger, and `after` never loops | `checks/links.rb` |
 | pieces-awaits | `start` only on a planned or kept piece, a finishing word on a settled one, a scope only for a word awaited | `checks/pieces.rb` |
+| pictures | a piece awaiting commit, deploy, push or merge has a `before` and an `after` placed (`mockup --piece`) or a `no_picture` reason; `start` and `other` are exempt, a word given leaves with its awaits row; the detail is `no before/after: P4 (awaits commit; has before)` | `checks/sides.rb` |
 | titles | pieces in flight and open questions: the title rule | `checks/pieces.rb`, `checks/open.rb` |
 | details | a detail not mostly ids | same |
 | codes | no code of one or two capitals and digits (W1, S4) standing alone whose letter is not a kind (P O D C F X N Z E L), unless an open question's `— see:` names an item whose words hold it; read in the latest Goal block's title, short and context, pieces in flight (title, detail, problem, plan), open questions (title, detail, problem, risk, recommend), decisions (body, note), facts (text, pointer), constraints' where and noticed lines; not in the Goal quote, a constraint's quote, double quotes, `` `code` `` or a URL; the detail is `ID: CODE, …`; a write is refused only for a code it adds (section 2) | `checks/codes.rb`, tokens in `text/codes.rb` |
@@ -651,7 +684,7 @@ other reader through `--json`; the hooks read the `Snapshot` and the
 | links | `[{kind, from, to}]`, visible ids at both ends |
 | closed_questions | the `questions` shape plus `closed_at`, the rows with `closed_at` set, oldest first (the graph page reads them) |
 | pictures | `[{name, files: [{path, type, size}]}]` |
-| pieces | `[{id, status, kept_reason, route: {model, effort, skills, peer} \| null, route_text, title, detail, done_when, evidence, after: [P], for: [D], awaits: [{word, what}], scope: [{word, text}], problem, risk: {rating, text}, plan, verified_by, claim: {session, since} \| null, ready, stalled, settled, brief: {version, at} \| null, criteria: [{text, mark, evidence}], returns: [{cause, from, at, actor}], line}]` (`returns` oldest first) |
+| pieces | `[{id, status, kept_reason, route: {model, effort, skills, peer} \| null, route_text, title, detail, done_when, evidence, after: [P], for: [D], awaits: [{word, what}], scope: [{word, text}], problem, risk: {rating, text}, plan, verified_by, claim: {session, since} \| null, ready, stalled, settled, brief: {version, at} \| null, criteria: [{text, mark, evidence}], returns: [{cause, from, at, actor}], pictures: [{role, name}], no_picture, line}]` (`returns` oldest first, `pictures` before first) |
 | questions | `[{id, title, detail, problem, risk: {rating, text}, recommend, choices: [{label, effect, cost, text}], items, by, see: [ids], pictures: [{name} \| {pending}], preparing: P \| null, preparing_status, asked_since, line}]` |
 | refs | `{id: {kind, line}}` for C, D, F, P and X |
 | noticed | `[line]` |
@@ -766,7 +799,7 @@ a temporary directory per test.
 
 | Area | Files |
 |---|---|
-| journal, write path | `lib/ledger.rb` (the `Ledger::Error` family), `lib/ledger/journal.rb`, `migrations/001_journal.rb`, `migrations/002_piece_returns.rb`, `snapshot.rb`, `write.rb` |
+| journal, write path | `lib/ledger.rb` (the `Ledger::Error` family), `lib/ledger/journal.rb`, `migrations/001_journal.rb`, `migrations/002_piece_returns.rb`, `migrations/003_piece_pictures.rb`, `snapshot.rb`, `write.rb` |
 | text rules | `lib/ledger/text/{title,picker,awaits,risk,options}.rb`, pure functions |
 | render | `lib/ledger/render/markdown.rb` (`show`), `render/json.rb` and `read.rb` (JSON v1) |
 | derived states, checks | `lib/ledger/derive.rb`, `lib/ledger/checks/*.rb` |

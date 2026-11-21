@@ -105,8 +105,8 @@ end
 class ChecksRunnerTest < CheckCase
     ALWAYS = %w[goal-titled goal-revision criteria open-choices
                 open-described open-picker self-routed links pieces-awaits
-                titles details codes pieces-order criteria-pieces case-rated
-                verified-by].freeze
+                pictures titles details codes pieces-order criteria-pieces
+                case-rated verified-by].freeze
     FINAL = %w[final-pieces final-awaits final-criteria].freeze
 
     def test_the_rules_run_in_order_and_final_adds_three
