@@ -292,7 +292,9 @@ Sequel.migration do
             Integer :n, null: false      # N<n>, a malformed line's too
             String :at, null: false      # the viewer's "YYYY-MM-DD HH:MM:SS"
             String :ref                  # O3, P4, "order", "close", NULL: not a key
-            String :payload, null: false # V: the JSON object as written
+            String :payload, null: false # V: the JSON object as written:
+                                         # ref, text, and choice, notes, picks,
+                                         # word, order, replaces or comment
             TrueClass :malformed, null: false, default: false
             foreign_key :taken_id, :events   # the take event
             unique %i[ledger_id n]
