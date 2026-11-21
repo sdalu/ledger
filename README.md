@@ -83,7 +83,11 @@ verified piece without evidence; an empty `done when:`.
 open questions (`waiting on you: O1, O2`); `check --final` refuses a
 finish with pieces still out or a criterion unmarked; `close` leaves
 the ledger's row in the journal marked closed, out of every hook's and
-the viewer's sight, and refuses while a viewer entry is pending. It
+the viewer's sight, and refuses while a viewer entry is pending; a
+close done first prints an after-action block, `after action:` with
+the returns and their causes, the pieces blocked or stalled out over an
+hour, the time each question took to answer and the decisions by me,
+read from the ledger's events with the numbers `stats` counts. It
 checks shape, not truth: a paraphrased goal in quote marks passes.
 
 `survey [DIR] [--peer NAME]` is the read for a session with no goal: the

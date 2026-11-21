@@ -57,6 +57,10 @@ module Ledger
                    .map { |(_, label), list| group(label, list) }
         end
 
+        # Each piece read through its history, a Track (`close` reads one
+        # ledger this way for its after-action block).
+        def tracks = @pieces.map { track(it) }
+
         private
 
         def ids = @pieces.map { it[:id] }
