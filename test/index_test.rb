@@ -81,5 +81,18 @@ class IndexTest < ViewerTest
 
         assert_equal 404, last_response.status
         assert_includes last_response.body, "Not found"
+        assert_includes last_response.body,
+                        '<a href="/">Back to all ledgers</a>'
+    end
+
+    # A ledger closed since its page was opened: the page is gone, the
+    # way back is not.
+    def test_a_ledger_no_longer_live_links_back_to_the_list
+        sign_in
+        https "/l/0000000000"
+
+        assert_equal 404, last_response.status
+        assert_includes last_response.body, "closed or abandoned"
+        assert_includes last_response.body, '<a href="/">All ledgers</a>'
     end
 end
