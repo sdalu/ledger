@@ -94,7 +94,7 @@ const [base, ledger, which] = process.argv.slice(2);
   await p.click('.ledger-head a[href="#say-note"]');
   t('Leave a note opens the box under the goal', await p.evaluate(() => {
     const box = document.getElementById('say-note'), fold = box.closest('details');
-    return fold.open && document.activeElement === box && ['goal', 'goal-history'].some(c => fold.previousElementSibling?.classList.contains(c));
+    return fold.open && document.activeElement === box && ['goal', 'goal-done'].some(c => fold.previousElementSibling?.classList.contains(c));
   }));
 
   // a criterion named by a piece is a link; following one in a closed fold opens it

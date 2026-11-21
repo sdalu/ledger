@@ -4,9 +4,10 @@ require_relative "text"
 
 module LedgerViewer
     module Render
-        # The goal blocks: the latest is what the work is now, with the
-        # session's title, short and context first and the user's words
-        # folded beneath; the earlier ones are its history.
+        # The goal blocks: each one still active open, newest first, with
+        # the session's title, short and context first and the user's
+        # words folded beneath; the done ones folded together under them,
+        # newest first, each with its evidence.
         class Goals
             PARTS = %w[title short context].freeze
 
@@ -18,24 +19,21 @@ module LedgerViewer
 
             # The goals as the page shows them, "" when there are none.
             def html(goals)
-                last = goals.length - 1
-                shown = goals.each_with_index.map do |goal, at|
-                    block(goal, at == last ? "#{@lid}-goal-words" : "")
+                done, active = goals.reverse.partition { it["done"] }
+                shown = active.each_with_index.map do |goal, at|
+                    block(goal, at.zero? ? "#{@lid}-goal-words" : "")
                 end
-                return "" if shown.empty?
-
-                shown.last + history(shown[0...-1])
+                shown.join + finished(done.map { block(it, "") })
             end
 
             private
 
-            def history(earlier)
-                return "" if earlier.empty?
+            def finished(blocks)
+                return "" if blocks.empty?
 
                 @scope.partial(
-                    "ledger/goal_history",
-                    { lid: @lid, count: earlier.length,
-                      blocks: earlier.reverse }
+                    "ledger/goal_done",
+                    { lid: @lid, count: blocks.length, blocks: }
                 )
             end
 
@@ -43,20 +41,30 @@ module LedgerViewer
                 opened = !(goal["title"] || goal["short"])
                 @scope.partial(
                     "ledger/goal",
-                    { parts: parts(goal), key:, opened:, said: said(goal),
-                      words: @blocks.html(goal["quote"]) }
+                    { id: goal["id"], parts: parts(goal), key:, opened:,
+                      said: said(goal), words: @blocks.html(goal["quote"]) }
                 )
             end
 
-            # The paragraphs the session wrote, each with its class.
+            # The paragraphs the session wrote, each with its class, the
+            # evidence of a done block after its short.
             def parts(goal)
-                PARTS.filter_map do |key|
-                    text = goal[key]
-                    next if text.nil? || text.empty?
+                title, short, context = PARTS.map { paragraph(it, goal[it]) }
+                [title, short, evidence(goal), context].compact
+            end
 
-                    text = key == "title" ? Text.escape(text) : inline(text)
-                    %(<p class="goal-#{key}">#{text}</p>)
-                end
+            def paragraph(key, text)
+                return if text.nil? || text.empty?
+
+                text = key == "title" ? Text.escape(text) : inline(text)
+                %(<p class="goal-#{key}">#{text}</p>)
+            end
+
+            def evidence(goal)
+                return unless goal["done"]
+
+                done = inline(goal["done_evidence"])
+                %(<p class="goal-evidence">Done: #{done}</p>)
             end
 
             def inline(text) = @scope.inline(text)

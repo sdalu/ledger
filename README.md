@@ -69,7 +69,13 @@ criterion D1, which `criterion PATH D1 --text` replaces; it refuses an
 address a live ledger holds. `goal` appends a revised Goal block the
 same way and refuses a quote of fewer than 4 words, a go-ahead that
 belongs under Decisions (`goal-revision`; `goal-titled` checks the
-title). `check` verifies what the schema cannot (the rules are listed in
+title). Each Goal block has an id, `G1` for the first, the next number
+for each revision, printed in its label (`Goal G2 (2026-11-21, revised,
+verbatim):`). A block stays active until `goal PATH G<n> --done
+EVIDENCE` marks it done (a `Done: EVIDENCE` line under its In short);
+`goal PATH G<n> --undone` makes it active again. Both refuse an unknown
+`G<n>`, and `--done` refuses empty evidence, a block already done, and
+`--quote`; `--undone` refuses a block not done. `check` verifies what the schema cannot (the rules are listed in
 `docs/journal.md`, section 5): titles and details, codes from
 elsewhere (a W1 not named in words or pointed to), links, awaited words,
 the picker grammar, rated cases, a verified piece's `--verified-by`, the
@@ -284,9 +290,12 @@ a list beside it when the page is wide enough for both (to answer,
 sent, being prepared, then the other sections), above it otherwise;
 each option of a question is a tile with what it does and costs, and
 each card after Send offers the next question. The note box sits under
-the Goal, folded; "Leave a note" opens it. A goal shows its title, its
-short line and its context, the user's own words folded under them
-(open when the block has neither title nor short). On top of the page,
+the Goal, folded; "Leave a note" opens it. The Goal section shows every
+block not done, newest first, each headed by its `G<n>` chip, with its
+title, its short line and its context, the user's own words folded under
+them (open when the block has neither title nor short); the done blocks
+are folded under *Done goals · N*, newest first, each with its
+evidence. On top of the page,
 the next step ("Answer O1: …", "Leave a note"), the path and the
 session's status line folded under *Ledger details*, then what remains
 (questions to answer, answers sent and awaiting filing, questions being

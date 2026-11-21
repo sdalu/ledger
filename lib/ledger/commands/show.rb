@@ -18,9 +18,10 @@ module Ledger
             # The lists of the JSON document an id's letter is looked up in.
             LISTS = { "P" => %i[pieces], "O" => %i[questions closed_questions],
                       "D" => %i[criteria], "C" => %i[constraints],
-                      "F" => %i[facts], "X" => %i[decisions] }.freeze
+                      "F" => %i[facts], "X" => %i[decisions],
+                      "G" => %i[goals] }.freeze
             UNKNOWN = "is no piece, question, criterion, fact, constraint, " \
-                      "decision or noticed line of"
+                      "decision, goal or noticed line of"
 
             private
 

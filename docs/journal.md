@@ -43,9 +43,12 @@ per ledger; references between items are foreign keys on row ids, so a
 renumber changes one `n` and every structured reference follows. A
 decision's id is `X<n>` (Links and view): given by the counter, shown by
 `show ADDRESS X<n>`, the JSON and the viewer, never printed in the
-Markdown. A Goal block has no visible id (see
-`edit`, section 4); an `Out of scope, noticed` line has the id `Z<n>` of
-its row, printed nowhere in the Markdown.
+Markdown. A Goal block's id is `G<n>`: given by the counter (`new`
+gives `G1`, each `goal` revision the next), printed in its label
+(`Goal G2 (2026-11-21, revised, verbatim):`) and taken by `goal PATH
+G<n> --done | --undone` and `show PATH G<n>`. An `Out of scope,
+noticed` line has the id `Z<n>` of its row, printed nowhere in the
+Markdown.
 
 **Questions keep their row.** `answer` and `ask --replaces` set
 `questions.closed_at` instead of deleting the row (*decision*): a link
@@ -343,6 +346,26 @@ Sequel.migration do
 end
 ```
 
+```ruby
+# frozen_string_literal: true
+
+# lib/ledger/migrations/006_goal_done.rb (sketch)
+Sequel.migration do
+    up do
+        # goals built again, its rows copied, n given in id order per
+        # ledger (SQLite adds a NOT NULL column or a CHECK only by copy)
+        create_table(:goals) do
+            # ... the columns of 001, and:
+            Integer :n, null: false      # G<n>
+            Bignum :done_at              # ms; NULL while the goal is active
+            String :done_evidence        # P; set exactly while done
+            unique %i[ledger_id n]
+        end
+        # counters: G joins the kinds, each ledger's at its blocks
+    end
+end
+```
+
 **A piece's before/after.** A piece awaiting a word that changes
 something the user sees shows it: `mockup PATH FILE --piece P<n>
 --before|--after` stores one file as a `pictures` row and a
@@ -350,6 +373,14 @@ something the user sees shows it: `mockup PATH FILE --piece P<n>
 after); `piece P<n> --no-picture WHY` stores in `pieces.no_picture` why
 it needs none. Both go through the write path, so `undo` and `restore`
 take a side or a reason back; the blobs stay, as for a question (S1).
+
+**A goal's done mark.** Every Goal block is live until it is marked
+done: a ledger that takes each new request as a revised block keeps
+the earlier ones in action. `goal PATH G<n> --done EVIDENCE` sets
+`done_at` (the event's time) and `done_evidence` in one write; `--undone`
+clears both. The write path records it, so `undo` and `restore` take
+it back. The Markdown adds `Done: EVIDENCE` under the block's In short;
+the viewer shows the active blocks and folds the done ones.
 
 **A piece's returns.** A piece out or back that goes back to planned
 (a retry) says why: `piece P<n> --status planned --cause C` writes a
@@ -392,7 +423,7 @@ schema makes impossible (section 5):
 
 | Table | Constraint |
 |---|---|
-| goals | `quote <> ''`; `stamp` without a leading `(`; `title`, `short`, `context` NULL or `<> ''` |
+| goals | `quote <> ''`; `stamp` without a leading `(`; `title`, `short`, `context` NULL or `<> ''`; `done_at` and `done_evidence` both NULL or both set, `done_evidence <> ''`; `n` unique per ledger |
 | criteria | `mark IN (' ','x','-')`; not both `evidence` and `why` |
 | facts | `pointer <> ''` |
 | decisions | `by IN ('user','me')`; `date` matches `____-__-__` |
@@ -410,7 +441,7 @@ schema makes impossible (section 5):
 | question_sees, question_pictures | exactly one target column set |
 | pictures | `name <> ''`; `type` in the served list |
 | links | `kind` and its ends: answers X→O; replaces X→X or O→O; rests_on X→F or C; led_to X→P or O; `to_row` set |
-| counters | `kind IN ('P','O','D','C','F','N','X')` |
+| counters | `kind IN ('P','O','D','C','F','N','X','G')` |
 
 A `pictures.name` is unique per ledger with its `path`; a mockup placed
 as a directory is one `name` with a row per file, `path` the file's
@@ -585,9 +616,10 @@ command's refusal, exit 2, nothing written.
 | Command | Output | Refusals (exit 2) |
 |---|---|---|
 | `new PATH --goal --title --short [--context] [--date] [--carry CLOSED]` | the address | address live; title fails the title rule; empty `--short`; `--carry` names no closed ledger (it takes an address, its newest close, or `L<id>`) |
-| `goal PATH --quote --title --short [--context] [--date] [--dry-run]` | the new Goal block, status line | title; empty short; quote under 4 words (a go-ahead); checks |
+| `goal PATH --quote --title --short [--context] [--date] [--dry-run]` | the new Goal block (its id the next `G<n>`), status line | title; empty short; quote under 4 words (a go-ahead); `--done` or `--undone` without a `G<n>`; checks |
+| `goal PATH G<n> (--done EVIDENCE \| --undone) [--dry-run]` | the Goal block, status line | not `G<n>`; no such block; neither or both of `--done`, `--undone`; empty evidence; `--done` on a block done, `--undone` on one active; with `--quote`, `--title`, `--short`, `--context` or `--date`; checks |
 | `check [--final] [--peek] [--fix-hints] [--json] PATH` | `ok  name` / `FAIL name -- detail` per rule, `  hint:` after a FAIL, status line (the beat, unless `--peek`); `--json` prints JSON v1 | exit 1 on any FAIL |
-| `show PATH [ID] [--json]` | PATH a live address or `L<id>`, live or closed; no ID: the whole ledger as Markdown, a closed one's followed by a blank line and `closed: TIME` or `abandoned: TIME` (ISO 8601, `closed_at`); an ID (`P`, `O`, `D`, `C`, `F`, `X`, `Z`): its fields as `key: value` lines, links as `answers: O3`, `rests-on: F2, C3` lines; or JSON v1 | unknown id |
+| `show PATH [ID] [--json]` | PATH a live address or `L<id>`, live or closed; no ID: the whole ledger as Markdown, a closed one's followed by a blank line and `closed: TIME` or `abandoned: TIME` (ISO 8601, `closed_at`); an ID (`P`, `O`, `D`, `C`, `F`, `X`, `G`, `Z`): its fields as `key: value` lines, links as `answers: O3`, `rests-on: F2, C3` lines; or JSON v1 | unknown id |
 | `status PATH [--json]` | the status line; JSON v1 | |
 | `survey [DIR] [--peer NAME] [--json]` | read-only, for a session with no goal: each live ledger at DIR (the current directory by default) or under it: its address, its status line as `check --peek` prints it, its pending entries as `inbox` prints them; with `--peer`, the pieces of any live ledger whose `peer` is exactly NAME, one `ADDRESS  piece line` each; nothing found says so; no beat, no event; JSON v1 | |
 | `stats [PATH] [--json]` | one row per route over every ledger, live and closed, or one (a live address, or `L<id>` live or closed): `route` (`MODEL, effort: E`, `peer: NAME` or `kept`, the route a piece has now), `pieces`, `first-pass` (of the pieces verified, those never back to planned from out or back), `blocked` (ever blocked, of all), `out, median` (each span from the event setting a piece out to the next that changes its status; a piece still out counts none), `returns` (by cause from `piece_returns`, a return in `event_rows` with no row as `unrecorded`); over every ledger (no PATH), a last line `closed ledgers: N finished, M abandoned` (an abandoned one: its `close` event's `argv` holds `--abandon`), in JSON `closed: {finished, abandoned}`; JSON v1. Only the events still in force count: no undo or restore, nor an event one of them reverted (unless a later restore reverted that revert). Reads `events`, `event_rows` and `piece_returns`, writes nothing (no event, no beat) | unknown address or `L<id>` |
@@ -627,10 +659,11 @@ item is written by a command: `criterion new --text` and `criterion D<n>
 detail), a noticed line and the latest Goal's title. The Goal quote stays
 append-only through `goal`. `new` writes the placeholder criterion
 `D1: <a check something other than opinion can pass>`, which `criterion
-D1 --text` then replaces. Two targets have no id printed in the
-Markdown: `edit PATH goal` sets the latest Goal block's title
-(`--text`), In short (`--short`) and Context (`--context`), one or
-more, its quote untouched; and an `Out of scope, noticed` line has a `Z<n>` row id, shown by
+D1 --text` then replaces. `edit PATH goal` sets the latest Goal block's
+title (`--text`), In short (`--short`) and Context (`--context`), one or
+more, its quote untouched; `goal PATH G<n> --done EVIDENCE` and
+`--undone` set and clear a block's done mark. An `Out of scope,
+noticed` line has no id printed in the Markdown: a `Z<n>` row id, shown by
 `show --json` and `show PATH Z<n>`, which `edit Z<n> --text` takes. A
 piece's detail has one writer, `piece P<n> --what`: `edit` refuses a P
 id, one writer per column.
@@ -658,7 +691,7 @@ per rule, its commands spelled for `bin/ledger`
 | pictures | a piece awaiting commit, deploy, push or merge has a `before` and an `after` placed (`mockup --piece`) or a `no_picture` reason; `start` and `other` are exempt, a word given leaves with its awaits row; the detail is `no before/after: P4 (awaits commit; has before)` | `checks/sides.rb` |
 | titles | pieces in flight and open questions: the title rule | `checks/pieces.rb`, `checks/open.rb` |
 | details | a detail not mostly ids | same |
-| codes | no code of one or two capitals and digits (W1, S4) standing alone whose letter is not a kind (P O D C F X N Z E L), unless an open question's `— see:` names an item whose words hold it; read in the latest Goal block's title, short and context, pieces in flight (title, detail, problem, plan), open questions (title, detail, problem, risk, recommend), decisions (body, note), facts (text, pointer), constraints' where and noticed lines; not in the Goal quote, a constraint's quote, double quotes, `` `code` `` or a URL; the detail is `ID: CODE, …`; a write is refused only for a code it adds (section 2) | `checks/codes.rb`, tokens in `text/codes.rb` |
+| codes | no code of one or two capitals and digits (W1, S4) standing alone whose letter is not a kind (P O D C F X N Z E L G), unless an open question's `— see:` names an item whose words hold it; read in the latest Goal block's title, short and context (its id `G<n>` in the detail), pieces in flight (title, detail, problem, plan), open questions (title, detail, problem, risk, recommend), decisions (body, note), facts (text, pointer), constraints' where and noticed lines; not in the Goal quote, a constraint's quote, double quotes, `` `code` `` or a URL; the detail is `ID: CODE, …`; a write is refused only for a code it adds (section 2) | `checks/codes.rb`, tokens in `text/codes.rb` |
 | pieces-order | out, back or verified only once `after` is settled; none waits for a dropped piece | `checks/pieces.rb` |
 | criteria-pieces | no criterion met while a piece serving it is unfinished | `checks/criteria.rb` |
 | case-rated | a rated risk on every open question and on every piece awaiting a word, a problem on that piece, Title and In short on the latest Goal | `checks/open.rb`, `checks/pieces.rb`, `checks/goal.rb` |
@@ -708,7 +741,7 @@ other reader through `--json`; the hooks read the `Snapshot` and the
 | Key | Content |
 |---|---|
 | ledger | `{id, address, place, name, project, url_id, updated_at, closed_at}` (`updated_at` is the last event's time) |
-| goals | `[{stamp, date, revised, title, short, context, quote}]` |
+| goals | `[{id, stamp, date, revised, title, short, context, quote, done, done_evidence}]` (`id` is `G<n>`, `done` a boolean, `done_evidence` null while active) |
 | criteria | `[{id, mark, text, evidence, why, line}]` |
 | constraints | `[{id, text, quote, where, where_kind, line}]` (`where` is the line after `"QUOTE" — `; both null when the line has another shape) |
 | facts | `[{id, text, pointer, pointer_kind, line}]` |

@@ -45,7 +45,7 @@ module Ledger
 
             def goal(derive)
                 block = derive.snapshot.goals.last or return []
-                [["Goal (#{block[:stamp]})", codes(block, GOAL)]]
+                [["G#{block[:n]}", codes(block, GOAL)]]
             end
 
             def pieces(derive)

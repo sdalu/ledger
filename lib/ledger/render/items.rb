@@ -7,18 +7,20 @@ module Ledger
         module Items
             module_function
 
-            # The lines under a Goal label: the session's Title, In short
-            # and Context, then the user's words quoted.
+            # The lines under a Goal label: the session's Title and In
+            # short, Done and its evidence when the block is done, Context,
+            # then the user's words quoted.
             def goal(row)
                 [("Title: #{row[:title]}" if row[:title]),
                  ("In short: #{row[:short]}" if row[:short]),
+                 ("Done: #{row[:done_evidence]}" if row[:done_at]),
                  ("Context: #{row[:context]}" if row[:context]),
                  *row[:quote].split("\n", -1).map { quoted(it) }].compact
             end
 
-            # "Goal (2026-11-19, verbatim):", from the stamp stored without
-            # its parentheses.
-            def goal_label(row) = "Goal (#{row[:stamp]}):"
+            # "Goal G2 (2026-11-19, verbatim):", from the stamp stored
+            # without its parentheses.
+            def goal_label(row) = "Goal G#{row[:n]} (#{row[:stamp]}):"
 
             def criterion(row)
                 "- [#{row[:mark]}] D#{row[:n]}: #{row[:text]}" \

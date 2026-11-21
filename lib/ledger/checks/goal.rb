@@ -42,7 +42,7 @@ module Ledger
             end
 
             # The block's label line, as the Markdown shows it.
-            def head(goal) = "Goal (#{goal[:stamp]}):"
+            def head(goal) = "Goal G#{goal[:n]} (#{goal[:stamp]}):"
         end
     end
 end
