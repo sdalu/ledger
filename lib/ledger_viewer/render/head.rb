@@ -7,21 +7,24 @@ require_relative "text"
 
 module LedgerViewer
     module Render
-        # The head of a ledger page: its name, what to do first, when it
-        # changed, its details folded, the waker's switch and wakes
-        # (WAKER, drawn by Render::Waker), and the four tiles.
+        # The head of a ledger page: its name and its goal's short line,
+        # what to do first, when it changed, the four tiles; and folded
+        # under its details, the settings that are not the work: the
+        # waker's switch and wakes (WAKER, drawn by Render::Waker, on
+        # when ON), the batch switch the script adds, and the Abandon.
         class Head
             # The status line's `Status (TITLE) — `, cut where the counts
             # begin: the page already names its ledger.
             TITLE_HEAD = /\AStatus \(.*?\) — (?=criteria \d)/
 
-            def initialize(kit, entry, waker)
+            def initialize(kit, entry, waker, on:)
                 @scope = kit.scope
                 @reading = kit.reading
                 @lid = kit.lid
                 @word = kit.word
                 @entry = entry
                 @waker = waker
+                @on = on
             end
 
             def html
@@ -34,12 +37,19 @@ module LedgerViewer
                 data = @reading
                 path = @entry.path
                 { lid: @lid, nxt: next_step, tiles:, close: @word.close(data),
-                  abandon: @word.abandon(data),
-                  waker: @waker,
+                  abandon: @word.abandon(data), short:,
+                  waker: @waker, waking: "waker #{@on ? "on" : "off"}",
                   path: Clock.short(path), status: untitled,
                   name: Helpers.project_name(@entry.project, path),
                   updated: Clock.updated(data.updated),
                   changed: Helpers.when_text(data.updated) }
+            end
+
+            # The newest goal not done, in its one line, or "".
+            def short
+                goal = @reading.goals.reverse.find { !it["done"] }
+                text = goal ? goal["short"].to_s : ""
+                text.empty? ? "" : @scope.inline(text)
             end
 
             # The status line without its title.

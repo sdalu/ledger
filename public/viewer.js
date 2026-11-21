@@ -289,16 +289,27 @@
   });
   if (location.hash === '#say-note') toNote();
   // a link to a card or a criterion inside a closed fold (On record) opens
-  // every fold around it, then shows it
+  // every fold around it, then shows it; a piece drawn as a row opens
+  // into its card
   const reveal = () => {
     const id = decodeURIComponent(location.hash.slice(1));
     const el = id && id !== 'say-note' && document.getElementById(id);
     if (!el) return;
     for (let f = el.closest('details'); f; f = f.parentElement.closest('details')) f.open = true;
+    const row = el.querySelector(':scope > details.piece-row');
+    if (row) row.open = true;
     el.scrollIntoView({block: 'start'});
   };
   window.addEventListener('hashchange', reveal);
   reveal();
+  // a link to the piece the address already names changes no hash: the
+  // click itself opens its row again
+  document.addEventListener('click', e => {
+    const a = e.target.closest('a[href^="#"]');
+    const el = a && document.getElementById(decodeURIComponent(a.getAttribute('href').slice(1)));
+    const row = el && el.querySelector(':scope > details.piece-row');
+    if (row) row.open = true;
+  });
   wide.addEventListener('change', e => {
     if (!e.matches && paneOpen()) { closePane(false); expand(opener); }
   });
@@ -394,17 +405,16 @@
   // a part drawn anew in place of `old`: the folds the user opened or
   // closed stay so, a collapsed receipt stays collapsed, and what the
   // script added to the head moves into the new one
+  // the batch switch, once the page has drawn it (below): what puts it
+  // into a head drawn anew
+  let placeSwitch = () => {};
   const swapPart = (old, fresh) => {
     const mine = document.importNode(fresh, true);
     foldsIn(mine);
     const open = new Map(foldsOf(old).map(d => [d.id, d.open]));
     for (const d of foldsOf(mine)) if (open.has(d.id)) d.open = open.get(d.id);
     if (old.classList.contains('is-collapsed') && mine.querySelector('.sent, .sent-line')) mine.classList.add('is-collapsed');
-    const sw = old.querySelector(':scope > .batch-switch');
-    if (sw) {
-      const at = mine.querySelector(':scope > .waker') || mine.querySelector(':scope > nav.tiles');
-      if (at) at.before(sw); else mine.append(sw);
-    }
+    if (old.matches('.ledger-head')) placeSwitch(mine);
     const ls = old.querySelector('.live-state');
     if (ls) (mine.matches('.receipt, .queue-summary') ? mine : mine.querySelector('.receipt') || mine).append(' ', ls);
     old.replaceWith(mine);
@@ -1009,9 +1019,12 @@
     if (outside) stale(); else here = doc.body.dataset.stamp || here;
     sending = false;
   };
-  // the switch, in the ledger's head: off by default, per ledger
+  // the switch, in the head's Details with the waker: off by default, per
+  // ledger; the fold's summary says its state beside the waker's
   if (ledgerPage) {
     const head = document.querySelector('.ledger-head');
+    const state = document.createElement('span');
+    state.className = 'batch-state';
     const sw = document.createElement('div');
     sw.className = 'batch-switch';
     sw.innerHTML = '<input type="checkbox" role="switch" id="batch-mode" class="a-batch">'
@@ -1023,6 +1036,7 @@
       sw.querySelector('.batch-says').textContent = batch
         ? 'words, comments and drops wait in the tray until you validate them'
         : 'each word, comment and drop is sent at once';
+      state.textContent = ', batch ' + (batch ? 'on' : 'off');
     };
     box.addEventListener('change', () => {
       batch = box.checked;
@@ -1030,8 +1044,14 @@
       sayMode();
     });
     sayMode();
-    const at = head && (head.querySelector(':scope > .waker') || head.querySelector(':scope > nav.tiles'));
-    if (at) at.before(sw); else if (head) head.append(sw);
+    placeSwitch = into => {
+      const fold = into && into.querySelector(':scope > .ledger-details');
+      if (!fold) return;
+      fold.querySelector(':scope > summary').append(state);
+      const at = fold.querySelector(':scope > .waker');
+      if (at) at.before(sw); else fold.append(sw);
+    };
+    placeSwitch(head);
     markTray();
     drawBar();
   }

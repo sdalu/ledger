@@ -106,7 +106,7 @@ class LedgerPageTest < ViewerTest
         sign_in
         https "/l/#{@lid}"
 
-        ["<summary>deferred</summary>",
+        [%(<span class="tag status">deferred</span>),
          %(<div class="meta">until three closures · opus),
          %(<span class="status">deferred · until three closures</span>),
          "0 planned · 1 deferred</span>"].each do |html|

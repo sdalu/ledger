@@ -256,30 +256,46 @@
   .question-nav li.is-piece.is-fail .status, .question-nav li.is-piece.is-fail .tag { color: var(--fail); }
   .question-nav li.is-piece.is-ask .status { color: var(--ask); }
 
-  /* ---- the page head: name, where it lives, the status line, the tiles */
+  /* ---- the page head: name, the goal in a line, what to do first, the
+     tiles; where it lives, the status line and the settings folded */
   .ledger-head {
     display: grid;
     gap: var(--space-xs);
-    & .next { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-xs) var(--space-m); }
+    & .goal-line { max-inline-size: 70ch; font-size: 1.0625rem; color: var(--muted); }
+    & .next { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-xs) var(--space-m); }
     & .next-step { font-size: 1.0625rem; font-weight: 600; }
-    /* the piece's title, its words as icons, its id last */
+    /* what to do first is the page's one filled button, as an answer is in
+       the index's queue; the piece's title, its words as icons, its id last */
     & a.next-step {
       display: inline-flex;
       flex-wrap: wrap;
       align-items: center;
       gap: var(--space-xs);
+      min-block-size: 2.75rem;
+      padding: var(--space-xs) var(--space-l);
+      border-radius: var(--radius);
+      color: var(--on-state);
+      background: var(--accent);
+      text-decoration: none;
+      &:hover { filter: brightness(1.1); }
       & .words { display: inline-flex; align-items: center; gap: 0.25em; & > .icon { margin: 0; } }
       & .word { font-weight: 600; }
-      & .tag { margin: 0; color: var(--ask); }
-      /* a flex item is a block, so the link's underline would run through
-         the id chip and the words: the line goes on the text alone */
-      &:has(> .next-text) {
-        text-decoration: none;
-        & > .next-text { text-decoration: underline; }
+      /* the id outlined in the button's own ink, its halves unfilled */
+      & .tag {
+        margin: 0;
+        border-color: currentColor;
+        color: inherit;
+        background: none;
+        & > .l { color: inherit; background: none; }
       }
     }
     & .next > a:not(.next-step) { font-size: 0.875rem; }
-    & .ledger-details > summary { min-block-size: 1.5rem; font-size: 0.8125rem; color: var(--muted); }
+    /* the settings, not the work: the summary says their state */
+    & .ledger-details {
+      font-size: 0.875rem;
+      & > summary { min-block-size: 2.75rem; padding-block: 0.7rem; line-height: 1.35; color: var(--muted); cursor: pointer; }
+      &[open] { display: grid; gap: var(--space-s); padding-block-end: var(--space-s); }
+    }
     & .path {
       font: 0.8125rem/1.5 var(--font-mono);
       color: var(--muted);
@@ -498,6 +514,8 @@
       }
       /* the rest of the title, under the head: the question itself, or what the piece covers */
       & > .detail { margin-block: 0 var(--space-xs); }
+      /* what blocks a piece, straight under its title */
+      & > .detail.cause { font-weight: 600; color: var(--fail); }
       /* the head's own border already separates the case from it */
       & > .card-head + .case { border-block-start: 0; padding-block-start: 0; }
       /* a piece reads problem first: its facets under the head, what it covers folded below */
@@ -525,6 +543,54 @@
       & .head-tags > .tag { --state: var(--fail); background: var(--fail); }
     }
     & > li > .card-head .head-tags > .tag.status { background: var(--panel); }
+    /* a piece with nothing to say yet: one line, opening into its card */
+    & > li.is-row {
+      padding: 0;
+      & > .piece-row { margin-inline: 0; }
+      & > .piece-row > summary {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: var(--space-xs) var(--space-s);
+        min-block-size: 2.75rem;
+        padding: var(--space-xs) var(--card-pad);
+        border-radius: calc(var(--radius-l) - 1px);
+        cursor: pointer;
+        list-style: none;
+        &::-webkit-details-marker { display: none; }
+        /* the fold's mark, drawn: it points at the title, and down once open */
+        &::before {
+          content: "";
+          flex: none;
+          inline-size: 0.5em;
+          block-size: 0.5em;
+          border-block-end: 2px solid var(--muted);
+          border-inline-end: 2px solid var(--muted);
+          rotate: -45deg;
+        }
+        &:hover { background: var(--inset); }
+        & > .text { flex: 1 1 12rem; min-inline-size: 0; font-weight: 600; line-height: 1.35; }
+        & > .head-tags { display: flex; flex: none; align-items: center; gap: var(--space-s); margin-inline-start: auto; }
+        & .tag { --state: var(--accent); flex: none; margin: 0; border-color: transparent; color: var(--on-state); background: var(--accent); }
+        & .tag.status { border-color: var(--state); color: var(--state); background: var(--panel); }
+      }
+      & > .piece-row[open] > summary {
+        border-block-end: 1px solid var(--rule);
+        border-end-start-radius: 0;
+        border-end-end-radius: 0;
+        background: color-mix(in oklab, var(--accent) 12%, var(--panel));
+        &::before { rotate: 45deg; }
+      }
+      & .row-card {
+        display: grid;
+        gap: var(--space-xs);
+        padding: var(--space-s) var(--card-pad) var(--space-m);
+        & > .meta { font-size: 0.8125rem; color: var(--muted); }
+      }
+      & .row-drop { display: flex; flex-wrap: wrap; justify-content: flex-end; }
+    }
+    /* rows in a run sit closer than cards */
+    & > li.is-row + li.is-row { margin-block-start: calc(var(--space-s) - var(--space-m)); }
   }
 
   /* drop a piece: a trash icon and its word, opening a small form */

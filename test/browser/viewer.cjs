@@ -97,6 +97,42 @@ t('A2: the status pill\'s summary is at least 24 px', await p.evaluate(() => {
   await p.waitForTimeout(100);
   t('wide again: both open', await p.evaluate(() => document.querySelector('details.sections').open
     && document.querySelector('.ledger-main > .goal > .goal-words').open));
+  // S1: on a phone the first question waiting shows its title on the first screen, the settings folded
+  await p.setViewportSize({width: 390, height: 844});
+  await p.goto(base + page);
+  t('S1: phone 390x844: the first question\'s title is above the fold', await p.evaluate(() => {
+    const h = document.querySelector('section.waiting > ul.entries > li[id^="q-"] > .card-head > .text');
+    const r = h && h.getBoundingClientRect();
+    return !!r && r.top >= 0 && r.bottom <= innerHeight && scrollY === 0;
+  }));
+  // S3: the criteria not met follow the Goal, before what follows it on the page
+  t('S3: the criteria section comes directly after the Goal', await p.evaluate(() => {
+    const c = document.getElementById('criteria');
+    let e = c && c.previousElementSibling;
+    while (e && !e.matches('h2')) e = e.previousElementSibling;
+    const next = [...document.querySelectorAll('.ledger-main h2')];
+    return !!e && /^Goal$/.test(e.textContent.trim()) && next.indexOf(c) === next.indexOf(e) + 1;
+  }));
+  // S2: a planned piece with nothing to say is one row; a click opens it into its card, and so does a link to it
+  const rowP1 = () => p.evaluate(() => {
+    const li = document.getElementById('piece-P1'), d = li && li.querySelector(':scope > details.piece-row');
+    const card = d && d.querySelector('.row-card');
+    return {row: !!d, open: !!d && d.open, high: li ? li.getBoundingClientRect().height : 0,
+            card: !!card && card.checkVisibility() && !!card.querySelector('.drop-fold')};
+  });
+  const shut1 = await rowP1();
+  await p.locator('#piece-P1 > details.piece-row > summary').click();
+  const click1 = await rowP1();
+  await p.locator('#piece-P1 > details.piece-row > summary').click();
+  await p.evaluate(() => { location.hash = '#piece-P1'; });
+  await p.waitForTimeout(200);
+  const link1 = await rowP1();
+  t('S2: a planned piece is one row, closed, under 80 px', shut1.row && !shut1.open && !shut1.card && shut1.high > 0 && shut1.high < 80);
+  t('S2: a click on the row opens it into its card, its trash with it', click1.open && click1.card);
+  t('S2: a link to #piece-P1 opens the row', link1.open && link1.card);
+  await p.locator('#piece-P1 > details.piece-row > summary').click();
+  await p.setViewportSize({width: 1300, height: 900});
+  await p.goto(base + page);
   await p.evaluate(() => {
     // the user's words sit in a fold under the goal's title
     document.querySelector('.goal-words').open = true;
@@ -570,13 +606,15 @@ t('A2: the status pill\'s summary is at least 24 px', await p.evaluate(() => {
     const s = document.querySelector('.ledger-head .batch-switch input[role="switch"]');
     return !!s && !s.checked && !document.querySelector('.tray-bar');
   }));
+  // the switch sits in the head's Details fold
+  await p.evaluate(() => { document.querySelector('.ledger-head .ledger-details').open = true; });
   await p.check('#batch-mode');
   await p.locator('#p-P4 button[name="word"][value="commit"]').click();
   await p.locator('#q-O1 .ask-about > details > summary').click();
   await p.fill('#say-O1-ask', 'which file?\nthe second line');
   await p.locator('#q-O1 .ask-about button[type="submit"]').click();
-  await p.locator('#piece-P3 .drop-fold > summary').click();
-  await p.locator('#piece-P3 button.a-drop').click();
+  await p.locator('#piece-P2 .drop-fold > summary').click();
+  await p.locator('#piece-P2 button.a-drop').click();
   const trayed = () => p.evaluate(() => ({
     count: document.querySelector('.tray-bar h2')?.textContent,
     items: [...document.querySelectorAll('.tray-bar .tray-items > li')].map(li =>
@@ -584,15 +622,15 @@ t('A2: the status pill\'s summary is at least 24 px', await p.evaluate(() => {
     cards: [...document.querySelectorAll('.tray-line')].map(l => l.closest('li[id]').id + ' ' + l.querySelector('span').textContent),
     sticky: (() => { const b = document.querySelector('.tray-bar'); return !!b && getComputedStyle(b).position === 'sticky'
       && b.getBoundingClientRect().bottom <= innerHeight + 1 && b.getBoundingClientRect().bottom > innerHeight - 48; })(),
-    closed: !!document.querySelector('#p-P4 form.say[hidden]') && document.querySelector('#piece-P3 .drop-fold').hidden
+    closed: !!document.querySelector('#p-P4 form.say[hidden]') && document.querySelector('#piece-P2 .drop-fold').hidden
       && document.querySelector('#q-O1 .ask-about > details').hidden}));
   const held = await trayed();
   t('P25: nothing is sent while batch mode is on', posts.length === 0);
   t('P25: the bar says 3 in the tray, each item its id, kind and one line of text, sticky at the foot',
     held.count === '3 in the tray' && held.sticky && JSON.stringify(held.items) === JSON.stringify(
-      [['P4', 'word', 'commit'], ['O1', 'comment', 'which file?'], ['P3', 'drop', 'no reason given']]));
+      [['P4', 'word', 'commit'], ['O1', 'comment', 'which file?'], ['P2', 'drop', 'no reason given']]));
   t('P25: each card says in the tray, its form closed', held.closed && JSON.stringify(held.cards) === JSON.stringify(
-    ['q-O1 Comment in the tray', 'p-P4 Word commit in the tray', 'piece-P3 Drop in the tray']));
+    ['q-O1 Comment in the tray', 'p-P4 Word commit in the tray', 'piece-P2 Drop in the tray']));
   await p.locator('#q-O1 .tray-line button.a-untray').click();
   t('P25: Remove on a card takes the item out and gives the form back', await p.evaluate(() =>
     !document.querySelector('#q-O1 .tray-line') && !document.querySelector('#q-O1 .ask-about > details').hidden
@@ -612,7 +650,7 @@ t('A2: the status pill\'s summary is at least 24 px', await p.evaluate(() => {
   t('P25: Validate sends the rest in one request, one write, and empties the tray', JSON.stringify(posts) ===
     JSON.stringify([page + '/say-batch']) && since(sent) === 1);
   t('P25: after Validate the cards and the counts are drawn again', await p.evaluate(() =>
-    document.getElementById('p-P4').classList.contains('is-receipt') && /drop asked/.test(document.getElementById('piece-P3').textContent)
+    document.getElementById('p-P4').classList.contains('is-receipt') && /drop asked/.test(document.getElementById('piece-P2').textContent)
     && !document.querySelector('.tray-line') && !document.querySelector('.stale-note')));
   rewind(sent);
   // R1: an item added while a batch is out stays in the tray when the batch lands; only what was sent leaves it
@@ -653,6 +691,7 @@ t('A2: the status pill\'s summary is at least 24 px', await p.evaluate(() => {
   }));
   await p.locator('.tray-bar .a-untray').click();
   t('P25: removed, the tray is gone', await p.locator('.tray-bar').count() === 0);
+  await p.evaluate(() => { document.querySelector('.ledger-head .ledger-details').open = true; });
   await p.uncheck('#batch-mode');
   await p.locator('#p-P4 button[name="word"][value="commit"]').click();
   await p.waitForSelector('#p-P4.is-collapsed');
@@ -727,7 +766,7 @@ t('A2: the status pill\'s summary is at least 24 px', await p.evaluate(() => {
     t('P66 ' + w + ': a "serves D<n>" link carries its criterion\'s title', /\S/.test(ids.forD || ''));
     t('P66 ' + w + ': a link to an id not in the ledger has no tip', ids.gone === '');
     t('P66 ' + w + ': a side-list link that shows its title has no tip', ids.side);
-    const link = p.locator('a[href="#piece-P1"][aria-describedby]').first();
+    const link = p.locator('a[href="#piece-P2"][aria-describedby]').first();
     const tid = await link.getAttribute('aria-describedby');
     await link.scrollIntoViewIfNeeded();
     await link.hover();
@@ -749,7 +788,7 @@ t('A2: the status pill\'s summary is at least 24 px', await p.evaluate(() => {
     const r = await p.evaluate(() => {
       const fold = document.querySelector('details.done-fold[id$="-raid"]');
       if (fold) fold.open = true;
-      const line = document.querySelector('#piece-P1 .raid');
+      const line = document.querySelector('#piece-P2 .raid');
       const row = document.getElementById('raid-A1');
       return {line: !!line && line.getBoundingClientRect().height > 0 && /no risk rated/.test(line.textContent),
               rests: !!document.querySelector('#q-O1 .raid a[href="#raid-A1"]') && !!row

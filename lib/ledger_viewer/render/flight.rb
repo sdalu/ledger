@@ -2,10 +2,10 @@
 
 require_relative "clock"
 require_relative "entry"
+require_relative "flight_row"
 require_relative "links"
 require_relative "order"
 require_relative "sectioned"
-require_relative "serving"
 require_relative "say_form"
 require_relative "status"
 require_relative "text"
@@ -14,30 +14,25 @@ require_relative "why"
 module LedgerViewer
     module Render
         # What remains to be done on the page: the unfinished pieces, the
-        # order to propose for the planned ones, the criteria not met yet
-        # and the shape checks failing. The part of render_ledger() after
-        # Being prepared.
+        # order to propose for the planned ones and the shape checks
+        # failing. The part of the page after Being prepared; the
+        # criteria not met yet are drawn under the Goal (Unmet).
         class Flight
             include Sectioned
 
             NONE = "No piece planned, out or blocked."
-            ALL_MARKED = "Every criterion is marked."
-            EVIDENCE = / — evidence:\z/
 
             def initialize(kit)
                 @kit = kit
                 @scope = kit.scope
                 @reading = kit.reading
                 @entry = Entry.new(@scope)
-                @serving = Serving.new(@scope, @reading)
             end
 
             def html
                 pieces = @reading.flight.map { piece(it) }
                 [section("Unfinished pieces", pieces, "flight", empty: NONE),
                  Order.new(@kit).html,
-                 section("Criteria not met yet", unmet, "criteria",
-                         empty: ALL_MARKED),
                  section("Shape checks failing", fails, "checks")].join
             end
 
@@ -56,9 +51,20 @@ module LedgerViewer
                 sent = @reading.sent_words[piece["id"]]
                 return line(piece, sent) if sent && !piece["awaits"].empty?
 
+                return row(piece) if FlightRow.quiet?(piece, @reading)
+
                 dropped = @reading.unfiled_on(piece["id"])
                                   .find { it["word"] == "drop" }
                 card(piece, dropped)
+            end
+
+            # Nothing to say yet: one row, opening into the card's parts.
+            def row(piece)
+                detail = piece["detail"].to_s
+                body = @entry.body(**fields(piece), kase: kase(piece), detail:)
+                body += comment(piece) + @kit.picture.piece(piece, "piece")
+                FlightRow.new(@scope, @kit.lid)
+                         .html(piece, body, @kit.word.drop(piece["id"]))
             end
 
             # The user's word on it is sent: that word decides it, so the
@@ -84,13 +90,26 @@ module LedgerViewer
             end
 
             def card_head(piece)
-                tone = piece["status"] == "blocked" ? "is-fail" : "is-flight"
+                blocked = piece["status"] == "blocked"
+                tone = blocked ? "is-fail" : "is-flight"
+                detail = blocked ? "" : piece["detail"].to_s
+                kase = blocked ? cause(piece) : kase(piece)
                 { cls: "#{tone} is-card", tag: piece["id"],
                   text: piece["title"], card: true, state: piece["status"],
-                  detail: piece["detail"].to_s,
-                  kase: kase(piece), anchor: "piece-#{piece["id"]}",
+                  detail:, kase:, anchor: "piece-#{piece["id"]}",
                   why: Why.icon(@kit.lid, piece["id"]),
                   tag_tip: Status.tip(piece) }
+            end
+
+            # A blocked piece's case: what blocks it is the first thing to
+            # read, so its detail leads the case, under the title, instead
+            # of folding under What it covers.
+            def cause(piece)
+                detail = piece["detail"].to_s
+                return kase(piece) if detail.empty?
+
+                lead = %(<p class="detail cause">#{@scope.inline(detail)}</p>)
+                lead + kase(piece)
             end
 
             # The facets, then the RAID line.
@@ -116,18 +135,6 @@ module LedgerViewer
 
                 @scope.partial("ledger/flight_drop",
                                id: entry["id"], receipt: Clock.receipt(entry))
-            end
-
-            # The fold's summary says "evidence from", so the criterion's
-            # own empty marker goes.
-            def unmet
-                @reading.unmet.map do |criterion|
-                    meta, fold = @serving.of(criterion)
-                    text = Reading.criterion(criterion)
-                    text = text.sub(EVIDENCE, "") unless fold.empty?
-                    @entry.html(cls: "is-flight", tag: criterion["id"], text:,
-                                meta:, fold:, anchor: "crit-#{criterion["id"]}")
-                end
             end
 
             def fails

@@ -34,6 +34,14 @@ module LedgerViewer
                 )
             end
 
+            # A card's contents under its head: the facets, the detail and
+            # what follows it, for a card drawn in another frame (a row
+            # that opens into its card).
+            def body(**fields)
+                spec = BLANK.with(**fields)
+                "#{spec.kase}#{detail(spec)}#{rest(spec)}"
+            end
+
             private
 
             def anchor(spec)

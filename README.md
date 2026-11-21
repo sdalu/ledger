@@ -341,13 +341,23 @@ block not done, newest first, each headed by its `G<n>` chip, with its
 title, its short line and its context, the user's own words folded under
 them (open when the block has neither title nor short); the done blocks
 are folded under *Done goals · N*, newest first, each with its
-evidence. On top of the page,
-the next step ("Answer O1: …", "Leave a note"), the path and the
-session's status line, without its title (the page names the ledger),
-folded under *Ledger details*, then what remains
-(questions to answer, answers sent and not read by the session yet, questions being
-prepared, unfinished pieces with a fold to propose their order,
-criteria not met, failing shape checks) with what is done folded below.
+evidence. On top of the page, the ledger's name with the newest
+active goal's short line under it, the next step as the head's one
+filled button ("Answer O1: …"), "Leave a note", then the settings that
+are not the work folded under *Details*, whose summary says their state
+(`Details: waker off, batch off`): the path and the session's status
+line, without its title (the page names the ledger), the waker's
+switch, the batch switch and *Abandon the ledger*. Then what remains
+(questions to answer, answers sent and not read by the
+session yet, questions being
+prepared, criteria not met straight under the Goal, unfinished pieces
+with a fold to propose their order, failing shape checks) with what is
+done folded below. A planned or deferred piece with nothing to say yet
+(no problem, risk or plan, no word awaited, no picture, nothing sent on
+it) is one row under Unfinished pieces (title, status, id, the links
+icon) that opens into its card; a link to `#piece-P<n>` opens it. Out,
+back and blocked pieces, and any with something to say, stay cards; a
+blocked piece says what blocks it straight under its title.
 Every piece card (in flight, waiting on a word, on record) and every
 question card carries a RAID line under its case, each part left out
 when it has nothing to say: the risk (its ten-step meter, or *no risk
@@ -390,12 +400,14 @@ quiet *Live updates paused* status shows in the page head until it
 returns; the 3 s poll runs meanwhile. The user starts it; no hook does.
 
 A ledger page reads, top to bottom and in the tab order: crumbs, the
-title, the next step (the id, then `Your word: TITLE`, the words as
-icons and in text), the tiles (Waiting on you, then Criteria, which links
+title, the goal's short line, the next step (the id, then `Your word:
+TITLE`, the words as icons and in text), *Details* folded, the tiles
+(Waiting on you, then Criteria, which links
 the met-criteria fold once all are met, and Work verified; Unfinished
 pieces only when some are; they share each row), Waiting on you, the side
 list folded as *Sections of this ledger*,
-then the Goal with the user's words folded. With room (64 rem) the side
+then the Goal with the user's words folded and the criteria not met
+under it. With room (64 rem) the side
 list stands beside, Waiting still above the Goal, and both folds are
 open; the page script keeps each fold's own state for a narrow page. A
 *Skip to waiting work* link comes first and shows on focus. A
@@ -522,7 +534,7 @@ What the page takes, all as inbox entries, of the four kinds
   question never offers drop or ignore among its choices (`check` fails
   it, save per item).
 - **The tray**, for sending several things at once. *Batch mode*, a
-  switch the script draws in the ledger's head, is off by default and
+  switch the script draws in the head's *Details* fold, is off by default and
   kept per ledger in the browser (localStorage; without it the switch
   and the tray last as long as the page). While it is on, a word on a
   piece, a comment on a piece or a question (*Ask about*) and a drop of
@@ -562,7 +574,8 @@ What the page takes, all as inbox entries, of the four kinds
   close on: *Not yet: an entry from you waits to be filed (N1).*, or
   *`bin/ledger check --final` still fails* when the line names nothing.
 - **The abandon of the ledger**, on any live ledger, after the Close
-  when the Close is offered: *Abandon the ledger* (its own icon, not the trash), a fold that says what
+  when the Close is offered, inside the head's *Details*: *Abandon the
+  ledger* (its own icon, not the trash), a fold that says what
   abandoning does (the pieces not finished dropped, the open questions
   closed, the history kept), takes an optional comment, and sends only
   with *Yes, abandon it*, the red button. The entry has `ref` `abandon`;
@@ -762,7 +775,7 @@ ledger: an entry from the user waits on ADDRESS; run ledger inbox ADDRESS
 ```
 
 - **The switch**: off by default; `ledger waker PATH on|off`, or the
-  switch in the ledger page's head. One `waker` event, which undo takes
+  switch under the ledger page head's *Details*. One `waker` event, which undo takes
   back.
 - **Idle**: the session's last `stamp` older than the idle minutes, no
   wake since, and `claude agents --json --all` listing it `idle`

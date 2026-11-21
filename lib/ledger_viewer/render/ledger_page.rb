@@ -17,6 +17,7 @@ require_relative "record"
 require_relative "reading"
 require_relative "refs"
 require_relative "say_form"
+require_relative "unmet"
 require_relative "waiting"
 require_relative "waker"
 require_relative "word_cards"
@@ -58,16 +59,16 @@ module LedgerViewer
             # [the top half of the body, the rest of it].
             def body(entry, reading, token)
                 kit = kit(entry, reading, token)
-                waker = Waker.new(kit.scope, kit.lid, token)
-                             .html(@ledgers.waker(entry))
-                top = CRUMBS + Head.new(kit, entry, waker).html +
+                waking = @ledgers.waker(entry)
+                waker = Waker.new(kit.scope, kit.lid, token).html(waking)
+                top = CRUMBS + Head.new(kit, entry, waker, on: waking.on).html +
                       layout(kit, token)
                 [top, rest(kit)]
             end
 
             # What follows Being prepared: the unfinished pieces and the
-            # criteria and checks (none when nothing remains), the
-            # messages, and the record.
+            # checks (none when nothing remains), the messages, and the
+            # record.
             def rest(kit)
                 remains = kit.reading.settled? ? "" : Flight.new(kit).html
                 remains + Inbox.new(kit).html + Record.new(kit).html + REST
@@ -79,8 +80,15 @@ module LedgerViewer
                 kit.scope.partial(
                     "ledger/layout",
                     { lid: kit.lid, waiting:, below:, nav: Nav.new(kit).html,
-                      note: note(kit), goals: goals.html(kit.reading.goals) }
+                      note: note(kit), goals: goals.html(kit.reading.goals),
+                      criteria: criteria(kit) }
                 )
+            end
+
+            # The criteria not met, under the Goal; none once nothing
+            # remains, when the page says what closes the ledger instead.
+            def criteria(kit)
+                kit.reading.settled? ? "" : Unmet.new(kit).html
             end
 
             def sections(kit, token)
