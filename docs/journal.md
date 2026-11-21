@@ -10,7 +10,7 @@ Codes in the schema and the text: U1 the event log, U2 derived states, U3
 sequential ids, U4 versioned JSON, U5 the resume view, U7 no task tools,
 U10 briefs, U11 `verified_by`, U12 the claim, U14 stalled, U16 criteria
 per piece (the upgrades taken from a survey of tracker tools, section
-9); S1 pictures as blobs, S2 the stall budget.
+10); S1 pictures as blobs, S2 the stall budget.
 
 Where this note says *decision*, the choice was the orchestrator's or
 the user's and is recorded in the goal's ledger; one marked reviewable
@@ -322,6 +322,51 @@ Sequel.migration do
 end
 ```
 
+```ruby
+# frozen_string_literal: true
+
+# lib/ledger/migrations/005_waker.rb (sketch; 003 and 004 are other
+# branches', placeholders on this one)
+Sequel.migration do
+    change do
+        create_table(:sessions) do       # session-start, per session
+            String :session_id, primary_key: true
+            String :socket               # CLAUDE_CODE_MESSAGING_SOCKET
+            String :cwd, null: false     # where claude --resume runs
+            Bignum :at, null: false
+        end
+        create_table(:session_ledgers) do # its directory's ledgers
+            foreign_key :session_id, :sessions, type: String,
+                                                on_update: :cascade
+            foreign_key :ledger_id, :ledgers, null: false
+            primary_key %i[session_id ledger_id]
+        end
+        create_table(:session_stops) do  # stamp: the last turn end
+            String :session_id, primary_key: true
+            Bignum :at, null: false
+        end
+        alter_table(:ledgers) do         # waker PATH on|off
+            add_column :waker, TrueClass, null: false, default: false
+        end
+        create_table(:wakes) do          # every wake, as it went
+            primary_key :id
+            foreign_key :ledger_id, :ledgers, null: false
+            String :session_id, null: false
+            Bignum :at, null: false
+            String :path, null: false    # socket | resume
+            String :outcome, null: false # posted, resumed, copied ID, failed: …
+        end
+    end
+end
+```
+
+**The waker's tables** (section 8) sit outside the write path: a
+session, its stops and its wakes are no ledger's items, so no event
+records them and `undo` does not reach them; the switch,
+`ledgers.waker`, is a ledger's column and goes through it (the `waker`
+event). `session_stops` keeps the last stop of a session alone. The
+messaging token is stored nowhere.
+
 **A piece's returns.** A piece out or back that goes back to planned
 (a retry) says why: `piece P<n> --status planned --cause C` writes a
 `piece_returns` row in the same event as the status, its time and actor
@@ -354,6 +399,7 @@ schema makes impossible (section 5):
 | pictures | `name <> ''`; `type` in the served list |
 | links | `kind` and its ends: answers X→O; replaces X→X or O→O; rests_on X→F or C; led_to X→P or O; `to_row` set |
 | counters | `kind IN ('P','O','D','C','F','N','X')` |
+| wakes | `path IN ('socket','resume')` |
 
 A `pictures.name` is unique per ledger with its `path`; a mockup placed
 as a directory is one `name` with a row per file, `path` the file's
@@ -517,7 +563,7 @@ repeats.
 per command in `lib/ledger/commands/`). Exit status: 0 done, 1 a check
 that fails (or a wait that timed out), 2 a refusal or a usage error,
 nothing written. Every writer takes `--dry-run` but `new`, `take`,
-`close` and `mockup`. "Checks" means the write path's step 6. A refusal
+`close`, `mockup` and `waker`. "Checks" means the write path's step 6. A refusal
 that comes from the schema (a CHECK, a unique key) is reported as the
 command's refusal, exit 2, nothing written.
 
@@ -533,6 +579,7 @@ command's refusal, exit 2, nothing written.
 | `close PATH [--take N<n>…]` | the after-action block, read from the ledger's events once the close is written: `after action:`, then each of these lines that has an item: `returned: P2 (depth), P5 (unrecorded)` (every return, its cause from `piece_returns`, `unrecorded` without a row), `blocked: P4` (the pieces ever blocked), `stalled: P6 (2.5 h)` (the pieces with a span out over an hour, the longest), `answered: O1 12 min, O3 2.1 h` (each closed question, from the event inserting it to the event writing its `answers` edge; `O3 (no ask record)` or `O3 (no answer record)` when that event or edge is not found), `by me: X4` (the decisions by me); with none of these, the block is the one line `after action: nothing returned, blocked or stalled`; the returns, blocked pieces and spans are those `stats` counts, from the events still in force. Then `closed: ADDRESS (L<id>)`, then `noticed, to carry: N` and the lines; `--take` takes the entries (the viewer's Close, `ref` `close`) in the close's event | `--final` fails (FAIL lines, exit 1), a refused close taking nothing; inbox pending besides the entries taken; an entry unknown or taken |
 | `inbox PATH [--wait [--timeout S] \| --follow [--quiet S]]` | the pending entries, or "inbox: nothing pending"; polls the ledger's newest event id each second | `--wait` timeout exit 1 |
 | `take PATH N<n>…` | `taken: …; pending: …`; one `take` event setting `taken_id` | unknown id; "already taken at TIME: another session filed it" |
+| `waker PATH on\|off` | `waker on: ADDRESS`, status line; one `waker` event setting `ledgers.waker` (section 8) | a word but on or off |
 | `piece PATH new\|P<n> [--status --route --title --what --done-when --evidence --after --for --problem --risk --plan --scope --awaits --verified-by --session --by X<n> --cause C --claim --dry-run]` | the new id (new), `claimed: P<n> from HOLDER` (`--claim`), the piece line, status line | target shape; no such piece; title, detail; scope grammar or a word not awaited; new without title; awaiting without problem and rated risk; no route and not kept; a return (`--status planned` from out or back) without `--cause` or with a cause not in `brief`, `split`, `depth`, `contract`, `env`; `--cause` on any other change; out without a session, or out under another holder; `--claim` on a new piece, with `--status`, without a session, or on a piece not out; verified without `--verified-by`; checks |
 | `ask PATH QUESTION --title [--choices --by --items --see --problem --risk --recommend] (--mockup N \| --pending P \| --no-picture WHY) [--replaces O<n>] [--dry-run]` | the id, the line, a warning at 7–8 options, the picker card (dry run), status line | title, detail; problem and rated risk; empty question; not exactly one picture decision; pending piece missing or dropped; no picture of that name in the journal; `--by` dropped; option grammar; `--items` without `--choices`; `--replaces` not open or with an untaken entry; checks |
 | `answer PATH O<n> --decision [--date] [--take N…] [--replaces X<n>] [--dry-run]` | the id (`X<n>`), the decision line, the take line, status line | not open; empty decision; unknown or already taken entry; checks |
@@ -716,13 +763,14 @@ ledger hook NAME`. On this host `ledger` is the relative symlink
 `~/bin/ledger -> ../Repos/ledger/bin/ledger`; the launcher follows the
 chain with `readlink` to find its checkout.
 
-Each hook reads the payload on stdin, writes nothing to the journal, and
+Each hook reads the payload on stdin, writes no ledger (`session-start`
+and `stamp` write the waker's session tables, section 8), and
 turns any error of its own into exit 0. The session's ledgers
 are the live ledgers whose `place` is the
 payload's `cwd`, `cwd/.claude`, or its `scratchpad_dir`.
 `CLAUDE_CODE_SESSION_ID` is set in the Bash tool's environment, so the
 claim (U12) needs no `--session` in the common case. Stop starts Ruby
-twice (two hook entries); section 8 records merging them as an
+twice (two hook entries); section 9 records merging them as an
 objection.
 
 | Hook (event, matcher) | Reads | Does |
@@ -732,7 +780,8 @@ objection.
 | `journal-write` (PreToolUse, Bash) | the command words | deny a command that writes the journal by hand: `sqlite3` on it without `-readonly`, a redirect, `cp`, `mv`, `rm`, `install`, `tee` onto it or its `-wal`/`-shm`, `sed`, `perl` or `ruby` in place, interpreter code opening it; a segment whose program is the launcher passes; the refusal names the `bin/ledger` commands. Stdlib only |
 | `finish` (Stop) | snapshot, checks | a ledger with a piece, none planned, out, back or blocked, none awaiting a word and no question open, that fails `--final`: refuse once with the FAIL lines and the finish steps; on the retry the stop goes through |
 | `inbox` (Stop) | inbox entries | pending entries refuse the stop once, verbatim, with the filing steps; on the retry the stop goes through |
-| `session-start` (SessionStart) | snapshot, entries | pending entries with the steps (every source); for `source` in startup, resume, compact also the resume view (U5) |
+| `session-start` (SessionStart) | snapshot, entries | first records the session for the waker (section 8); pending entries with the steps (every source); for `source` in startup, resume, compact also the resume view (U5) |
+| `stamp` (Stop) | the payload's `session_id` | the turn's end upserted in `session_stops` through the `sqlite3` program (`LEDGER_SQLITE` overrides `/usr/local/bin/sqlite3`), the id checked to be bare before it enters the SQL; no journal or no table: nothing. Stdlib only, no bundler |
 
 **The resume view (U5).** One `additionalContext` text, at most 10 000
 characters across the session's ledgers, the budget shared equally
@@ -758,7 +807,84 @@ fallback.
 the task list: a session does not keep a second one in TaskCreate or
 TodoWrite.
 
-## 8. Where things live
+## 8. The waker
+
+The user's answer to O21 and the decisions since (the goal's ledger):
+an entry the user wrote in the viewer reaches a session at its next
+Stop or start; `bin/ledger-waker` rings a session that sits idle.
+
+**The record.** `session-start` records the session's id, its
+messaging socket's path (`CLAUDE_CODE_MESSAGING_SOCKET`; the token,
+`CLAUDE_CODE_MESSAGING_TOKEN`, is never read), its directory, and the
+live ledgers of that directory (the session's ledgers, section 7),
+which replace what it had; a directory without a ledger records
+nothing. `stamp` (Stop) records each turn's end. Registering both is
+the user's (README, The waker).
+
+**The switch.** `ledger waker PATH on|off` and the switch in the
+ledger page's head (`POST /l/ID/waker`, the page's token and Origin
+checked as a send's) write `ledgers.waker` in one `waker` event. Off
+by default.
+
+**A pass**, once a minute (`lib/ledger/waker/pass.rb`):
+
+1. the ledgers on, live, with an entry pending (an entry and nothing
+   else: a stalled piece is no entry, so a stall never wakes);
+2. their sessions (`session_ledgers`), each taken once;
+3. a session whose last stop is older than the idle minutes (10,
+   `LEDGER_WAKER_IDLE_MINUTES`) and with no wake since that stop; a
+   session never stamped is left;
+4. its ledgers within the budget: fewer than 2 wakes in the hour
+   before and 8 in the day before, per ledger;
+5. `claude agents --json --all` (once a pass): listed `status` idle
+   (interactive) is a live process, so the socket and never a resume
+   (a socket that refuses is the wake `failed: …`); listed `state`
+   done (a background session, whose process exits after its turn) or
+   not listed is a resume; any other state (busy, blocked, failed) is
+   left;
+6. one line naming the ledgers kept, `ledger: an entry from the user
+   waits on A, B; run ledger inbox A, ledger inbox B`, and a `wakes`
+   row per ledger: time, `socket` or `resume`, outcome (`posted`,
+   `resumed`, `copied ID`, `failed: WHY`).
+
+**The socket.** One connection, the line, a newline, closed; nothing
+is answered. No auth line: on 2.1.329 the session's debug log says
+the auth line is optional on this host, and a line sent without it
+started a turn. A socket is written only for a session listed live:
+the file of one that exited may by then be another process's.
+
+**The resume.** `claude --resume ID --bg LINE` in the session's
+directory, no other flag: on 2.1.329 that continues the session
+under its id ("note: woke session ID with its saved options"), while
+any flag starts a copy under a new id. A copy (the backgrounded
+short id not the session's) is recorded `copied NEW_ID`, and the
+session's record moves to the copy's id, its ledgers following by the
+cascade; its stop is not carried, so the copy is idle once its own
+stamp says so.
+
+**The format guard.** `config/doorbell.json` records the line format
+(`line`, its `TEXT` placeholder the doorbell), the Claude Code
+version it was established on (`claude_version`, 2.1.329, on
+2026-11-21), `auth: none`, and the facts measured then. At start the
+waker compares `claude --version` with it and refuses (exit 2),
+naming both and `--probe`; it starts no scratch session.
+`bin/ledger-waker --probe` re-runs the probe: an interactive scratch
+session (`--session-id` a fresh uuid, `--setting-sources local`,
+settings of its own: a SessionStart hook writing the socket path, a
+Stop hook stamping, `crossSessionInbound: accept`) under a tmux
+server of its own in `~/.cache/ledger-waker-probe`; the line sent;
+a second turn's end proves it; the record rewritten. The directory
+must be trusted: `~/.claude.json` is read (that entry alone, for the
+directory or one above it), and an untrusted one, or the trust dialog
+on the scratch screen, is a refusal naming the step; the probe never
+answers the dialog.
+
+*Decisions* (reviewable): the stop kept last-only per session; the
+session's `cwd` kept for the resume; the doorbell for several
+ledgers as one line, addresses then commands comma-separated; a
+failed post counted in the budget like a wake.
+
+## 9. Where things live
 
 The gate is `bundle exec rake` at the repository's root (the minitest
 suite, then the house rubocop rules), with `LEDGER_JOURNAL` at a file in
@@ -766,14 +892,15 @@ a temporary directory per test.
 
 | Area | Files |
 |---|---|
-| journal, write path | `lib/ledger.rb` (the `Ledger::Error` family), `lib/ledger/journal.rb`, `migrations/001_journal.rb`, `migrations/002_piece_returns.rb`, `snapshot.rb`, `write.rb` |
+| journal, write path | `lib/ledger.rb` (the `Ledger::Error` family), `lib/ledger/journal.rb`, `migrations/001_journal.rb`, `migrations/002_piece_returns.rb`, `migrations/005_waker.rb`, `snapshot.rb`, `write.rb` |
 | text rules | `lib/ledger/text/{title,picker,awaits,risk,options}.rb`, pure functions |
 | render | `lib/ledger/render/markdown.rb` (`show`), `render/json.rb` and `read.rb` (JSON v1) |
 | derived states, checks | `lib/ledger/derive.rb`, `lib/ledger/checks/*.rb` |
 | commands | `lib/ledger/cli.rb`, `lib/ledger/commands/*.rb`, `bin/ledger` |
 | history, inbox, pictures | `lib/ledger/history.rb`, `inbox.rb`, `pictures.rb` |
 | hooks | `lib/ledger/hooks/*.rb`, registered by the orchestration skill (SKILL.md's front matter, `hooks.json`) |
-| viewer | `lib/ledger_viewer/`, `views/`, `public/`, `config.ru`, `bin/ledger-viewer`; it reads `Ledger::Read` and writes through `Ledger::Inbox.append` |
+| viewer | `lib/ledger_viewer/`, `views/`, `public/`, `config.ru`, `bin/ledger-viewer`; it reads `Ledger::Read` and writes through `Ledger::Inbox.append` and `Ledger::Waker.switch` |
+| waker | `lib/ledger/waker.rb`, `lib/ledger/waker/*.rb`, `bin/ledger-waker`, `config/doorbell.json`, `lib/ledger/hooks/{sessions,stamp}.rb`, `lib/ledger/commands/waker.rb` |
 
 The viewer lists every live ledger of the journal. Its pictures are
 served from `pictures` at `/m/ID/NAME[/path]`, its sign-in state (users,
@@ -810,7 +937,7 @@ Behaviours that follow from the design:
   Markdown.
 - The status line names stalled pieces, `stalled:`.
 
-## 9. Borrowed from
+## 10. Borrowed from
 
 The upgrade codes above come from a survey of agent trackers made on
 2026-11-20. What was built from it, by source:

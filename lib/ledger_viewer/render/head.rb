@@ -7,14 +7,16 @@ require_relative "text"
 module LedgerViewer
     module Render
         # The head of a ledger page: its name, what to do first, when it
-        # changed, its details folded, and the four tiles.
+        # changed, its details folded, the waker's switch and wakes
+        # (WAKER, drawn by Render::Waker), and the four tiles.
         class Head
-            def initialize(kit, entry)
+            def initialize(kit, entry, waker)
                 @scope = kit.scope
                 @reading = kit.reading
                 @lid = kit.lid
                 @word = kit.word
                 @entry = entry
+                @waker = waker
             end
 
             def html
@@ -27,6 +29,7 @@ module LedgerViewer
                 data = @reading
                 path = @entry.path
                 { lid: @lid, nxt: next_step, tiles:, close: @word.close(data),
+                  waker: @waker,
                   path: Clock.short(path), status: data.status_text,
                   name: Helpers.project_name(@entry.project, path),
                   updated: Clock.updated(data.updated),

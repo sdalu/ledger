@@ -7,10 +7,12 @@ session to it, and a local viewer where the user answers.
 ## At a glance
 
 A session writes its ledger only through `bin/ledger`; the hooks read
-the journal and never write it; the viewer writes the user's entries
-and nothing else. `docs/journal.md` is the design note: the schema, the
-write path, the derived states, the command contract, the check rules,
-the hooks.
+the journal and never write a ledger (two record sessions for the
+waker); the viewer writes the user's entries and the waker's switch.
+`bin/ledger-waker` rings an idle session when an entry of the user's
+waits. `docs/journal.md` is the design note: the schema, the write
+path, the derived states, the command contract, the check rules, the
+hooks, the waker.
 
 ```text
  ┌───────────────────┐  ledger WORD PATH  ┌────────────────────────────┐
@@ -19,10 +21,10 @@ the hooks.
            │ Bash, Agent, Stop,           │ inbox entries, pictures,   │
            │ SessionStart                 │ sesam's sign-in tables     │
            ▼                              └──────┬───────────────┬─────┘
- ┌───────────────────┐  reads, never writes      │               │
+ ┌───────────────────┐  reads; writes sessions   │               │
  │ ledger hook NAME  │◂──────────────────────────┘               │
  └───────────────────┘                                           │
- ┌───────────────────┐  reads; writes inbox entries alone        │
+ ┌───────────────────┐  reads; writes entries, the switch        │
  │ bin/ledger-viewer │◂──────────────────────────────────────────┘
  └───────────────────┘
 ```
@@ -198,10 +200,11 @@ delegate.
 
 ## The hooks
 
-Six words of `ledger hook NAME`, each reading the payload on stdin,
-writing nothing, and turning any error of its own into exit 0. The
+Seven words of `ledger hook NAME`, each reading the payload on stdin,
+writing no ledger, and turning any error of its own into exit 0. The
 orchestration skill registers five in its front matter and
-`session-start` in its `hooks.json`.
+`session-start` in its `hooks.json`; `stamp` and `session-start` are
+also what the waker needs, registered by the user (The waker, below).
 
 - **heartbeat** (PostToolUse, Bash): when the command it ran names
   `ledger … check` or `ledger … status`, the last `Status —` line it
@@ -234,7 +237,13 @@ orchestration skill registers five in its front matter and
   verbatim, with the filing steps.
 - **session-start** (SessionStart): the entries waiting at the start,
   and on a start, resume or compaction the resume view of the session's
-  ledgers.
+  ledgers. First it records the session for the waker: its id, its
+  messaging socket's path (`CLAUDE_CODE_MESSAGING_SOCKET`; the token
+  beside it is never read), its directory and its ledgers.
+- **stamp** (Stop): the turn's end in `session_stops`, the waker's test
+  of idle. It starts without the bundle and writes through the
+  `sqlite3` program (`/usr/local/bin/sqlite3`, `LEDGER_SQLITE`
+  overrides).
 
 The session's ledgers are the live ones whose address is directly in
 the session's directory, its `.claude/` or its scratch directory.
@@ -555,6 +564,60 @@ are local, 24-hour.
  rake user:invite NAME=alice
 ```
 
+## The waker
+
+An entry the user writes in the viewer reaches a session at its next
+Stop or start. A session sitting idle never gets there, so
+`bin/ledger-waker`, a foreground loop the user runs as they run the
+viewer, rings it: once a minute, for each ledger switched on with an
+entry pending, each session of its directory whose last turn ended more
+than 10 minutes ago (`LEDGER_WAKER_IDLE_MINUTES`) gets one line naming
+its ledgers, and nothing else:
+
+```text
+ledger: an entry from the user waits on ADDRESS; run ledger inbox ADDRESS
+```
+
+- **The switch**: off by default; `ledger waker PATH on|off`, or the
+  switch in the ledger page's head. One `waker` event, which undo takes
+  back.
+- **Idle**: the session's last `stamp` older than the idle minutes, no
+  wake since, and `claude agents --json --all` listing it `idle`
+  (interactive) or `done` (background), or not at all. `busy`,
+  `blocked` and `failed` never wake.
+- **The way**: a session listed idle is a live process, so the line goes
+  to its messaging socket, never a resume. A session not listed, or a
+  background one done (its process exits after its turn), is resumed:
+  `claude --resume ID --bg LINE` in its directory, with no other flag (a
+  flag starts a copy under a new id; when one does, the wake says
+  `copied NEW_ID` and the session's record moves to it).
+- **The budget**: at most 2 wakes an hour and 8 a day per ledger. Only a
+  pending entry wakes: a stalled piece never does.
+- **Every wake** is a `wakes` row, per ledger named (time, path,
+  outcome), listed under the switch on the ledger's page, and printed by
+  the loop.
+- **The format guard**: the line format and the Claude Code version it
+  was established on are in `config/doorbell.json`, with the facts
+  measured then. At start the waker compares `claude --version` with the
+  recorded one and refuses to run when they differ, naming both.
+  `bin/ledger-waker --probe` then establishes it again on a scratch
+  session (interactive, under a tmux server of its own, a throwaway
+  session id, settings of its own) in `~/.cache/ledger-waker-probe`, and
+  rewrites the record when the line starts a turn there. `--once` makes
+  one pass.
+
+What the user sets up, once:
+
+- **The hooks**, registered in their settings: `session-start` on
+  SessionStart and `stamp` on Stop, each `command -v ledger >/dev/null
+  2>&1 || exit 0; exec ledger hook NAME` like the skill's.
+- **`crossSessionInbound: "accept"`** in their settings: a session in
+  bypass mode otherwise holds a message from outside for approval.
+- **The probe's directory trusted**: `cd ~/.cache/ledger-waker-probe &&
+  claude`, answering "Yes, I trust this folder" (a directory under one
+  already trusted is trusted too). The probe never answers that dialog:
+  it refuses, naming the step.
+
 ## Files it creates and reads
 
 Written:
@@ -569,7 +632,9 @@ Written:
   counter (`beat_line`, `beat_count`, on the ledger's row, written by
   `check` without `--peek`), the viewer's inbox entries and takes, a
   mockup's files as blobs, and sesam's tables (users, invitations,
-  passkeys). Nothing else is written: no file beside a ledger's address,
+  passkeys), and the waker's tables (`sessions`, `session_ledgers`,
+  `session_stops`, `wakes`). Nothing else is written: no file beside a
+  ledger's address,
   nothing under a project's `.claude/`, so nothing of a ledger is
   git-tracked.
 - **Closed ledgers** stay in the journal with `closed_at` set; the
@@ -590,12 +655,21 @@ Read only:
   flight), at a start, a resume and a compaction; any error is a silent
   exit 0, a start hook never blocks a session.
 - The viewer reads the journal through `Ledger::Read`, and writes inbox
-  entries, sesam's tables (a sign-in, an invitation) and nothing else;
+  entries, the waker's switch, sesam's tables (a sign-in, an
+  invitation) and nothing else;
   its settings are `config/app.rb`, with local overrides in
   `~/.config/ledger-viewer/app.local.rb` (`config/app.local.rb.example`
   shows the form).
 
-No hook writes anything.
+No hook writes a ledger: `session-start` writes `sessions` and
+`session_ledgers`, `stamp` writes `session_stops`, both only when the
+journal and those tables exist.
+
+- `bin/ledger-waker` reads the journal, writes `wakes` and moves a
+  session's record to a copy's id; `--probe` writes
+  `config/doorbell.json` and the files of its scratch session under
+  `~/.cache/ledger-waker-probe`, and reads `~/.claude.json` for that
+  directory's trust alone.
 
 ## Tests
 
@@ -621,7 +695,11 @@ test/
 │   ├── hooks/           each hook run on a payload: heartbeat,
 │   │                    brief-constraints, journal-write, the Stop hooks,
 │   │                    session-start and its resume view; every test
-│   │                    checks the hook wrote nothing
+│   │                    checks the hook wrote no event; the session and
+│   │                    stamp records of the waker
+│   ├── waker_test.rb    the waker's pass with a fake socket and a stubbed
+│   │                    claude: once, the budget, off, a stall, resume
+│   ├── waker_main_test.rb  the version guard, the probe's trust refusal
 │   ├── render/          show's Markdown per item kind, JSON v1
 │   ├── text/            the title, picker, awaits, risk and option rules
 │   ├── inbox_test.rb    entries, the take, --wait and --follow timing
@@ -631,7 +709,8 @@ test/
 ├── *_test.rb            the viewer (lib/ledger_viewer): the pages, the
 │                        index, sends and their token, origin and sign-in
 │                        checks, the inbox, the mockup route, the
-│                        events stream, the links page, configuration
+│                        events stream, the links page, the waker's
+│                        switch and wakes, configuration
 ├── browser/viewer.cjs   the page script and CSS in Chrome and Firefox:
 │                        drafts kept, required choice, status fold, Close
 │                        word, pane and window, quote, Cancel focus, a

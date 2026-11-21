@@ -1,0 +1,18 @@
+{
+  "claude_version": "2.1.329",
+  "established": "2026-11-21",
+  "auth": "none",
+  "line": {
+    "type": "user",
+    "message": {
+      "role": "user",
+      "content": "TEXT"
+    }
+  },
+  "facts_measured_on": "2.1.329",
+  "facts": [
+    "(a) socket: the session's debug log says 'auth line optional here'; the line {\"type\":\"user\",\"message\":{\"role\":\"user\",\"content\":TEXT}} and a newline, sent without the auth line, started a turn in an idle interactive scratch session (crossSessionInbound accept); the log says 'Routed user message to queue'; nothing is answered on the socket",
+    "(b) claude agents --json --all: an interactive session carries status idle|busy and no state; a background one carries state done|blocked|failed and no pid; a background session's process exits after its turn ('[uds-messaging] Shutting down'), so its socket is dead while it is listed done",
+    "(c) claude --resume ID --bg LINE continues the session under the same id ('note: woke session ID with its saved options'); with any other flag it starts a copy under a new id ('note: ... started a copy as NEW'); --bg ignores --session-id"
+  ]
+}

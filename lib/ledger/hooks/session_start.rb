@@ -2,6 +2,7 @@
 
 require "ledger/hooks/inbox"
 require "ledger/hooks/resume_view"
+require "ledger/hooks/sessions"
 
 module Ledger
     module Hooks
@@ -9,7 +10,9 @@ module Ledger
         # session ran are shown with the filing steps, whatever the
         # source; on startup, resume and compact the resume view follows,
         # its budget apart from the entries (the user's words are never
-        # cut). Nothing to show: no output.
+        # cut). Nothing to show: no output. Every source records the
+        # session for the waker first (Sessions); a failure there costs
+        # the record, never the context.
         module SessionStart
             SOURCES = %w[startup resume compact].freeze
             INTRO = "Entries are waiting in the ledger viewer's inbox, " \
@@ -18,6 +21,7 @@ module Ledger
             module_function
 
             def call(payload)
+                remember(payload)
                 found = Ledgers.read(payload)
                 view = ResumeView.render(found) if
                     SOURCES.include?(payload["source"])
@@ -27,6 +31,12 @@ module Ledger
                                 hookEventName: "SessionStart",
                                 additionalContext: text.join("\n\n")
                             })
+            end
+
+            def remember(payload)
+                Sessions.record(payload)
+            rescue StandardError
+                nil
             end
 
             def entries(found)

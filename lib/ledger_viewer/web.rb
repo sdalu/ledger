@@ -18,7 +18,7 @@ module LedgerViewer
         PUBLIC = %w[/health /sign-in /invite /viewer.css].freeze
 
         register Sesam::Sinatra
-        register Sends
+        register Sends, WakerSwitch
 
         set :root, File.expand_path("../..", __dir__)
         set :erb, escape_html: true

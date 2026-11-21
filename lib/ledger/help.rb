@@ -15,14 +15,14 @@ module Ledger
             "Reading" => %w[check show status survey stats],
             "Items" => %w[fact constraint decide noticed criterion edit],
             "Pieces and questions" => %w[piece ask choice mockup],
-            "The user's word" => %w[inbox take answer word],
+            "The user's word" => %w[inbox take answer word waker],
             "History" => %w[renumber undo restore]
         }.freeze
 
         NOTES = <<~TEXT
             PATH is the ledger's address, the path its file would have
             (.claude/LEDGER.md or LEDGER-NAME.md); the journal holds it, nothing is
-            written there. Every writer but new, take, close and mockup takes
+            written there. Every writer but new, take, close, mockup and waker takes
             --dry-run, which prints the diff and writes nothing.
 
             ledger help WORD, or ledger WORD --help, gives the word's options.

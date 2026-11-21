@@ -16,6 +16,7 @@ require_relative "reading"
 require_relative "refs"
 require_relative "say_form"
 require_relative "waiting"
+require_relative "waker"
 require_relative "word_cards"
 require_relative "word_form"
 
@@ -53,7 +54,10 @@ module LedgerViewer
             # [the top half of the body, the rest of it].
             def body(entry, reading, token)
                 kit = kit(entry, reading, token)
-                top = CRUMBS + Head.new(kit, entry).html + layout(kit, token)
+                waker = Waker.new(kit.scope, kit.lid, token)
+                             .html(@ledgers.waker(entry))
+                top = CRUMBS + Head.new(kit, entry, waker).html +
+                      layout(kit, token)
                 [top, rest(kit)]
             end
 

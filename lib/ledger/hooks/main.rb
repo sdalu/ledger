@@ -6,8 +6,8 @@ module Ledger
     # The hooks (docs/journal.md, section 7): `bin/ledger hook NAME` reads
     # the hook payload on stdin and answers on stdout and by exit
     # status as the harness expects. This file is the dispatcher and
-    # needs the standard library alone, so the two hooks that read no
-    # journal (heartbeat, journal-write) start without bundler; each
+    # needs the standard library alone, so the hooks that need no bundle
+    # (heartbeat, journal-write, stamp) start without bundler; each
     # hook's file is required when it runs.
     #
     #     exit Ledger::Hooks.main(["heartbeat"])
@@ -18,7 +18,8 @@ module Ledger
                   "journal-write" => :JournalWrite,
                   "finish" => :Finish,
                   "inbox" => :Inbox,
-                  "session-start" => :SessionStart }.freeze
+                  "session-start" => :SessionStart,
+                  "stamp" => :Stamp }.freeze
 
         # What a hook answers: the text for stdout, the text for stderr,
         # the exit status (2 refuses, on the events that take a refusal).
