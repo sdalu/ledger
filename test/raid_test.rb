@@ -91,9 +91,20 @@ class RaidLineTest < ViewerTest
     include RaidFixture
 
     def test_a_piece_in_flight_says_its_risk_or_that_none_is_rated
-        assert_includes card("piece-P1"), "no risk rated"
+        stale_piece
+        assert_includes card("piece-P4"), "no risk rated"
         assert_match(%r{raid-part risk is-high.*7/10}, card("piece-P2"))
         refute_includes card("piece-P3"), "no risk rated"
+    end
+
+    # Nothing is at stake on a planned or deferred piece before it goes
+    # out: its risk not rated goes unsaid.
+    def test_a_planned_or_deferred_piece_does_not_say_none_is_rated
+        ledger("piece", "new", *ROUTE, "--title", "write the docs")
+        ledger("piece", "P4", "--status", "deferred",
+               "--until", "the parser is done")
+        refute_includes card("piece-P1"), "no risk rated"
+        refute_includes card("piece-P4"), "no risk rated"
     end
 
     def test_a_card_names_the_assumptions_it_rests_on_with_their_state

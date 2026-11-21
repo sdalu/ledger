@@ -12,6 +12,8 @@ module LedgerViewer
         class Raid
             # The assumptions in the order the fold lists them.
             STATES = %w[open confirmed refuted].freeze
+            # The statuses in flight whose risk not rated goes unsaid.
+            UNSTAKED = %w[planned deferred].freeze
 
             def initialize(scope, reading)
                 @scope = scope
@@ -19,9 +21,12 @@ module LedgerViewer
             end
 
             # A piece's line; FLIGHT says it is in flight, where a risk not
-            # rated is said.
+            # rated is said, except on a planned or deferred piece awaiting
+            # no word: nothing is at stake there until it goes out.
             def piece(piece, flight: false)
-                line([risk(piece, flight), assumed(piece), issues(piece),
+                unrated = flight && (!UNSTAKED.include?(piece["status"]) ||
+                                     piece["awaits"].any?)
+                line([risk(piece, unrated), assumed(piece), issues(piece),
                       depends(Links.forward(piece, @reading)), decided(piece)])
             end
 
@@ -68,23 +73,23 @@ module LedgerViewer
                 %(<span class="raid-part #{key}">#{html}</span>)
             end
 
-            # The meter and what is at stake; a risk not rated is said
-            # only for a piece in flight.
-            def risk(item, flight)
+            # The meter and what is at stake; with UNRATED, a risk not
+            # rated is said.
+            def risk(item, unrated)
                 text = item.dig("risk", "text").to_s
                 rating, rest = Text.risk_rating(text)
-                return unrated(text, flight) unless rating
+                return unrated(text, unrated) unless rating
 
                 meter = @scope.partial("ledger/rating", rating:)
                 said = rest.empty? ? "" : " #{@scope.inline(rest)}"
                 part("risk #{Helpers.risk_band(rating)}", "#{meter}#{said}")
             end
 
-            def unrated(text, flight)
+            def unrated(text, said)
                 unless Text.strip(text).empty?
                     return part("risk", "risk: #{@scope.inline(text)}")
                 end
-                return "" unless flight
+                return "" unless said
 
                 part("risk is-unrated", "no risk rated")
             end

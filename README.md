@@ -351,7 +351,8 @@ criteria not met, failing shape checks) with what is done folded below.
 Every piece card (in flight, waiting on a word, on record) and every
 question card carries a RAID line under its case, each part left out
 when it has nothing to say: the risk (its ten-step meter, or *no risk
-rated* for a piece in flight), the assumptions it rests on (`rests on
+rated* for a piece in flight, unless it is planned or deferred and
+awaits no word), the assumptions it rests on (`rests on
 A1 (open), A2 (refuted)`, each chip leading to its row), its issues
 (`blocked`, `stalled 2 h`, `returned 2: depth, unrecorded`) and what it
 depends on (`waits for P3`, `serves D2`, `answered by P5`, `see F2`).
