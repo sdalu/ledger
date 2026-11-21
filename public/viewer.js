@@ -329,6 +329,7 @@
   // send came back with, so the page agrees with itself
   const regions = ['.ledger-head p.next', '.ledger-head nav.tiles', '.ledger-details .status',
                    'section.waiting > h2 .count', 'nav.question-nav'];
+  const giveAll = 'section.waiting form.give-all';
   // the waiting cards as the server last showed them: id, title and question
   const waitingSig = root => new Map([...root.querySelectorAll('section.waiting > ul.entries:not(.answered) > li[id]')]
     .map(li => [li.id, [li.querySelector('.card-head .text')?.textContent, li.querySelector(':scope > .detail')?.textContent].join('|')]));
@@ -406,6 +407,11 @@
         if (sel.endsWith('.count')) a.textContent = b.textContent;
         else { const c = document.importNode(b, true); a.replaceWith(c); wire(c); }
       }
+      // the one-click bar for several pieces comes and goes with what still
+      // waits: a word sent on one card leaves it naming pieces already given
+      const bar = document.querySelector(giveAll), fresh = doc.querySelector(giveAll);
+      if (bar && !fresh) bar.remove();
+      else if (bar && fresh) bar.replaceWith(document.importNode(fresh, true));
     });
     for (const c of document.querySelectorAll('.entries > li[id]')) c.style.viewTransitionName = '';
     known = now;
