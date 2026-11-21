@@ -276,7 +276,12 @@ also what the waker needs, registered by the user (The waker, below).
   once with the FAIL lines and the finish steps. A turn that ends to
   wait is never refused: a ledger whose only failure is its deferred
   pieces waits on their event as it would on the user, and its stop
-  goes through. The retry is let through
+  goes through. So does one that fails besides only on criteria
+  unmarked, each served (`for:`) by deferred pieces among its
+  unfinished ones or by no piece at all: they wait on the same event.
+  A criterion met without evidence or not met without why, or any
+  other rule failing, still sends the stop back; `check --final` itself
+  still fails. The retry is let through
   whatever it did.
 - **inbox** (Stop): pending viewer entries refuse the stop once,
   verbatim, with the filing steps.
