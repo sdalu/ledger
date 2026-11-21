@@ -2,16 +2,15 @@
 
 Design note, as built, 2026-11-21. One machine-wide SQLite file holds
 every ledger, its history and the viewer's sign-in state; `bin/ledger`
-(Ruby, Sequel) is the one command, and no command writes a `LEDGER*.md`
-or a side file. `show` prints a ledger as Markdown, laid out as a
-`LEDGER.md` reads; that text is the command's own output, free to
-change.
+(Ruby, Sequel) is the one command, reached as `ledger` on PATH, and no
+command writes a file beside the journal. `show` prints a ledger as
+Markdown; that text is the command's own output, free to change.
 
 Codes in the schema and the text: U1 the event log, U2 derived states, U3
 sequential ids, U4 versioned JSON, U5 the resume view, U7 no task tools,
 U10 briefs, U11 `verified_by`, U12 the claim, U14 stalled, U16 criteria
-per piece (the upgrades taken from a survey of tracker tools); S1
-pictures as blobs, S2 the stall budget.
+per piece (the upgrades taken from a survey of tracker tools, section
+9); S1 pictures as blobs, S2 the stall budget.
 
 Where this note says *decision*, the choice was the orchestrator's or
 the user's and is recorded in the goal's ledger; one marked reviewable
@@ -87,7 +86,7 @@ Sequel.migration do
             primary_key :id
             foreign_key :ledger_id, :ledgers, null: false
             Bignum :at, null: false
-            String :actor, null: false   # session:<id> | cli | viewer:<user> | import
+            String :actor, null: false   # session:<id> | cli | viewer:<user>
             String :command, null: false # piece, ask, take, undo, inbox, …
             String :argv, null: false    # JSON array, as given
             String :summary              # the line the command printed
@@ -364,7 +363,7 @@ end
    of the ledger, the shape every reader uses).
 3. Insert the `events` row: time in ms, actor (`session:` +
    `CLAUDE_CODE_SESSION_ID` when set, else `cli`; `viewer:<user>` from
-   the viewer; `import`), command, argv as JSON. **One event per
+   the viewer), command, argv as JSON. **One event per
    command** (U1), whatever it touches: `answer --take` is one event
    whose rows include the inbox entries it took.
 4. The block's changes go through `change`, which writes the row and
@@ -513,9 +512,8 @@ command's refusal, exit 2, nothing written.
 | `undo PATH [--dry-run]` | `undone: ADDRESS is back as it was before E<n>`, status line | nothing to undo; a row changed since |
 | `restore PATH [--to E<n>] [--dry-run]` | `restored: ADDRESS is back as at E<n>`, status line; without `--to` the ledger's last ten events (`E<n>  time  actor  command  summary`) | no `--to` (it lists them); E<n> not this ledger's; nothing after it; a row changed since |
 
-Two kinds of words the CLI adds beside the ledger's own:
-`bin/ledger hook NAME` (section 7) and the importer, a rake task that
-runs once at cutover (section 8).
+Beside the ledger's own words, the launcher takes `bin/ledger hook
+NAME` (section 7).
 
 **Every prose item has a writer.** A journal has no hand edit, so each
 item is written by a command: `criterion new --text` and `criterion D<n>
@@ -642,25 +640,22 @@ bundle's native sqlite3: that fallback fails there, and the code's
 Ruby 3.4 idioms (`it`) fail on it anyway. Recorded, not designed
 around: the user's decision.
 
-**Registration** (`docs/hooks-frontmatter.md` holds the block for
-SKILL.md's front matter and the JSON for `hooks.json`). The front
-matter loops over the two places the skill can be installed and calls
-the launcher: `for d in "${CLAUDE_PLUGIN_ROOT:-/nonexistent}"/*/orchestration
-"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/skills/orchestration"; do [ -f
-"$d/ruby/bin/ledger" ] && exec /bin/sh "$d/ruby/bin/ledger" hook NAME;
-done; exit 0`. `hooks.json` holds one SessionStart entry, no matcher,
-`sh ${SKILL_DIR}/ruby/bin/ledger hook session-start`.
+**Registration.** The orchestration skill registers the hooks: five in
+its SKILL.md front matter, `session-start` in its `hooks.json`
+(SessionStart, no matcher). Each command finds the tool by PATH and is
+a no-op without it: `command -v ledger >/dev/null 2>&1 || exit 0; exec
+ledger hook NAME`. On this host `ledger` is the relative symlink
+`~/bin/ledger -> ../Repos/ledger/bin/ledger`; the launcher follows the
+chain with `readlink` to find its checkout.
 
 Each hook reads the payload on stdin, writes nothing to the journal, and
 turns any error of its own into exit 0. The session's ledgers
 are the live ledgers whose `place` is the
-payload's `cwd`, `cwd/.claude`, or its `scratchpad_dir`. The symlink
-`~/.claude/skills/orchestration` is absolute and outside
-`/compat/linux`, so the Linux-side `sh` follows it (checked this
-session); `CLAUDE_CODE_SESSION_ID` is set in the Bash tool's
-environment (checked), so the claim (U12) needs no `--session` in the
-common case. Stop starts Ruby twice (two hook entries); section 9
-records merging them as an objection.
+payload's `cwd`, `cwd/.claude`, or its `scratchpad_dir`.
+`CLAUDE_CODE_SESSION_ID` is set in the Bash tool's environment, so the
+claim (U12) needs no `--session` in the common case. Stop starts Ruby
+twice (two hook entries); section 8 records merging them as an
+objection.
 
 | Hook (event, matcher) | Reads | Does |
 |---|---|---|
@@ -691,64 +686,15 @@ stays whole and the constraints become their ids with the same
 pointer: the quote is never cut mid-word. *Decision*: the order and the
 fallback.
 
-**SKILL.md (U7)** says, under The ledger, that the ledger is the task
-list: a session does not keep a second one in TaskCreate or TodoWrite.
+**The skill's SKILL.md (U7)** says, under The ledger, that the ledger is
+the task list: a session does not keep a second one in TaskCreate or
+TodoWrite.
 
-## 8. The import at cutover
+## 8. Where things live
 
-`rake journal:import LEDGERS="PATH …" [DRY_RUN=1]` (`rakelib/journal.rake`,
-`lib/ledger/import/`) moved the `LEDGER*.md` files into the journal
-once. It is a data migration, not a command sessions run, and it is
-removed from the tree, with its tests and fixtures, once it has run:
-nothing after the cutover reads a ledger file.
-
-For each file, and for every `ledgers-closed/LEDGER*.md` beside a live
-one, in one transaction and one `import` event:
-
-1. The file is parsed (`lib/ledger/import/markdown.rb`) and every line
-   is placed in a column. A file with a line the importer cannot place,
-   or whose rows the schema would refuse, is not imported: the task names
-   the file and the line, writes nothing for it, goes on with the
-   others and exits 1. Its owner fixes it or leaves it out; the journal
-   never holds a line it cannot read back.
-2. The ledger row takes `place` and `name` from the path and `project`
-   from the directory (a `.claude/` ledger's parent). A closed ledger
-   takes the directory holding `ledgers-closed/` as its place and the
-   file's name as its name, a trailing `-YYYY-MM-DD` read as the day it
-   was closed (00:00 local), else the file's modification time.
-   *Decision, reviewable*: that reading of the suffix.
-3. Counters are seeded by `next_id`'s rule over the ids the text and
-   the inbox mention. Decisions get `X1…` in file order. A decision whose
-   body opens `O<n>:` gets the edge `X answers O<n>` when the question is
-   still in the file, and `O<n>: replaced by O<m>` the edge `O<m>
-   replaces O<n>`; a link whose target is not in the file is not
-   created, and the report counts it. `rests_on` and `led_to` are left
-   empty: no line names them.
-4. A verified piece gets `verified_by` `import`; no column the journal
-   needs is left NULL.
-5. The side files become rows: `.inbox` lines the viewer's entries,
-   numbered `N<n>` in file order (a line that is not a JSON object is
-   kept whole, `malformed`); `.inbox.taken` lines `take` events dated by
-   their time; `.asked` keys the dates of the insert events of their
-   question or await row, so a wait keeps its age; `.beat` the beat
-   columns. `.lock`, `.prev`, `.prev.N` and their `.sum` are not
-   imported.
-6. Pictures: every file a question's `mockup: NAME` names in the
-   ledger's mockups folder (`.claude/mockups` beside a `.claude/`
-   ledger), its `before-NAME` pair and, for a directory, every file
-   under it, is read into `pictures`; a name the folder lacks refuses
-   the file. Files no question names are not imported, and listed.
-7. Nothing on disk is written or removed: the owners delete their
-   files and mockup folders.
-
-The line-for-line comparison of `show` with the source file is not a
-promise of the design: `show` is the journal's own text and may change.
-
-## 9. Where things live
-
-Every gate is `bundle exec rake` in `dispatch/orchestration/ruby` (the
-minitest suite, then the house rubocop rules), with `LEDGER_JOURNAL` at a
-file in a temporary directory per test.
+The gate is `bundle exec rake` at the repository's root (the minitest
+suite, then the house rubocop rules), with `LEDGER_JOURNAL` at a file in
+a temporary directory per test.
 
 | Area | Files |
 |---|---|
@@ -758,7 +704,7 @@ file in a temporary directory per test.
 | derived states, checks | `lib/ledger/derive.rb`, `lib/ledger/checks/*.rb` |
 | commands | `lib/ledger/cli.rb`, `lib/ledger/commands/*.rb`, `bin/ledger` |
 | history, inbox, pictures | `lib/ledger/history.rb`, `inbox.rb`, `pictures.rb` |
-| hooks | `lib/ledger/hooks/*.rb`, registered by `docs/hooks-frontmatter.md` |
+| hooks | `lib/ledger/hooks/*.rb`, registered by the orchestration skill (SKILL.md's front matter, `hooks.json`) |
 | viewer | `lib/ledger_viewer/`, `views/`, `public/`, `config.ru`, `bin/ledger-viewer`; it reads `Ledger::Read` and writes through `Ledger::Inbox.append` |
 
 The viewer lists every live ledger of the journal. Its pictures are
@@ -781,18 +727,56 @@ Settled objections, kept as decided:
 Decisions of the build, reviewable: the `LEDGER_JOURNAL` name; the
 address is the path spelling of a ledger file; `beat` and counters outside the
 events; `case-rated`; `journal-write`; the resume view's order and
-fallback; the importer as a rake task that runs once; `--no-picture`
-stored; event times in milliseconds, as sesam keeps its own; questions
-kept after an answer; `pictures` outside `event_rows`; the viewer's 2 s
-wait and 503; the closed-ledger name suffix read as a date; `decide`,
-`answer` and `word` print their `X<n>` first; the launcher's bare start
-for the two journal-free hooks.
+fallback; `--no-picture` stored; event times in milliseconds, as sesam
+keeps its own; questions kept after an answer; `pictures` outside
+`event_rows`; the viewer's 2 s wait and 503; `decide`, `answer` and
+`word` print their `X<n>` first; the launcher's bare start for the two
+journal-free hooks; the tool found by PATH, its hooks a no-op without
+it.
 
 Behaviours that follow from the design:
 
-- `undo` reverts an event, not a saved file; `restore` takes `--to
-  E<n>`; there are no generations.
+- `undo` reverts an event; `restore` takes `--to E<n>`.
 - An undone `piece new` does not give its id back.
 - `verified_by` and the claim are in the JSON and the events, not in the
   Markdown.
-- The status line gains `stalled:`.
+- The status line names stalled pieces, `stalled:`.
+
+## 9. Borrowed from
+
+The upgrade codes above come from a survey of agent trackers made on
+2026-11-20. What was built from it, by source:
+
+- **Claude Code hooks** (https://code.claude.com/docs/en/hooks): the
+  SessionStart payload's `source` and its `additionalContext` of at
+  most 10 000 characters carry the resume view (U5,
+  `lib/ledger/hooks/session_start.rb`,
+  `lib/ledger/hooks/resume_view.rb`); its Task
+  tools are why the skill names the ledger as the task list (U7).
+- **Beads** (https://github.com/gastownhall/beads,
+  https://pkg.go.dev/github.com/steveyegge/beads): `bd ready` as the
+  derived *ready* state (U2, `Ledger::Derive#ready?`); `bd update
+  --claim` as the claim of a piece sent out (U12, `pieces.claimed_by`);
+  `bd prime`, re-injecting the workflow after compaction, as the resume
+  view (U5).
+- **Task Master** (https://github.com/eyaltoledano/claude-task-master,
+  https://docs.task-master.dev/capabilities/task-structure): the next
+  task is one whose dependencies are satisfied, as a planned piece is
+  ready once its `after` pieces are settled (U2).
+- **Spec Kit** (https://github.com/github/spec-kit), **HumanLayer**
+  (https://github.com/humanlayer/humanlayer) and Claude Code's
+  cross-session messaging
+  (https://code.claude.com/docs/en/cross-session-messaging): surveyed;
+  nothing of theirs is built.
+
+The rest is attributed by the survey's own comparisons, not by a
+lineage the trackers' authors claim:
+
+- U1, the event log (section 2), and U11, `verified_by`: closest to
+  taskops (events.jsonl as truth, a verifier's pass).
+- U14, stalled (section 3): closest to Gas Town's Witness for stuck
+  agents.
+- U16, `piece_criteria` (schema only): closest to Backlog.md's
+  acceptance criteria.
+- U3, sequential ids; U4, JSON v1 (section 6); U10, `piece_briefs`
+  (schema only): own design, no source.

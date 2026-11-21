@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 # fixture_rewind.rb -- the browser checks' way back from a send, run by
-# tests/browser/viewer.cjs as
+# test/browser/viewer.cjs as
 #     bundle exec ruby test/support/fixture_rewind.rb mark ADDRESS
 #     bundle exec ruby test/support/fixture_rewind.rb rewind ADDRESS E<n>
 # on the test journal ($LEDGER_JOURNAL). `mark` prints the ledger's

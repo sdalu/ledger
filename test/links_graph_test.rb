@@ -199,7 +199,7 @@ class LinksPageTest < Minitest::Test
         out = ENV.fetch("LINKS_HTML", nil)
         skip "LINKS_HTML names the file the browser check reads" unless out
 
-        css = File.read(File.join(ROOT, "../scripts/viewer.css"))
+        css = File.read(File.join(ROOT, "public/viewer.css"))
         mine = File.read(File.join(ROOT, "public/links.css"))
         File.write(out, <<~HTML)
             <!doctype html><html lang="en"><meta charset="utf-8">

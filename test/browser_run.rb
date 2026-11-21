@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-# browser_run.rb -- the viewer's browser checks (tests/browser/
+# browser_run.rb -- the viewer's browser checks (test/browser/
 # viewer.cjs, unchanged) against this viewer, in Chrome and Firefox: the
 # ledger those checks expect made by bin/ledger's words in a sandbox
 # journal (test/support/browser_fixture.rb), this app on a free port
@@ -31,7 +31,6 @@ require_relative "support/browser_fixture"
 
 module BrowserRun
     ROOT = File.expand_path("..", __dir__)
-    SKILL = File.expand_path("..", ROOT)
     PASSWORD = "a long enough password"
 
     # The fixture's ledger, with its pictures and its inbox, in a journal
@@ -118,6 +117,9 @@ module BrowserRun
             Process.spawn(@env, "bundle", "exec", "puma",
                           "-t", "0:#{LedgerViewer::THREADS}",
                           "-b", "tcp://127.0.0.1:#{@sandbox.port}",
+                          # its own pidfile: config/puma.rb, which puma loads
+                          # by default, names the viewer's
+                          "--pidfile", File.join(@sandbox.dir, "puma.pid"),
                           "test/browser.ru", chdir: ROOT, out: log, err: log)
         end
 
@@ -167,7 +169,7 @@ module BrowserRun
     # The shared browser test, once per browser, then every page.
     class Checks
         SHIM = File.join(__dir__, "browser_session.cjs")
-        VIEWER = File.join(SKILL, "tests", "browser", "viewer.cjs")
+        VIEWER = File.join(__dir__, "browser", "viewer.cjs")
         PAGES = File.join(__dir__, "browser_pages.cjs")
 
         def initialize(core, browsers)

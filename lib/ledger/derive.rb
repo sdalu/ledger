@@ -313,8 +313,8 @@ module Ledger
                 end
             end
 
-            # Every entry has an N<n>, a malformed one too (the importer
-            # numbers each line), so each pending one is named.
+            # Every entry has an N<n>, a malformed one too, so each
+            # pending one is named.
             def viewer
                 ids = @derive.pending_entries.map { "N#{it[:n]}" }
                 [clause("from the viewer", ids)].compact

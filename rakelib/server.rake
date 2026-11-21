@@ -82,7 +82,7 @@ module Detached
     def taken?(tool, name)
         if tool == :tmux
             system(child_env, "tmux", "has-session", "-t", "=#{name}",
-                   err: File::NULL)
+                   err: File::NULL, unsetenv_others: true)
         else
             `screen -ls 2>/dev/null`.match?(/^\s*\d+\.#{name}\s/)
         end
@@ -91,28 +91,33 @@ module Detached
     # A running tmux server builds a new session's environment from its
     # own, not from this process's: DEBUG=1 or PRODUCTION=1 would be lost.
     # So the launcher runs under env with this process's environment,
-    # less the session request itself.
+    # less the session request itself and less bundler's: a tmux server
+    # started here keeps its environment for every later session, and
+    # BUNDLE_LOCKFILE in it makes another project's bundle rewrite this
+    # Gemfile.lock. The launcher sets up its own bundle.
     def launch(tool, name, launcher)
         root = File.expand_path("..", __dir__)
-        kept = ENV.to_h.except(*DROP).map { |k, v| "#{k}=#{v}" }
+        kept = clean_env.except(*DROP).map { |k, v| "#{k}=#{v}" }
         cmd = ["env", *DROP.flat_map { ["-u", it] }, *kept, launcher]
         if tool == :tmux
             system(child_env, "tmux", "new-session", "-d", "-s", name,
-                   "-c", root, *cmd)
+                   "-c", root, *cmd, unsetenv_others: true)
         else
-            system(child_env, "screen", "-dmS", name, *cmd, chdir: root)
+            system(child_env, "screen", "-dmS", name, *cmd,
+                   chdir: root, unsetenv_others: true)
         end
     end
 
-    # Unset, not merely left out: system(env, ...) merges its hash into
-    # the environment, and a TMUX=name left in it is read by tmux as the
-    # path of its socket -- a socket file named after the session,
-    # created in the project (seen, 2026-11-11).
+    # Left out of an environment passed with unsetenv_others, so unset: a
+    # TMUX=name left in it is read by tmux as the path of its socket -- a
+    # socket file named after the session, created in the project.
     DROP = %w[TMUX SCREEN STY].freeze
 
-    def child_env
-        DROP.to_h { [it, nil] }
-    end
+    # The environment without bundler's variables, as it was before
+    # bundle exec ran rake.
+    def clean_env = defined?(Bundler) ? Bundler.unbundled_env : ENV.to_h
+
+    def child_env = clean_env.except(*DROP)
 
     # The pidfile is the proof it started; the session is where to look
     # when it did not.

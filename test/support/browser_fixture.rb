@@ -2,7 +2,7 @@
 
 require_relative "ledger_commands"
 
-# The ledger tests/browser/viewer.cjs expects, made by bin/ledger's
+# The ledger test/browser/viewer.cjs expects, made by bin/ledger's
 # words in the caller's journal: the goal, D1, F1, the pieces P1 to P4,
 # the questions O1 to O3 with O1's two pictures (mockups/ beside this
 # file), and the inbox the viewer sent, N1 about O3 waiting and N2
