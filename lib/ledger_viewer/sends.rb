@@ -35,19 +35,23 @@ module LedgerViewer
             end
 
             # The stamp the page was drawn with, asked again by the
-            # page's fallback poll.
+            # page's fallback poll: with `lid`, that ledger's alone.
             def stamp_page
                 page_headers
                 content_type "text/plain; charset=utf-8"
-                current_stamp
+                current_stamp(query.get("lid"))
             end
 
-            # `since` is the stamp of the page asking, or the current one.
+            # `since` is the stamp of the page asking, or the current one;
+            # `lid` the ledger whose page asks, whose stamp moves with that
+            # ledger alone.
             def stamp_stream
-                since = Form.parse(request.query_string).get("since")
+                lid = query.get("lid")
+                since = query.get("since")
                 headers Headers::EVENTS
                 response["Content-Type"] = "text/event-stream"
-                Events.new(since || current_stamp, -> { current_stamp },
+                Events.new(since || current_stamp(lid),
+                           -> { current_stamp(lid) },
                            socket: request.env["puma.socket"])
             end
 
@@ -101,7 +105,15 @@ module LedgerViewer
                 "viewer:#{held ? held.name : caller_now.name}"
             end
 
-            def current_stamp = Render::Stamp.of(settings.ledgers.all)
+            def query = @query ||= Form.parse(request.query_string)
+
+            # Every live ledger's stamp, or with `lid` that ledger's.
+            def current_stamp(lid = nil)
+                entries = settings.ledgers.all
+                return Render::Stamp.of(entries) unless lid
+
+                Render::Stamp.ledger(entries, lid)
+            end
 
             # The token a send must carry: a caller with no session has a
             # form to send from only on the LAN (its token is the one the

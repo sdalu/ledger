@@ -12,7 +12,7 @@ class EventsTest < ViewerTest
 
     def test_the_stamp_is_the_pages
         sign_in
-        https "/l/#{@lid}"
+        https "/"
         page = last_response.body[/data-stamp="(\h+)"/, 1]
         https "/stamp"
         headers = last_response.headers
@@ -74,6 +74,16 @@ class EventsTest < ViewerTest
         client.close
 
         assert thread.join(2), "the stream outlived its client"
+    end
+
+    def test_a_ledgers_stream_sends_that_ledgers_stamp
+        sign_in
+        https "/stamp?lid=#{@lid}"
+        mine = last_response.body
+        _, _, body = stream("/events?since=old&lid=#{@lid}")
+        chunks = take(body, 2)
+
+        assert_equal "event: stamp\ndata: #{mine}\n\n", chunks[1]
     end
 
     private

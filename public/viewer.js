@@ -980,9 +980,12 @@
     drawBar();
   }
   let live = false;
+  // a ledger page watches its own ledger's stamp, which a write to another
+  // ledger leaves alone; the index watches every ledger's
+  const watched = ledgerPage ? 'lid=' + encodeURIComponent(lid) : '';
   const poll = async () => {
     try {
-      const r = await fetch('/stamp', {cache: 'no-store'});
+      const r = await fetch('/stamp' + (watched ? '?' + watched : ''), {cache: 'no-store'});
       if (r.ok) changed(await r.text());
     } catch (e) {}
     setTimeout(poll, live ? 30000 : 3000);
@@ -997,7 +1000,7 @@
     const host = () => document.querySelector('.receipt, .queue-summary');
     const open = () => {
       retry = 0;
-      es = new EventSource('/events?since=' + encodeURIComponent(here));
+      es = new EventSource('/events?since=' + encodeURIComponent(here) + (watched ? '&' + watched : ''));
       es.addEventListener('open', () => {
         live = true; delay = 2000; clearTimeout(lost); lost = 0; clearTimeout(retry); retry = 0;
         if (paused) { paused.remove(); paused = null; }

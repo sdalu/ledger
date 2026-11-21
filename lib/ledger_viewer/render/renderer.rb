@@ -31,10 +31,10 @@ module LedgerViewer
             end
 
             # The page of the ledger `entry` (Ledgers::Entry), for the
-            # form token `token`.
+            # form token `token`; its stamp is that ledger's alone, which
+            # /stamp and /events answer for its lid.
             def ledger(entry, token)
-                entries = @ledgers.all
-                @ledger.html(entry, @ledgers.read(entry), Stamp.of(entries),
+                @ledger.html(entry, @ledgers.read(entry), Stamp.of([entry]),
                              token)
             end
 

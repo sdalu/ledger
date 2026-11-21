@@ -702,6 +702,25 @@ const [base, ledger, which] = process.argv.slice(2);
     const xs = rows.map(r => r.querySelector('.question').getBoundingClientRect().left);
     return rows.length > 1 && rows.every(r => r.querySelector('.wait')) && xs.every(x => Math.abs(x - xs[0]) < 1);
   }));
+  // V8: a ledger page watches its own ledger: a write to another ledger
+  // moves neither its stamp nor the page, which is not fetched again
+  const other = path.join(path.dirname(ledger), '..', '..', 'other', '.claude', 'LEDGER.md');
+  const runOn = (file, ...words) => execFileSync(path.join(__dirname, '../../bin/ledger'), [words[0], file, ...words.slice(1)],
+    {env: process.env, stdio: ['ignore', 'ignore', 'inherit']});
+  runOn(other, 'new', '--goal', 'a second ledger for the stamp check', '--title', 'Second ledger',
+    '--short', 'a second ledger', '--date', '2026-11-19');
+  await p.goto(base + page);
+  await p.waitForTimeout(1500);
+  const refetched = [];
+  const refetch = r => { if (r.resourceType() === 'fetch' && new URL(r.url()).pathname === page) refetched.push(r.url()); };
+  p.on('request', refetch);
+  const stampWas = await p.evaluate(() => { window.__mark = 1; return document.body.dataset.stamp; });
+  runOn(other, 'fact', 'another ledger moved — viewer.cjs');
+  await p.waitForTimeout(4500);
+  p.off('request', refetch);
+  t('V8: a write to another ledger leaves the open ledger page\'s stamp, and the page is not fetched again',
+    await p.evaluate(s => window.__mark === 1 && document.body.dataset.stamp === s && !document.querySelector('.stale-note'), stampWas)
+    && refetched.length === 0);
   await p.goto(base + '/favicon.ico').catch(() => {});
   t('no page error and no failed request', errors.length === 0 || (console.log(errors.join('\n')), false));
   await b.close();

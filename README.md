@@ -360,8 +360,8 @@ checks, noticed lines) and Dependencies (each after or by piece not
 settled, each deferred condition). A stalled piece says so in the side
 list too (`out · stalled 2 h · with sonnet`).
 A question already answered counts as the session's turn, not the
-user's. Every request reads the journal. When a ledger changes, the
-page shown fetches itself again and draws anew only the parts the
+user's. Every request reads the journal. When its ledger changes (any
+ledger, for the index), the page shown fetches itself again and draws anew only the parts the
 server now draws differently: on a ledger page the head, the cards, the
 section counts, the side list, the record folds and your messages; on
 the index its rows. The page does not move and the focus stays, and a
@@ -708,7 +708,12 @@ network only where every device on it is the user's.
 The viewer is pushed changes over server-sent events (`GET /events`): a
 page draws its changed parts anew, or falls back to the note or the
 reload, within about a second of a ledger write. The 3 s poll of `/stamp`
-remains as the fallback, slowed to 30 s while the stream is open. A sent
+remains as the fallback, slowed to 30 s while the stream is open. Both
+take an optional `lid`: a ledger page passes its own and watches that
+ledger's stamp alone, which its `data-stamp` carries too, so a write to
+another ledger leaves it untouched (a ledger closed or unknown answers a
+stamp no live ledger has); the index passes none and watches every
+ledger's. A sent
 card reads `sent HH:MM · unfiled for N min`, a filed entry reads `filed
 at HH:MM` (the take event's time), and the header reads `Ledger updated
 today HH:MM` (the ISO date instead of `today` when it is not). Times
