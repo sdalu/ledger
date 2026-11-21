@@ -128,7 +128,7 @@ Every item has a writer, and no ledger is edited by hand. `piece
 PATH new|P<n>` adds a piece with the next free id or changes one
 (`--title`, `--what` for the detail, `--status`, `--route`,
 `--done-when`, `--evidence`, `--after`, `--for`, `--by`, `--verified-by`,
-`--cause`; an empty value clears a link); `ask PATH --title TITLE "question"
+`--cause`, `--no-picture WHY`; an empty value clears a link); `ask PATH --title TITLE "question"
 [--choices "A = … | B = …"] [--recommend "A, why"] [--items "x | y"]
 [--by P<n>] [--see F2] (--mockup NAME | --pending P<n> | --no-picture
 WHY) [--replaces O<n>]` puts a question under Open (it refuses one
@@ -493,6 +493,18 @@ and nothing else. Its pages run in an
 opaque origin, by a `sandbox` CSP that holds even when one is opened
 on its own, with no fetch, no form and no frame, so a mockup can
 neither read the viewer's token nor post to it.
+
+A piece awaiting commit, deploy, push or merge shows what the word
+changes: `bin/ledger mockup PATH FILE --piece P<n> --before` (or
+`--after`) places one file as that side, and its card under Waiting on
+you draws the pair as one tile, *Before* on the left and *After* on the
+right, each opening full size; a side already placed is refused unless
+`--replace` takes it away (its blob stays). A piece with nothing to
+show says why with `bin/ledger piece PATH P<n> --no-picture WHY`, drawn
+on its card as a muted line `no picture: WHY`. `check`'s `pictures` rule
+fails such a piece with neither both sides nor a reason, so the write
+that makes it await the word is refused until one is given; `start` and
+`other (…)` ask for none. `undo` takes a placed side back.
 
 It writes inbox entries, never a ledger's items: under each open
 question an answer box, and one note box per ledger, each send filed

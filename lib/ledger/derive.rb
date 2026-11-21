@@ -105,6 +105,8 @@ module Ledger
 
         def awaits_label(piece) = Text::Awaits.label(awaits(piece))
         def scopes(piece) = rows(:piece_scopes, :piece_id, piece)
+        # The piece's before/after rows, before first.
+        def pictures(piece) = rows(:piece_pictures, :piece_id, piece)
 
         def open_questions = snapshot.questions.select { it[:closed_at].nil? }
         def qref(question) = "O#{question[:n]}"

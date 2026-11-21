@@ -12,7 +12,7 @@ module Ledger
                            inbox_entries].freeze
         # Keyed by piece_id, through pieces.
         PIECE_TABLES = %i[piece_links piece_awaits piece_scopes
-                          piece_briefs piece_criteria].freeze
+                          piece_briefs piece_criteria piece_pictures].freeze
         # Keyed by question_id, through questions.
         QUESTION_TABLES = %i[question_choices question_items question_sees
                              question_pictures].freeze

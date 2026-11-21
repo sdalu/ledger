@@ -165,5 +165,42 @@ module Ledger
                                                    name:)
             end
         end
+
+        # The rows a `mockup --piece` writes through its change: the
+        # picture, and the piece's row naming it as one side.
+        class Sides < Placement
+            # Stores ITEM and names it as ROLE (before or after) of PIECE
+            # (a row); `replace` takes the piece's earlier ROLE away, and
+            # without it a second ROLE is refused.
+            def call(piece, role, item, replace:)
+                old = earlier(piece, role, replace)
+                if placed?(item.name)
+                    refuse("#{item.name}: already a picture of this " \
+                           "ledger; place it under another name")
+                end
+
+                store(item)
+                old.each { @change.delete(:piece_pictures, it[:id]) }
+                @change.insert(:piece_pictures, piece_id: piece[:id],
+                                                position: position(role),
+                                                role:, name: item.name)
+            end
+
+            private
+
+            # The piece's ROLE rows, refused without `replace`.
+            def earlier(piece, role, replace)
+                old = @db[:piece_pictures].where(piece_id: piece[:id], role:)
+                                          .all
+                return old if old.empty? || replace
+
+                refuse("P#{piece[:n]} has its #{role} " \
+                       "(#{old.map { it[:name] }.join(", ")}); add " \
+                       "--replace to swap it")
+            end
+
+            # before first, after second: the order the pair is drawn in.
+            def position(role) = role == "before" ? 0 : 1
+        end
     end
 end

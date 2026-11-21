@@ -46,6 +46,11 @@ module Ledger
                 "push and merge on a piece done; `bin/ledger piece PATH " \
                 'P<n> --awaits "commit, deploy"`; a scope names only words ' \
                 'the piece awaits: `--scope "commit = … | deploy = …"`',
+            "pictures" =>
+                "a piece awaiting commit, deploy, push or merge shows " \
+                "what it changes, a before and an after; `bin/ledger " \
+                "mockup PATH FILE --piece P<n> --before` and `--after`, " \
+                "or `bin/ledger piece PATH P<n> --no-picture WHY`",
             "titles" =>
                 "a title is a phrase in words, at most 60 characters, " \
                 "without \": \"; `bin/ledger piece PATH P<n> --title …`, a " \
