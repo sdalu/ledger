@@ -13,16 +13,17 @@ module LedgerViewer
             prepared!(ref, asked, drop)
             replaces!(fields, ref, :answer)
             fields["word"] = "drop" if drop
-            choose(ref, fields, drop ? [] : asked["choices"],
+            choose(ref, fields, drop ? [] : Render::Reading.options(asked),
                    drop ? [] : asked["items"])
         end
 
         # A question still being prepared is not answered, but dropped.
         def prepared!(ref, asked, drop)
-            return if drop || asked["prep"].nil? || asked["prep"].empty?
+            return if drop || asked["preparing"].nil?
 
             refuse(409, "#{ref} is still being prepared by " \
-                        "#{asked["prep"]}; send a note if it cannot wait.")
+                        "#{asked["preparing"]}; send a note if it cannot " \
+                        "wait.")
         end
 
         def choose(ref, fields, options, items)
@@ -63,7 +64,8 @@ module LedgerViewer
             fields["picks"] = picks unless picks.empty?
         end
 
-        # Python's repr() of a str, as its messages quote one.
+        # A string as the messages quote it: single quotes, double when it
+        # holds one and no double, backslash escapes.
         def py_repr(text)
             quote = text.include?("'") && !text.include?('"') ? '"' : "'"
             body = text.gsub(/[\\\n\r\t#{quote}\x00-\x1f\x7f]/) do |char|

@@ -6,8 +6,7 @@ module LedgerViewer
     module Render
         # The index page: one queue of what waits on the user across
         # every ledger, oldest wait first; then what is the sessions'
-        # turn; then the ledgers themselves. render_index() of
-        # ledger-serve.py, from the ledgers' dumps.
+        # turn; then the ledgers themselves, from their documents.
         class Index
             def initialize(views, scope, page)
                 @views = views
@@ -15,11 +14,11 @@ module LedgerViewer
                 @page = page
             end
 
-            # entries: the Ledgers::Entry list; readings: {path => dump
-            # Hash or nil}; stamp: Stamp.of(entries).
+            # entries: the Ledgers::Entry list; readings: {id => its JSON
+            # v1 document}; stamp: Stamp.of(entries).
             def html(entries, readings, stamp)
                 found = Collector.new(@scope)
-                entries.each { found.add(it, readings[it.path]) }
+                entries.each { found.add(it, readings.fetch(it.id)) }
                 queue = queue_of(found.queue)
                 body = @scope.partial("index/body", **parts(found, queue))
                 @page.html(title: title(queue), body:, stamp:)
@@ -39,7 +38,7 @@ module LedgerViewer
 
             def parts(found, queue)
                 { summary: summary(found).join(" · "), queue:,
-                  noid: found.noid.sort.map(&:last), theirs: found.theirs,
+                  theirs: found.theirs,
                   rows: found.rows.sort.map(&:last) }
             end
 
@@ -50,7 +49,6 @@ module LedgerViewer
                     :asks, :words, :sent, :prepared
                 )
                 [phrase(asks, "question"), phrase(words, "word", " to give"),
-                 ("#{found.noid.length} to review" if found.noid.any?),
                  phrase(sent, "answer", " sent, awaiting filing"),
                  ("#{prepared} being prepared" if prepared.positive?)].compact
             end

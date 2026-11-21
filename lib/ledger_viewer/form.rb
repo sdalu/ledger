@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
 module LedgerViewer
-    # A urlencoded body (or a query) as Python's urllib.parse.parse_qs
-    # reads it, so that a field means what it meant to the Python viewer:
+    # A urlencoded body (or a query) read the way parse_qs of the
+    # urlencoded standard does, so that a field means what a browser sent:
     # split on `&` only, a field with no value dropped, `+` a space, an
     # invalid escape left as it is and bytes that are not UTF-8 replaced,
     # the first value of a repeated name the one that counts, a name with

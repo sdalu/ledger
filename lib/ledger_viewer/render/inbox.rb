@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require_relative "clock"
 require_relative "helpers"
 require_relative "terms"
 require_relative "text"
@@ -8,7 +9,7 @@ module LedgerViewer
     module Render
         # Your messages: everything sent from the viewer, newest first,
         # what the session has not taken above and what it has folded
-        # below. The inbox part of render_ledger().
+        # below.
         class Inbox
             KINDS = { "answer" => "answer to %<ref>s",
                       "comment" => "comment on piece %<ref>s",
@@ -57,8 +58,8 @@ module LedgerViewer
             def state(entry)
                 id = entry["id"]
                 if entry["taken"]
-                    taken = @reading.taken_at
-                    taken.key?(id) ? "filed at #{taken[id]}" : "filed"
+                    at = Clock.clock(entry["taken_at"])
+                    at.empty? ? "filed" : "filed at #{at}"
                 elsif replaced.key?(id)
                     "replaced by #{replaced[id]}"
                 else

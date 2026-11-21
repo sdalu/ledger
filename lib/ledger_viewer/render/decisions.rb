@@ -4,12 +4,12 @@ require "date"
 
 require_relative "entry"
 require_relative "text"
+require_relative "why"
 
 module LedgerViewer
     module Render
         # The Decisions fold's body: one h4 per date, newest first
         # ("today" for today), each with its rows in the ledger's order.
-        # decision_row() and decisions_by_date() of ledger-serve.py.
         class Decisions
             LINE = /\A-[ ]\d{4}-\d{2}-\d{2}[ ]—[ ](.+?)[ ]—[ ]by[ ](user|me)
                     (?:[ ]\((.+?)\))?(?:[ ]—[ ]by[ ](user|me))?
@@ -20,15 +20,19 @@ module LedgerViewer
             # The parts of a parsed line: the words, who, the note.
             Parsed = Data.define(:words, :who, :note)
 
-            def initialize(scope, entry)
+            # `lid`: the ledger's, for each decision's links page.
+            def initialize(scope, entry, lid)
                 @scope = scope
                 @entry = entry
+                @lid = lid
             end
 
             # A line that does not parse keeps the plain row, in its
             # date's group when it starts with a date, else in a last
-            # group without a heading.
-            def html(lines)
+            # group without a heading. `ids`: each line's decision id,
+            # whose links page the row ends with.
+            def html(lines, ids = [])
+                @ids = ids
                 groups = group(lines)
                 days = groups.keys.reject(&:empty?).sort.reverse
                 days << "" if groups.key?("")
@@ -62,7 +66,15 @@ module LedgerViewer
             end
 
             def plain(line, at)
-                @entry.html(text: line.sub(/\A- /, ""), anchor: "dec-#{at}")
+                @entry.html(text: line.sub(/\A- /, ""), anchor: "dec-#{at}",
+                            fold: why_link(at))
+            end
+
+            # The link to the links page of the line at AT, when its id
+            # has one.
+            def why_link(at)
+                id = @ids[at].to_s
+                id.match?(Why::STARTABLE) ? Why.link(@lid, id) : ""
             end
 
             # "- DATE — what — why — by user|me", a note after it or a
@@ -87,7 +99,7 @@ module LedgerViewer
                 mark = ident ? "#{@scope.chip(ident[1])} " : ""
                 @scope.partial("ledger/decision",
                                { at:, mark:, what: @scope.inline(what),
-                                 meta: meta(why, parsed) })
+                                 meta: meta(why, parsed), why: why_link(at) })
             end
 
             # A quoted choice is one piece: its own " — " does not split it.

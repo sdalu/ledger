@@ -4,10 +4,9 @@ require "json"
 
 module LedgerViewer
     module Render
-        # The viewer's inline icons, drawn as viewer_icons.py's icon()
-        # draws them. icons.json holds that module's two tables, dumped
-        # as they are (json.dump of {"lucide": LUCIDE, "git": GIT}); a
-        # test compares every icon with the Python's.
+        # The viewer's inline icons. icons.json holds the two tables, as
+        # {"lucide": {name => inner SVG}, "git": inner SVG}; a test pins
+        # the SVG each name draws by its digest.
         module Icons
             TABLE = JSON.parse(File.read(File.join(__dir__, "icons.json")))
                         .freeze

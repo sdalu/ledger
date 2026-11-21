@@ -1,21 +1,25 @@
 # frozen_string_literal: true
 
-require "fileutils"
-
 require "sesam"
 
+require "ledger"
+
 module LedgerViewer
-    # Who may sign in: sesam's users, invitations and passkeys in a
-    # JSON file at the configured path.
+    # Who may sign in: sesam's users, invitations and passkeys, kept in
+    # the journal (sesam's own tables, migrated by Journal.open).
     module Accounts
         APP = "ledger-viewer"
 
-        # The store, its directory made mode 700 when missing; the file
-        # itself appears at the first write.
-        def self.open(config)
-            FileUtils.mkdir_p(config.data_dir, mode: 0o700)
-            Sesam::JsonStore.new(config.store)
-        end
+        # How long the viewer waits on a busy journal before it answers
+        # 503.
+        BUSY_MS = 2000
+
+        # The journal LEDGER_JOURNAL names (else the default), opened for
+        # the viewer: a busy one is waited on BUSY_MS.
+        def self.journal = Ledger::Journal.open(busy_ms: BUSY_MS)
+
+        # sesam's store on that journal.
+        def self.open(journal) = Sesam::SequelStore.new(journal.db)
 
         # What sesam is told. Passwords only for now (passkeys come with
         # HTTPS); `lan` is the networks whose callers are admitted without
@@ -37,6 +41,29 @@ module LedgerViewer
             users = Sesam::Users.new(store)
             name = users.add(name) unless users.exists?(name)
             users.invite(name)
+        end
+
+        # sesam's tables, in the order their keys allow.
+        TABLES = Sesam::SequelStore::TABLES
+
+        # Every row of the JSON store at `path` into `store`, once: an
+        # Error when `store` already holds a user. [table, rows] each.
+        def self.carry(path, store)
+            raise Error, "#{path}: no such file" unless File.file?(path)
+
+            source = Sesam::JsonStore.new(path)
+            store.transaction do
+                raise Error, "the journal already holds users" if
+                    store.count(:users).positive?
+
+                TABLES.map { |table| [table, copy(source, store, table)] }
+            end
+        end
+
+        def self.copy(source, store, table)
+            rows = source.all(table)
+            rows.each { store.insert(table, it) }
+            rows.length
         end
     end
 end

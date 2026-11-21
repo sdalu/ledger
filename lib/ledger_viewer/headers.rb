@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 module LedgerViewer
-    # What the Python viewer sends with what it serves: its pages carry
+    # What the viewer sends with what it serves: its pages carry
     # a policy that lets them run their own script and style, post to
     # themselves and frame a mockup of the same origin and nothing else;
     # a mockup carries one that puts it in an opaque origin, with no way

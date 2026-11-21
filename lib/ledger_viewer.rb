@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
-# The ledger viewer: the live ledgers of every project, served behind
-# sesam's sign-in. The engine stays ledger.py; this reads it.
+# The ledger viewer: the live ledgers of the journal, served behind
+# sesam's sign-in, each page read through Ledger::Read.
 module LedgerViewer
     VERSION = "0.1.0"
 
@@ -34,7 +34,6 @@ end
 LedgerViewer.check_mode!
 
 require "ledger_viewer/config"
-require "ledger_viewer/engine"
 require "ledger_viewer/events"
 require "ledger_viewer/form"
 require "ledger_viewer/form_token"

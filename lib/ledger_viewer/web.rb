@@ -5,11 +5,12 @@ require "sesam/sinatra"
 
 module LedgerViewer
     # The viewer: /health open to anyone, the sign-in and invitation
-    # pages, sesam's JSON routes, and behind the gate the index of live
-    # ledgers, a ledger's page and its pictures, drawn by Render. Pages
-    # and pictures carry the Python viewer's headers (Headers). Errors
-    # are answers: show_exceptions and raise_errors are off, and 404 and
-    # 422 have pages.
+    # pages, sesam's JSON routes, and behind the gate the index of the
+    # journal's live ledgers, a ledger's page and its pictures, drawn by
+    # Render. Pages and pictures carry their policy headers
+    # (Headers). Errors are answers: show_exceptions and raise_errors
+    # are off, 404 and 422 have pages, and a journal still busy after
+    # Accounts::BUSY_MS is a 503.
     class Web < Sinatra::Base
         # Reachable without being admitted: the monitor's route, the two
         # pages a browser signs in through, and the stylesheet they use
@@ -38,15 +39,15 @@ module LedgerViewer
             set :logging, true
         end
 
-        # The app for `config`, a subclass of its own so that two builds
-        # (two tests) never share settings.
-        def self.configured(config, db: Accounts.open(config))
-            renderer = Render::Renderer.new(config)
+        # The app for `config` over `journal`, a subclass of its own so
+        # that two builds (two tests) never share settings.
+        def self.configured(config, journal: Accounts.journal)
+            ledgers = Ledgers.new(journal)
+            renderer = Render::Renderer.new(config, ledgers)
             Class.new(self) do
-                ledgers = Ledgers.new(config.roots)
                 set config:, renderer:, ledgers:,
-                    sender: Sender.new(ledgers, renderer),
-                    sesam: Accounts.settings(config, db)
+                    sender: Sender.new(ledgers),
+                    sesam: Accounts.settings(config, Accounts.open(journal))
             end
         end
 
@@ -65,39 +66,58 @@ module LedgerViewer
         get("/sign-in") { erb :sign_in }
         get("/invite") { erb :invite }
 
-        get "/viewer.css" do
-            content_type :css
-            File.read(settings.config.stylesheet)
-        end
-
         get "/" do
             page_headers
-            settings.renderer.index(settings.ledgers.all)
+            settings.renderer.index
         end
 
         get %r{/l/([0-9a-f]{10})} do |lid|
-            entries = settings.ledgers.all
-            entry = entries.find { it.id == lid } or not_found
+            entry = settings.ledgers.find(lid) or not_found
             page_headers
-            settings.renderer.ledger(entries, entry, form_token)
+            settings.renderer.ledger(entry, form_token)
         end
 
-        # A ledger's pictures: its own files and nothing outside.
-        get %r{/m/([0-9a-f]{10})/(.+)} do |lid, name|
-            entry = settings.ledgers.all.find { it.id == lid }
-            real = entry && Render::Folder.file(entry.mockups, unquoted(name))
-            not_found unless real
+        # The links page of a piece or a decision: what led to it, what
+        # it led to. An id the ledger does not hold is not found.
+        get %r{/l/([0-9a-f]{10})/why/([PX][1-9]\d*)} do |lid, id|
+            entry = settings.ledgers.find(lid) or not_found
+            page_headers
+            settings.renderer.links(entry, id)
+        rescue LinksGraph::Error
+            not_found
+        end
+
+        # A ledger's pictures, from the journal: /m/ID/NAME for a picture
+        # of one file, /m/ID/NAME/PATH for a file of one placed as a
+        # directory. A NAME may hold a slash: the longest that leads the
+        # rest is the one.
+        get %r{/m/([0-9a-f]{10})/(.+)} do |lid, rest|
+            entry = settings.ledgers.find(lid) or not_found
+            row = settings.ledgers.picture_at(entry, unquoted(rest)) or
+                not_found
             headers Headers::MOCKUP
-            content_type Render::Terms::MOCKUP_TYPES
-                .fetch(Render::Terms.ext(real).downcase)
-            File.binread(real)
+            content_type row[:type]
+            row[:bytes].to_s
         end
 
         not_found { erb :not_found }
         error(422) { erb :unprocessable }
         error(500) { erb :failed }
+        error(Ledger::Locked) { busy }
+        error(Sequel::DatabaseError) do
+            cause = env["sinatra.error"].wrapped_exception
+            next busy if cause.is_a?(SQLite3::BusyException)
+
+            status 500
+            erb :failed
+        end
 
         helpers do
+            def busy
+                status 503
+                erb :busy
+            end
+
             def page_headers
                 content_type "text/html; charset=utf-8"
                 headers Headers::PAGE
@@ -109,7 +129,7 @@ module LedgerViewer
                 FormToken.for(settings.config.session_secret, held)
             end
 
-            # A name in a URL as Python's urllib.parse.unquote reads it:
+            # A name in a URL, unquoted:
             # Sinatra has decoded the percent escapes already, bytes that
             # are not UTF-8 become U+FFFD.
             def unquoted(name)

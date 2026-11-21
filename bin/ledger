@@ -1,0 +1,61 @@
+#!/bin/sh
+# ledger -- the orchestration journal's command (docs/journal.md,
+# section 7): resolve the checkout, pick the interpreter, exec Ruby.
+#
+# The interpreter: $LEDGER_RUBY when set (refused when not executable),
+# else /usr/local/bin/ruby when executable, else ruby on PATH. Hooks run
+# on the Linux-compat side, where a bare `ruby` is another build; the
+# native one is reached by its absolute path.
+#
+# `ledger hook heartbeat` and `ledger hook journal-write` read no
+# journal: they start with -I lib alone, no bundler, since they run
+# around every Bash call. Every other word starts under the checkout's
+# bundle. A failure here exits 1, never 2: a hook's 2 would block the
+# session.
+set -u
+
+# $0 is the path this was invoked by, a symlink's own when linked from
+# ~/bin: follow the chain, readlink without -f being the portable one.
+self=$0
+while [ -L "$self" ]; do
+    link=$(readlink -- "$self") || exit 1
+    case $link in
+        /*) self=$link ;;
+        *)  self=$(dirname -- "$self")/$link ;;
+    esac
+done
+root=$(cd -- "$(dirname -- "$self")/.." && pwd) || exit 1
+
+if [ -n "${LEDGER_RUBY:-}" ]; then
+    if [ ! -x "$LEDGER_RUBY" ]; then
+        printf '%s: LEDGER_RUBY=%s is not executable\n' \
+               "${0##*/}" "$LEDGER_RUBY" >&2
+        exit 1
+    fi
+    ruby=$LEDGER_RUBY
+elif [ -x /usr/local/bin/ruby ]; then
+    ruby=/usr/local/bin/ruby
+elif command -v ruby >/dev/null 2>&1; then
+    ruby=ruby
+else
+    printf '%s: no ruby: set LEDGER_RUBY\n' "${0##*/}" >&2
+    exit 1
+fi
+
+if [ "${1:-}" = hook ]; then
+    case "${2:-}" in
+        heartbeat|journal-write)
+            exec "$ruby" -I "$root/lib" -r ledger/hooks/main \
+                 -e 'exit Ledger::Hooks.main(ARGV)' -- "$2"
+            ;;
+    esac
+    BUNDLE_GEMFILE=$root/Gemfile
+    export BUNDLE_GEMFILE
+    exec "$ruby" -r bundler/setup -I "$root/lib" -r ledger/hooks/main \
+         -e 'exit Ledger::Hooks.main(ARGV)' -- "${2:-}"
+fi
+
+BUNDLE_GEMFILE=$root/Gemfile
+export BUNDLE_GEMFILE
+exec "$ruby" -r bundler/setup -I "$root/lib" -r ledger/cli \
+     -e 'exit Ledger::CLI.run(ARGV)' -- "$@"

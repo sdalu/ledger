@@ -5,8 +5,8 @@ require_relative "text"
 
 module LedgerViewer
     module Render
-        # The pages that answer a send that is not taken, as ledger-
-        # serve.py's refuse() and refuse_stale() write them: bodies only,
+        # The pages that answer a send that is not taken, as a refusal
+        # and a stale page write them: bodies only,
         # for Page to put in its frame.
         module Notices
             CRUMBS = '<p class="crumbs"><a href="/">All ledgers</a></p>'

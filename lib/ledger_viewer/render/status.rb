@@ -1,12 +1,10 @@
 # frozen_string_literal: true
 
-require_relative "terms"
 require_relative "text"
 
 module LedgerViewer
     module Render
-        # What a piece's status means, from ledger.py's own list:
-        # status_tip() of ledger-serve.py.
+        # What a piece's status means, and how its tag says it.
         module Status
             MEANING = {
                 "planned" => "briefed or to be briefed, not sent",
@@ -21,12 +19,19 @@ module LedgerViewer
 
             module_function
 
+            # The tag: the status, a kept piece's reason after it.
+            def of(piece)
+                status = piece["status"]
+                status == "kept" ? "kept: #{piece["kept_reason"]}" : status
+            end
+
             # 'verified: checked against ...', or "" for a status that
             # has no tip.
-            def tip(status)
-                if Terms.kept?(status)
+            def tip(piece)
+                status = piece["status"]
+                if status == "kept"
                     "kept: done by the session itself " \
-                        "(#{Text.strip(status[5..])})"
+                        "(#{Text.strip(piece["kept_reason"])})"
                 elsif MEANING.key?(status)
                     "#{status}: #{MEANING[status]}"
                 else

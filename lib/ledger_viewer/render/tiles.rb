@@ -7,7 +7,9 @@ module LedgerViewer
     module Render
         # The tiles of a card's pictures: a thumbnail that opens in a
         # lightbox, a before/after pair as one, a short text figure
-        # drawn in the card itself. Used by Mockups.
+        # drawn in the card itself. Used by Mockups. A picture placed as a
+        # directory is flagged, not drawn: which of its files is the one
+        # to open is the picking rule's, not the viewer's.
         class Tiles
             TEXT_MAX = 64 * 1024
             TILE_LINES = 15
@@ -15,16 +17,18 @@ module LedgerViewer
             # `tile` is false for what stands loose in the card.
             Part = Data.define(:name, :html, :tile)
 
-            def initialize(scope, lid, folder)
+            # files: {name => [{path, type, size}]}; bytes: answers the
+            # bytes of a picture of one file, by its name.
+            def initialize(scope, lid, files, bytes)
                 @scope = scope
                 @lid = lid
-                @folder = folder
+                @files = files
+                @bytes = bytes
             end
 
-            # [the parts of the names that exist, the flags of the ones
-            # that do not].
+            # [the parts of the names drawn, the flags of the others].
             def parts(names)
-                @real = names.to_h { [it, Folder.file(@folder, it)] }
+                @real = names.to_h { [it, single(it)] }
                 @pairs = Folder.pairs(names, @real)
                 before = @pairs.values
                 shown = []
@@ -39,8 +43,14 @@ module LedgerViewer
 
             private
 
+            # The file a name is, or nil for a directory.
+            def single(name)
+                files = @files.fetch(name)
+                files.first if files.length == 1 && files.first["path"].empty?
+            end
+
             def absent(name)
-                @scope.partial("ledger/mock_missing", name:, folder: @folder)
+                @scope.partial("ledger/mock_missing", name:)
             end
 
             def url(name) = "/m/#{@lid}/#{Text.quote(name)}"
@@ -95,7 +105,7 @@ module LedgerViewer
             end
 
             def text(name)
-                raw = File.binread(@real[name], TEXT_MAX + 1)
+                raw = @bytes.call(name)
                 cut = raw.bytesize > TEXT_MAX
                 body = raw.byteslice(0, TEXT_MAX).force_encoding("UTF-8")
                           .scrub("�")

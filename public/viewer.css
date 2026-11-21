@@ -1,0 +1,1551 @@
+
+@layer reset, tokens, base, layout, components;
+
+@layer reset {
+  *, *::before, *::after { box-sizing: border-box; }
+  body, h1, h2, h3, p, ul, ol, dl, dd, blockquote, figure, fieldset { margin: 0; }
+  fieldset { padding: 0; border: 0; min-inline-size: 0; }
+  img, iframe { display: block; max-inline-size: 100%; }
+}
+
+/* ---- tokens: one palette, both schemes; the four state colours are the
+   vocabulary of the whole page (ask: the user's turn; flight: a session's;
+   ok: settled; fail: wrong), each kept readable as 12 px text on a panel */
+@layer tokens {
+  :root {
+    color-scheme: light dark;
+    --surface: light-dark(oklch(96.5% 0.006 250), oklch(17% 0.012 250));
+    --panel: light-dark(oklch(100% 0 0), oklch(22.5% 0.014 250));
+    /* a quieter surface inside a panel: forms, folds, chips */
+    --inset: light-dark(oklch(96% 0.008 250), oklch(26.5% 0.016 250));
+    --ink: light-dark(oklch(19% 0.02 250), oklch(94% 0.01 250));
+    --muted: light-dark(oklch(43% 0.02 250), oklch(75% 0.015 250));
+    --rule: light-dark(oklch(88% 0.012 250), oklch(33% 0.016 250));
+    /* a boundary the user must find: input edges, secondary buttons (3:1) */
+    --edge: light-dark(oklch(57% 0.02 250), oklch(62% 0.02 250));
+    --accent: light-dark(oklch(45% 0.16 255), oklch(77% 0.12 255));
+    --ask: light-dark(oklch(45% 0.14 55), oklch(81% 0.13 75));
+    --fail: light-dark(oklch(46% 0.18 25), oklch(76% 0.15 25));
+    --ok: light-dark(oklch(43% 0.12 150), oklch(77% 0.12 150));
+    /* text on a filled --accent or --ask: their lightness flips by theme */
+    --on-state: light-dark(oklch(100% 0 0), oklch(15% 0.02 250));
+    --track: light-dark(oklch(91% 0.01 250), oklch(32% 0.016 250));
+    /* light-dark() takes colours only: a whole shadow inside it is dropped */
+    --shadow: 0 1px 2px light-dark(oklch(20% 0.02 250 / 0.08), oklch(0% 0 0 / 0.4));
+    --space-xs: 0.375rem;
+    --space-s: 0.625rem;
+    --space-m: 1rem;
+    --space-l: 1.5rem;
+    --space-xl: 2.5rem;
+    --radius: 0.5rem;
+    --radius-l: 0.75rem;
+    --motion: 150ms;
+    --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    :root { --motion: 0s; }
+  }
+  @media (prefers-contrast: more) {
+    :root {
+      --rule: var(--edge);
+      --muted: var(--ink);
+    }
+  }
+}
+
+@layer base {
+  body {
+    padding: clamp(var(--space-s), 2.5vw, var(--space-l));
+    font: 1rem/1.5 system-ui, sans-serif;
+    color: var(--ink);
+    background: var(--surface);
+    overflow-wrap: break-word;
+  }
+  h1 {
+    font-size: clamp(1.5rem, 1.2rem + 1.2vw, 1.875rem);
+    font-weight: 700;
+    line-height: 1.15;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+  }
+  h2 {
+    display: flex;
+    align-items: center;
+    gap: var(--space-s);
+    margin-block: var(--space-xl) var(--space-s);
+    font-size: 1.125rem;
+    font-weight: 700;
+    line-height: 1.3;
+    scroll-margin-block-start: var(--space-m);
+    & .count {
+      padding-inline: 0.55em;
+      border-radius: 999px;
+      font-size: 0.8125rem;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+      color: var(--muted);
+      background: var(--inset);
+      border: 1px solid var(--rule);
+    }
+  }
+  /* the first heading after the page head keeps the head's own rhythm */
+  header + h2 { margin-block-start: var(--space-l); }
+  p { overflow-wrap: anywhere; }
+  a {
+    color: var(--accent);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.18em;
+    overflow-wrap: anywhere;
+    &:hover { text-decoration-thickness: 2px; }
+  }
+  code {
+    padding-inline: 0.2em;
+    border-radius: 0.25em;
+    font: 0.875em var(--font-mono);
+    background: var(--inset);
+    overflow-wrap: anywhere;
+  }
+  ul { padding-inline-start: 0; list-style: none; }
+  summary {
+    cursor: pointer;
+    &::marker { color: var(--muted); }
+  }
+  /* one ring for everything that takes focus; the layer order keeps it */
+  :where(a, button, summary, input, textarea, iframe):focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  @media (forced-colors: active) {
+    /* what a background or a shadow drew is redrawn as a border */
+    :where(.tiles > a, .entries, .entries > li.is-card, .queue, .index-panels > section, .question-nav,
+           .goal, .say, .sent, .tag, .done-fold) {
+      border: 1px solid CanvasText;
+    }
+  }
+}
+
+@layer layout {
+  main {
+    /* the page's own width decides the ledger layout, not the window's:
+       a mockup open beside it narrows it */
+    container: page / inline-size;
+    max-inline-size: 72rem;
+    margin-inline: auto;
+    &:has(> .ledger-layout) { max-inline-size: 92rem; }
+  }
+  .crumbs {
+    margin-block-end: var(--space-s);
+    font-size: 0.875rem;
+    color: var(--muted);
+    & a { display: inline-flex; align-items: center; min-block-size: 1.5rem; color: inherit; }
+  }
+  .receipt {
+    margin-block: 0;
+    font-size: 0.8125rem;
+    color: var(--muted);
+  }
+  .live-note {
+    margin-block-start: var(--space-xl);
+    padding-block-start: var(--space-m);
+    border-block-start: 1px solid var(--rule);
+    font-size: 0.8125rem;
+    color: var(--muted);
+  }
+}
+
+@layer components {
+  /* an icon beside its words: a little larger than the text, on its line;
+     decorative, the words carry the meaning */
+  .icon {
+    flex: none;
+    inline-size: 1.15em;
+    block-size: 1.15em;
+    margin-inline-end: 0.35em;
+    vertical-align: -0.2em;
+  }
+  /* a tooltip: above its anchor, flipped below when there is no room;
+     shown while the anchor is hovered or has the keyboard's focus */
+  .tip {
+    /* the whole row above the anchor, centred on it: a column as narrow as
+       an icon would wrap the text one letter a line */
+    position: fixed;
+    position-area: top span-all;
+    position-try-fallbacks: flip-block;
+    justify-self: anchor-center;
+    z-index: 3;
+    display: none;
+    inline-size: max-content;
+    max-inline-size: min(22rem, calc(100vw - 2rem));
+    margin: 0.375rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: var(--radius);
+    font: 400 0.8125rem/1.4 system-ui, sans-serif;
+    letter-spacing: normal;
+    text-transform: none;
+    color: var(--panel);
+    background: var(--ink);
+    box-shadow: var(--shadow);
+    pointer-events: none;
+    @media (forced-colors: active) { border: 1px solid CanvasText; }
+  }
+  :is(.tag, button, summary, a):is(:hover, :focus-visible) + .tip,
+  .drop-fold:has(> summary:is(:hover, :focus-visible)) + .tip { display: block; }
+
+  /* a piece whose word is sent: one line, leading to its card in Sent */
+  /* read like a card head: the title, then status and id at the end of
+     its line (or the next), the sent note on a line of its own below */
+  li.is-line > a {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--space-xs) var(--space-s);
+    min-block-size: 1.5rem;
+    text-decoration: none;
+    & > .text { flex: 1 1 auto; font-weight: 600; color: var(--ink); }
+    & > .head-tags { display: flex; flex: none; gap: var(--space-s); margin-inline-start: auto; }
+    & .tag { margin: 0; }
+    & > .meta { flex-basis: 100%; color: var(--accent); }
+    & > .meta > .icon { margin-inline-end: 0.2em; }
+    &:is(:hover, :focus-visible) > .meta { text-decoration: underline; }
+  }
+
+  /* the legend: ids and colours, folded */
+  .legend {
+    margin-block-start: var(--space-m);
+    font-size: 0.8125rem;
+    & > summary { min-block-size: 1.5rem; color: var(--muted); }
+    & dl {
+      display: grid;
+      grid-template-columns: max-content minmax(0, 1fr);
+      align-items: baseline;
+      gap: 0.25rem var(--space-s);
+      margin: var(--space-xs) 0 0;
+    }
+    & dd { margin: 0; }
+    & .tag { margin: 0; }
+    & .swatch {
+      display: inline-block;
+      inline-size: 1.5rem;
+      block-size: 0.75rem;
+      border-radius: 0.25rem;
+      vertical-align: middle;
+      @media (forced-colors: active) { forced-color-adjust: none; }
+    }
+    & .swatch.is-ask { background: var(--ask); }
+    & .swatch.is-flight { background: var(--accent); }
+    & .swatch.is-done { background: var(--ok); }
+    & .swatch.is-fail { background: var(--fail); }
+  }
+
+  /* where the container already spaces its children */
+  h2 > .icon, .question-nav a > .icon, .queue .answer > .icon { margin-inline-end: 0; }
+  /* a word owed in the side list: its words' icons side by side */
+  .question-nav .words { display: inline-flex; gap: 0.2em; & > .icon { margin: 0; } }
+  /* a word owed: its words first, the piece's id at the end of the line */
+  .question-nav li.is-word .tag { margin-inline-start: 0; }
+  /* an unfinished piece, like a word owed: title, its status line under
+     it, the piece's id at the end of the first line */
+  .question-nav li.is-piece a {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: baseline;
+    column-gap: var(--space-xs);
+  }
+  /* the subtitle is meta text, never a second link: the title alone reads as the link */
+  .question-nav li.is-piece .status { grid-column: 1; font-size: 0.8125rem; color: var(--muted); text-decoration: none; }
+  .question-nav li.is-piece.is-fail .status, .question-nav li.is-piece.is-fail .tag { color: var(--fail); }
+  .question-nav li.is-piece.is-ask .status { color: var(--ask); }
+
+  /* ---- the page head: name, where it lives, the status line, the tiles */
+  .ledger-head {
+    display: grid;
+    gap: var(--space-xs);
+    & .next { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-xs) var(--space-m); }
+    & .next-step { font-size: 1.0625rem; font-weight: 600; }
+    /* the piece's title, its words as icons, its id last */
+    & a.next-step {
+      display: inline-flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: var(--space-xs);
+      & .words { display: inline-flex; align-items: center; gap: 0.25em; & > .icon { margin: 0; } }
+      & .word { font-weight: 600; }
+      & .tag { margin: 0; color: var(--ask); }
+    }
+    & .next > a:not(.next-step) { font-size: 0.875rem; }
+    & .ledger-details > summary { min-block-size: 1.5rem; font-size: 0.8125rem; color: var(--muted); }
+    & .path {
+      font: 0.8125rem/1.5 var(--font-mono);
+      color: var(--muted);
+    }
+    & .status {
+      margin-block-start: var(--space-xs);
+      font-size: 0.875rem;
+      color: var(--muted);
+    }
+  }
+
+  /* the four numbers a reader wants first, each a link to its section;
+     the band on top says whose turn it is */
+  .tiles {
+    /* tiles share each row; a tile alone on its row fills it, at every width */
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-s);
+    margin-block-start: var(--space-m);
+    & > a {
+      display: grid;
+      flex: 1 1 8.5rem;
+      align-content: start;
+      gap: 0.125rem;
+      min-inline-size: 0;
+      padding: var(--space-s) var(--space-m) var(--space-m);
+      border: 1px solid var(--rule);
+      border-block-start: 3px solid var(--rule);
+      border-radius: var(--radius);
+      color: var(--ink);
+      background: var(--panel);
+      box-shadow: var(--shadow);
+      text-decoration: none;
+      transition: border-color var(--motion);
+      &:hover { border-color: var(--accent); }
+      &.is-ask { border-block-start-color: var(--ask); & .figure { color: var(--ask); } }
+      &.is-flight { border-block-start-color: var(--accent); & .figure { color: var(--accent); } }
+      &.is-done { border-block-start-color: var(--ok); & .figure { color: var(--ok); } }
+    }
+    & .label { font-size: 0.8125rem; color: var(--muted); }
+    & .figure {
+      font-size: 1.875rem;
+      font-weight: 700;
+      line-height: 1.1;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: -0.02em;
+    }
+    & .bar { margin-block-start: var(--space-xs); }
+  }
+
+  /* a decorative bar beside numbers that are also written out */
+  .bar {
+    display: block;
+    block-size: 0.375rem;
+    border-radius: 999px;
+    background: var(--track);
+    & > span { display: block; block-size: 100%; border-radius: inherit; background: var(--ok); }
+    /* here, not in base: the colours above would win over a lower layer */
+    @media (forced-colors: active) {
+      forced-color-adjust: none;
+      background: Canvas;
+      border: 1px solid CanvasText;
+      & > span { background: Highlight; }
+    }
+  }
+
+  /* a state word in a chip; its colour is the state's, set by the parent */
+  .tag {
+    display: inline-block;
+    margin-inline-end: var(--space-xs);
+    padding: 0.05em 0.5em;
+    border: 1px solid color-mix(in oklab, currentColor 35%, transparent);
+    border-radius: 0.375em;
+    font: 600 0.75rem/1.5 var(--font-mono);
+    color: var(--muted);
+    background: color-mix(in oklab, currentColor 8%, transparent);
+    vertical-align: 0.1em;
+    /* a kept piece's tag carries its reason, and can be wider than a phone */
+    overflow-wrap: anywhere;
+    &.is-ask { color: var(--ask); }
+    &.is-fail { color: var(--fail); }
+    &.is-flight { color: var(--accent); }
+    &.is-done { color: var(--ok); }
+    /* an item id: the letter on a pale half in the chip's hue, the number on
+       the chip's own half, so the letter O and the digit 0 differ in any font */
+    &.is-split {
+      display: inline-flex;
+      justify-content: center;
+      padding: 0;
+      overflow: clip;
+      & > .l {
+        padding: 0.05em 0.35em;
+        color: var(--state, currentColor);
+        background: color-mix(in oklab, var(--state, currentColor) 14%, var(--panel));
+      }
+      & > .n { padding: 0.05em 0.4em; }
+      /* no backgrounds there: a rule keeps the halves apart */
+      @media (forced-colors: active) { & > .l { border-inline-end: 1px solid CanvasText; } }
+    }
+    /* an id in no state colour: the same split in gray, the letter pale and
+       the number solid */
+    :is(.legend, .question-nav li:not(.is-ask, .is-flight, .is-fail), .entries > li:not(.is-ask, .is-flight, .is-fail, .is-done, .is-card)) &.is-split {
+      --state: var(--muted);
+      & > .n { color: var(--on-state); background: var(--muted); }
+    }
+  }
+
+  /* ---- entries: one panel of rows, the state as a mark on the row's edge;
+     a question is a card of its own instead, banded on top (below) */
+  .entries {
+    display: grid;
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    background: var(--panel);
+    box-shadow: var(--shadow);
+    & > li {
+      min-inline-size: 0;
+      padding: var(--space-s) var(--space-m);
+      border-inline-start: 3px solid var(--rule);
+      overflow-wrap: anywhere;
+      & + li { border-block-start: 1px solid var(--rule); }
+      &:first-child { border-start-start-radius: var(--radius); border-start-end-radius: var(--radius); }
+      &:last-child { border-end-start-radius: var(--radius); border-end-end-radius: var(--radius); }
+    }
+    /* the row's tag takes the state's colour, in its head or straight in the row */
+    & > li.is-ask { border-inline-start-color: var(--ask); & > .tag, & > .row-head > .tag { color: var(--ask); } }
+    & > li.is-fail { border-inline-start-color: var(--fail); & > .tag, & > .row-head > .tag { color: var(--fail); } }
+    & > li.is-flight { border-inline-start-color: var(--accent); & > .tag, & > .row-head > .tag { color: var(--accent); } }
+    & > li.is-done { border-inline-start-color: var(--ok); & > .tag, & > .row-head > .tag { color: var(--ok); } }
+    & .meta { font-size: 0.8125rem; color: var(--muted); }
+    & .evidence { margin-block-start: 0.125rem; font-size: 0.8125rem; color: var(--muted); }
+    & .said { margin-block-start: 0.25rem; white-space: pre-wrap; }
+    & .said.md { white-space: normal; }
+    /* a constraint's words are the row's body, the quote marks left to the layout */
+    & > li.is-sourced {
+      & > q { quotes: none; }
+      & > .meta { margin-block-start: 0.125rem; }
+    }
+  }
+
+  /* a list of questions: cards with air between them */
+  .entries:has(> .is-card) {
+    /* the cards tighten when the list, not the window, is narrow */
+    container: questions / inline-size;
+    gap: var(--space-m);
+    border: 0;
+    border-radius: 0;
+    background: none;
+    box-shadow: none;
+    & > li {
+      /* the case block stacks its labels when the card, not the page, is
+         narrow; the head spans the card, the rest keeps its side margin */
+      --card-pad: var(--space-l);
+      container-type: inline-size;
+      padding: 0 0 var(--space-l);
+      border: 1px solid var(--rule);
+      border-radius: var(--radius-l);
+      background: var(--panel);
+      box-shadow: var(--shadow);
+      /* the id as a filled chip at the end of the title's line, on the state's tint;
+         its own top corners follow the card's, no clipping (focus rings
+         near the edge stay whole) */
+      & > :not(.card-head) { margin-inline: var(--card-pad); }
+      & > .card-head {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: var(--space-s);
+        margin-block-end: var(--space-s);
+        padding: var(--space-s) var(--card-pad);
+        border-block-end: 1px solid var(--rule);
+        border-start-start-radius: calc(var(--radius-l) - 1px);
+        border-start-end-radius: calc(var(--radius-l) - 1px);
+        background: color-mix(in oklab, var(--muted) 8%, var(--panel));
+        /* status, id and trash: one group at the end of the title's line
+           when there is room, else at the end of the next; one icon's width
+           before the trash; an open drop form takes the whole width */
+        & > .head-tags {
+          display: flex;
+          flex: none;
+          flex-wrap: wrap;
+          justify-content: flex-end;
+          align-items: center;
+          gap: var(--space-s);
+          max-inline-size: 100%;
+          margin-inline-start: auto;
+          /* an open drop form needs the width; an open status stays beside
+             the title while it fits, the group moving down only when not */
+          &:has(> .drop-fold[open]) { flex-basis: 100%; }
+        }
+        & .head-tags > .tag { --state: var(--muted); flex: none; margin: 0; border-color: transparent; color: var(--on-state); background: var(--muted); }
+        & .head-tags > .drop-fold:not([open]) { margin-inline-start: calc(1.5rem - var(--space-s)); }
+        /* the status beside the id: outlined in the state's colour, not filled */
+        & .head-tags > .tag.status { --state: var(--muted); border-color: var(--state); color: var(--state); background: var(--panel); }
+        & > .text {
+          flex: 1 1 auto;
+          margin: 0;
+          font-size: 1.125rem;
+          font-weight: 600;
+          line-height: 1.35;
+          text-wrap: balance;
+        }
+      }
+      & > .meta { margin-block-start: var(--space-xs); }
+      & > .say { margin-block-start: var(--space-m); }
+      /* the rest of the title, under the head: the question itself, or what the piece covers */
+      & > .detail { margin-block: 0 var(--space-xs); }
+      /* the head's own border already separates the case from it */
+      & > .card-head + .case { border-block-start: 0; padding-block-start: 0; }
+      /* a piece reads problem first: its facets under the head, what it covers folded below */
+      & > .card-head + .facets { margin-block-start: var(--space-xs); padding-block-start: 0; border-block-start: 0; }
+      & > .covers {
+        margin-block-start: var(--space-s);
+        font-size: 0.875rem;
+        & > summary { min-block-size: 1.5rem; color: var(--muted); }
+        & > .detail { margin-block-start: var(--space-xs); }
+      }
+      /* prose at a readable measure on a wide card; mockups keep the width */
+      & .card-head > .text, & .case dd, & .choice label { max-inline-size: 70ch; }
+      @container questions (inline-size < 30rem) { --card-pad: 0.75rem; }
+    }
+    & > li.is-ask > .card-head {
+      background: color-mix(in oklab, var(--ask) 13%, var(--panel));
+      & .head-tags > .tag { --state: var(--ask); background: var(--ask); }
+    }
+    & > li.is-flight > .card-head {
+      background: color-mix(in oklab, var(--accent) 12%, var(--panel));
+      & .head-tags > .tag { --state: var(--accent); background: var(--accent); }
+    }
+    & > li.is-fail > .card-head {
+      background: color-mix(in oklab, var(--fail) 10%, var(--panel));
+      & .head-tags > .tag { --state: var(--fail); background: var(--fail); }
+    }
+    & > li > .card-head .head-tags > .tag.status { background: var(--panel); }
+  }
+
+  /* drop a piece: a trash icon and its word, opening a small form */
+  /* a row's id and title, with room for a control at the end of the line */
+  .row-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.25rem var(--space-s); }
+
+  /* drop: a trash icon ending the title line; open, its form takes the
+     whole width below the title */
+  .drop-fold {
+    /* beside the first line of a title that wraps, where a control is looked for */
+    margin-inline-start: auto;
+    align-self: flex-start;
+    & > summary {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-inline-size: 2.75rem;
+      min-block-size: 2.75rem;
+      border-radius: var(--radius);
+      color: var(--muted);
+      & > .icon { margin: 0; }
+      /* a request, not a danger: red stays on the submit alone */
+      &:hover { color: var(--ink); background: var(--inset); }
+    }
+    /* open, the fold's box gives way: the trash stays beside the id chip
+       on the head's line and the form takes the full row below */
+    &[open] {
+      display: contents;
+      & > summary { color: var(--ink); }
+      & > form { flex: 1 0 100%; }
+    }
+    /* the icon is part of the control, at its own size inside the 44 px target */
+    & .icon { inline-size: 1.5rem; block-size: 1.5rem; }
+    /* the trash says Close in words where the card is narrow; wide, its
+       tooltip and accessible name still say the whole request */
+    & > summary > .drop-label { display: none; }
+    @container questions (inline-size < 36rem) {
+      & > summary {
+        gap: 0.35em;
+        padding-inline: var(--space-xs);
+        & > .drop-label { display: inline; font-size: 0.875rem; font-weight: 600; }
+      }
+    }
+    & .say button.a-drop { border-color: var(--fail); background: var(--fail); }
+    & .drop-title { font-size: 1rem; font-weight: 700; line-height: 1.35; }
+    & .drop-says { font-size: 0.875rem; }
+  }
+
+  /* a card's status is a disclosure inside its own pill: opened, the meaning
+     follows the word in the same pill (the word is not repeated) */
+  .status-fold {
+    cursor: pointer;
+    & > summary {
+      display: inline;
+      min-block-size: 1.5rem;
+      list-style: none;
+      &::-webkit-details-marker { display: none; }
+    }
+    & > .status-says { font-weight: 400; &::before { content: "\2014\00a0" / ""; } }
+    &[open] {
+      display: inline-flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      gap: 0 0.35em;
+      min-inline-size: 0;
+      max-inline-size: 100%;
+      /* the engine's wrapper around the content is no box of the pill's row */
+      &::details-content { display: contents; }
+    }
+  }
+
+  /* what an `other (…)` word needs, said on its card */
+  .entries > li > .needed { margin-block-start: var(--space-xs); font-weight: 600; }
+  /* the way to a piece's or a decision's links page: one quiet line, its
+     link a full target */
+  .entries > li > .why {
+    margin-block-start: var(--space-xs);
+    font-size: 0.8125rem;
+    & a { display: inline-flex; align-items: center; min-block-size: 1.5rem; }
+  }
+
+  /* the case under a question: problem, risk, the options, the one recommended */
+  .case {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: var(--space-xs) var(--space-m);
+    margin-block-start: var(--space-s);
+    padding-block-start: var(--space-s);
+    border-block-start: 1px solid var(--rule);
+    & dt { font-size: 0.8125rem; font-weight: 600; line-height: 1.85; color: var(--muted); }
+    & .options { display: grid; gap: 0.25rem; }
+
+
+    @container (inline-size < 30rem) {
+      grid-template-columns: 1fr;
+      & dd + dt { margin-block-start: var(--space-xs); }
+    }
+  }
+
+  /* problem, risk, plan: facets side by side on a wide card, stacked on a
+     narrow one; each a coloured rule, an icon and a label over its text */
+  .facets {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+    gap: var(--space-s) var(--space-m);
+    margin-block: var(--space-s) 0;
+    padding-block-start: var(--space-s);
+    border-block-start: 1px solid var(--rule);
+  }
+  .facet {
+    --facet: var(--muted);
+    padding-inline-start: var(--space-s);
+    border-inline-start: 3px solid color-mix(in oklab, var(--facet) 70%, transparent);
+    & > dt {
+      display: flex;
+      align-items: center;
+      gap: 0.35em;
+      margin-block-end: 0.15rem;
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--facet);
+      & > .icon { margin: 0; }
+    }
+    & > dd { margin: 0; line-height: 1.45; }
+    &.plan { --facet: var(--accent); }
+    &.risk.is-low { --facet: var(--ok); }
+    &.risk.is-mid { --facet: var(--ask); }
+    &.risk.is-high { --facet: var(--fail); }
+    /* the rating: ten steps filled to it, then the figure */
+    & .rating {
+      display: flex;
+      align-items: center;
+      gap: var(--space-xs);
+      margin-block-end: 0.2rem;
+      font: 600 0.75rem/1.5 var(--font-mono);
+      color: var(--facet);
+    }
+    & .meter {
+      display: inline-flex;
+      gap: 2px;
+      & > span {
+        inline-size: 0.55rem;
+        block-size: 0.7rem;
+        border-radius: 2px;
+        background: color-mix(in oklab, var(--facet) 18%, transparent);
+        @media (forced-colors: active) { border: 1px solid CanvasText; }
+      }
+      & > span.is-on {
+        background: var(--facet);
+        @media (forced-colors: active) { background: CanvasText; }
+      }
+    }
+  }
+
+  /* earlier goals, newest first, folded under the current one */
+  .goal-history {
+    margin-block-start: var(--space-s);
+    & > summary { min-block-size: 1.5rem; font-size: 0.875rem; color: var(--muted); }
+    & > .goal { margin-block-start: var(--space-s); }
+  }
+
+  /* Markdown rendered from ledger text: tight, since it sits in rows and cards */
+  .md {
+    & > * { margin-block: 0; }
+    & > * + * { margin-block-start: var(--space-xs); }
+    /* the page's list reset takes the bullets off every ul; ledger lists keep them */
+    & ul, & ol { padding-inline-start: var(--space-l); }
+    & ul { list-style: disc; }
+    & ol { list-style: decimal; }
+    & blockquote {
+      margin-inline: 0;
+      padding-inline-start: var(--space-s);
+      border-inline-start: 3px solid var(--rule);
+      color: var(--muted);
+    }
+    & pre {
+      padding: var(--space-xs) var(--space-s);
+      border-radius: var(--radius);
+      overflow-x: auto;
+      font: 0.8125rem/1.35 var(--font-mono);
+      background: var(--inset);
+    }
+  }
+
+  .refs {
+    margin-block-start: var(--space-s);
+    font-size: 0.875rem;
+    & > summary { min-block-size: 1.5rem; color: var(--accent); }
+    & ul { display: grid; gap: 0.25rem; margin-block-start: var(--space-xs); }
+    & .ref-head { margin: 0; }
+    & .where { color: var(--muted); }
+    & .entries-list { margin: 0; margin-block-start: var(--space-xs); padding-inline-start: var(--space-m); }
+    & code { font-size: 0.8125rem; }
+  }
+
+  .mockup {
+    display: grid;
+    gap: var(--space-xs);
+    margin-block-start: var(--space-s);
+    & iframe, & img {
+      border: 1px solid var(--rule);
+      border-radius: var(--radius);
+      background: white;
+    }
+    /* a page cannot size a sandboxed frame to its content; the user can */
+    & iframe { inline-size: 100%; block-size: 24rem; resize: vertical; }
+    & img { block-size: auto; }
+    & figcaption {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: var(--space-xs) var(--space-m);
+      font-size: 0.8125rem;
+      color: var(--muted);
+    }
+    & .mock-tools { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-xs) var(--space-m); }
+    & button.a-expand {
+      min-block-size: 1.5rem;
+      padding: 0.125rem var(--space-s);
+      border: 1px solid var(--edge);
+      border-radius: var(--radius);
+      font: inherit;
+      color: var(--accent);
+      background: var(--panel);
+      cursor: pointer;
+    }
+  }
+
+  /* a picture as a thumbnail tile: 15rem wide, the whole thumbnail is the
+     Expand button; a before/after pair is one tile of two thumbnails */
+  .mock-strip {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-s);
+    margin-block-start: var(--space-s);
+    /* the card, not the window, is what runs out of room: one row, sideways */
+    @container (inline-size < 30rem) {
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      scroll-snap-type: x mandatory;
+      padding-block-end: var(--space-xs);
+    }
+  }
+  .mock-tile {
+    display: grid;
+    gap: var(--space-xs);
+    align-content: start;
+    margin: 0;
+    scroll-snap-align: start;
+    flex: none;
+    & .sides { display: flex; }
+    & .side { position: relative; }
+    & button.a-expand {
+      display: block;
+      position: relative;
+      box-sizing: content-box;
+      inline-size: 15rem;
+      block-size: 10rem;
+      padding: 0;
+      overflow: clip;
+      border: 1px solid var(--rule);
+      border-radius: var(--radius);
+      background: var(--panel);
+      text-align: start;
+      cursor: pointer;
+      &:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    }
+    & img { display: block; inline-size: 100%; block-size: 100%; object-fit: cover; object-position: top; }
+    /* a page laid out 64rem wide (1024px at the default size), scaled to
+       the 15rem tile: 15 / 64 in rem, so it holds at any root size */
+    /* the reset's max-inline-size: 100% would cap the frame at the tile */
+    & iframe {
+      display: block;
+      inline-size: 64rem;
+      max-inline-size: none;
+      block-size: calc(10rem / 0.234375);
+      border: 0;
+      background: var(--panel);
+      transform: scale(0.234375);
+      transform-origin: 0 0;
+      pointer-events: none;
+    }
+    & .figure-thumb {
+      margin: 0;
+      padding: var(--space-xs) var(--space-s);
+      block-size: 100%;
+      overflow: clip;
+      border: 0;
+      border-radius: 0;
+    }
+    & .side-name {
+      position: absolute;
+      inset-block-start: 0;
+      inset-inline-start: 0;
+      padding: 0 var(--space-xs);
+      font-size: 0.75rem;
+      color: var(--ink);
+      background: var(--panel);
+      border-end-end-radius: var(--radius);
+    }
+    & figcaption {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0 var(--space-s);
+      max-inline-size: 15rem;
+      font-size: 0.8125rem;
+      color: var(--muted);
+      overflow-wrap: anywhere;
+    }
+    &.is-pair figcaption { max-inline-size: 30rem; }
+    & .figure-full[hidden] { display: none; }
+  }
+
+  /* a text figure keeps its columns: no wrapping, its own scroll */
+  .figure-text {
+    margin: 0;
+    padding: var(--space-s) var(--space-m);
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    overflow-x: auto;
+    font: 0.8125rem/1.25 var(--font-mono);
+    tab-size: 8;
+    white-space: pre;
+    background: var(--inset);
+  }
+
+  /* the mockup beside the page: the page gives up the right half */
+  body.is-paned { padding-inline-end: calc(50vw + var(--space-m)); }
+  .mock-pane, .mock-dialog {
+    display: grid;
+    grid-template-rows: auto 1fr;
+    gap: var(--space-s);
+    padding: var(--space-s) var(--space-m) var(--space-m);
+    background: var(--panel);
+    & header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-m); }
+    & .pane-title { font-weight: 600; overflow-wrap: anywhere; }
+    & .pane-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-s); }
+    & header button {
+      min-block-size: 2rem;
+      padding-inline: var(--space-m);
+      border: 1px solid var(--edge);
+      border-radius: var(--radius);
+      font: inherit;
+      color: var(--ink);
+      background: var(--panel);
+      cursor: pointer;
+    }
+    & .pane-view { min-block-size: 0; overflow: auto; }
+    & iframe { inline-size: 100%; block-size: 100%; border: 1px solid var(--rule); border-radius: var(--radius); background: white; }
+    & img { max-inline-size: 100%; block-size: auto; }
+  }
+  .mock-pane {
+    position: fixed;
+    inset-block: 0;
+    inset-inline-end: 0;
+    z-index: 1;
+    inline-size: 50vw;
+    border-inline-start: 1px solid var(--rule);
+    box-shadow: var(--shadow);
+    &[hidden] { display: none; }
+  }
+  .mock-dialog {
+    inline-size: min(96vw, 90rem);
+    block-size: 90dvh;
+    max-inline-size: none;
+    max-block-size: none;
+    border: 1px solid var(--rule);
+    border-radius: var(--radius-l);
+    color: var(--ink);
+    &:not([open]) { display: none; }
+    &::backdrop { background: color-mix(in oklab, black 45%, transparent); }
+  }
+
+  /* the page changed under a draft: said, not done, until the user chooses */
+  .stale-note {
+    /* centred by layout, not by translate: a transformed box can land on
+       half a pixel and blur its text */
+    position: fixed;
+    inset-block-end: var(--space-m);
+    inset-inline: var(--space-m);
+    z-index: 2;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-s);
+    inline-size: fit-content;
+    margin-inline: auto;
+    padding: var(--space-xs) var(--space-xs) var(--space-xs) var(--space-m);
+    border: 1px solid var(--edge);
+    border-radius: var(--radius-l);
+    color: var(--ink);
+    background: var(--panel);
+    box-shadow: 0 4px 16px light-dark(oklch(20% 0.02 250 / 0.18), oklch(0% 0 0 / 0.6));
+    & button.a-refresh {
+      min-block-size: 2.75rem;
+      padding-inline: var(--space-m);
+      border: 1px solid var(--accent);
+      border-radius: var(--radius);
+      font: inherit;
+      font-weight: 600;
+      color: var(--on-state);
+      background: var(--accent);
+      cursor: pointer;
+    }
+  }
+
+  /* the live stream is down: a dashed pill, unlike the changed note, which
+     is a floating panel with a button */
+  .live-state {
+    display: inline-block;
+    margin-inline-start: var(--space-xs);
+    padding-inline: 0.5em;
+    border: 1px dashed var(--edge);
+    border-radius: 999px;
+    color: var(--muted);
+  }
+
+  /* what the user already sent, until the session files it */
+  .sent {
+    margin-block-start: var(--space-m);
+    padding: var(--space-s) var(--space-m);
+    border-radius: var(--radius);
+    background: color-mix(in oklab, var(--accent) 8%, var(--panel));
+    & .meta { display: block; font-size: 0.8125rem; color: var(--muted); }
+    & .said { margin-block-start: 0.25rem; }
+  }
+
+  .comment-fold > summary {
+    min-block-size: 2.75rem;
+    padding-block: var(--space-xs);
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--accent);
+  }
+
+  /* the filled button of a form: a word, a send, the word for all */
+  :is(.say, .give-all) button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-block-size: 2.75rem;
+    padding-inline: var(--space-l);
+    border: 1px solid var(--accent);
+    border-radius: var(--radius);
+    font: inherit;
+    font-weight: 600;
+    color: var(--on-state);
+    background: var(--accent);
+    cursor: pointer;
+    transition: filter var(--motion);
+    &:hover { filter: brightness(1.1); }
+    &[hidden] { display: none; }
+  }
+
+  /* ---- the answer form: an inset block, Send its one filled button */
+  .say {
+    display: grid;
+    gap: var(--space-s);
+    margin-block-start: var(--space-s);
+    padding: var(--space-m);
+    border-radius: var(--radius);
+    background: var(--inset);
+    /* the nearest container is the card holding the form */
+    @container (inline-size < 28rem) { padding-inline: 0.75rem; }
+    & .why { display: block; font-weight: 400; font-size: 0.875rem; color: var(--muted); }
+    /* a closed comment fold lays out nothing: its textarea, quote row and
+       hint would otherwise sit below a box of no height */
+    & details:not([open])::details-content { display: none; }
+    & .overall > summary { min-block-size: 1.5rem; font-size: 0.875rem; font-weight: 600; color: var(--muted); }
+    & .overall > textarea { margin-block-start: var(--space-xs); }
+    & button:disabled { cursor: default; opacity: 0.6; }
+    /* what a choice needs written, said in its open comment fold */
+    & .comment-needed {
+      margin-block-start: var(--space-xs);
+      font-size: 0.8125rem;
+      font-weight: 600;
+      color: var(--ink);
+    }
+    /* a draft brought back after a refresh, said once at the top */
+    & .draft-note {
+      padding: var(--space-xs) var(--space-s);
+      border-inline-start: 3px solid var(--accent);
+      border-radius: var(--radius);
+      font-size: 0.875rem;
+      color: var(--ink);
+      background: var(--panel);
+    }
+    & label, & legend { font-size: 0.875rem; font-weight: 600; color: var(--muted); }
+    & legend { margin-block-end: var(--space-xs); }
+    & fieldset { display: grid; gap: var(--space-xs); }
+    /* one answer from a few: the options as tiles side by side, each with
+       what it does and costs, wrapping when the card is narrow */
+    & fieldset:has(> .choice) {
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+      gap: var(--space-s);
+    }
+    /* one option: the radio and its label share a hit area, its comment
+       folds at the tile's foot, level across a row of tiles of unequal text */
+    & .choice {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      grid-template-rows: 1fr auto;
+      align-items: start;
+      column-gap: var(--space-s);
+      padding: var(--space-xs) var(--space-s);
+      border: 1px solid var(--edge);
+      border-radius: var(--radius);
+      background: var(--panel);
+      & > input { margin-block-start: 0.6rem; }
+      &:has(input:checked) {
+        border-color: var(--accent);
+        box-shadow: inset 0 0 0 1px var(--accent);
+        background: color-mix(in oklab, var(--accent) 8%, var(--panel));
+      }
+      & > details { grid-column: 1 / -1; }
+      & > label {
+        display: flex;
+        align-items: center;
+        min-block-size: 2.75rem;
+        font-weight: 600;
+        color: var(--ink);
+        cursor: pointer;
+      }
+    }
+    & input[type="radio"] {
+      inline-size: 1.5rem;
+      block-size: 1.5rem;
+      margin: 0;
+      accent-color: var(--accent);
+    }
+    /* one row per item: the item, then its options wrapping as room runs out */
+    & .pick {
+      display: grid;
+      gap: 0.25rem;
+      padding-block: var(--space-xs);
+      & + .pick { border-block-start: 1px solid var(--rule); }
+      & > .item { padding: 0; font-weight: 600; color: var(--ink); }
+    }
+    & .opts {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.25rem var(--space-m);
+      & > .opt { display: flex; align-items: center; gap: var(--space-xs); min-block-size: 2.75rem; }
+      & label { font-weight: 500; color: var(--ink); cursor: pointer; }
+    }
+    & details > summary { min-block-size: 1.5rem; font-size: 0.8125rem; color: var(--muted); }
+    & details > textarea { margin-block-start: var(--space-xs); }
+    & input[type="text"], & textarea {
+      inline-size: 100%;
+      padding: var(--space-xs) var(--space-s);
+      border: 1px solid var(--edge);
+      border-radius: var(--radius);
+      font: inherit;
+      color: var(--ink);
+      background: var(--panel);
+    }
+    & input[type="text"] { min-block-size: 2.75rem; }
+    & textarea { min-block-size: 4.5em; resize: vertical; }
+    & .actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-s); margin-block-start: var(--space-xs); }
+    /* without script the quote button stays hidden: its row would be an empty gap */
+    & .actions:has(> button.a-quote[hidden]:only-child) { display: none; }
+    & .next-question { margin-inline-start: auto; font-size: 0.875rem; }
+    /* the quote button helps write; Send is the one action */
+    & button.a-quote {
+      border-color: var(--edge);
+      font-weight: 500;
+      color: var(--ink);
+      background: var(--panel);
+      &:hover { filter: none; border-color: var(--accent); }
+    }
+    /* one filled word, the single words outlined, each with what it
+       authorises on a line under it */
+    & .word-choices {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr));
+      gap: var(--space-s) var(--space-m);
+      & > .word-choice { display: grid; align-content: start; gap: 0.25rem; }
+      & > .word-choice.is-combined { grid-column: 1 / -1; }
+      & button { inline-size: 100%; }
+      & > .word-choice:not(.is-combined) button {
+        color: var(--accent);
+        background: var(--panel);
+        &:hover { filter: none; background: var(--inset); }
+      }
+      & .what { font-size: 0.8125rem; line-height: 1.4; color: var(--muted); }
+    }
+    /* the comment folds with its own send and quote inside it */
+    & .comment-box {
+      & > label { display: block; margin-block-start: var(--space-xs); }
+      & > summary {
+        display: flex;
+        align-items: center;
+        min-block-size: 2.75rem;
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--accent);
+      }
+    }
+    /* a text button: it sends, but it is not the card's word */
+    & button.a-comment {
+      padding-inline: var(--space-s);
+      border-color: transparent;
+      color: var(--accent);
+      background: none;
+      text-decoration: underline;
+      text-underline-offset: 0.18em;
+      &:hover { filter: none; text-decoration-thickness: 2px; }
+    }
+    & button.a-cancel {
+      border-color: var(--edge);
+      font-weight: 500;
+      color: var(--ink);
+      background: var(--panel);
+      &:hover { filter: none; border-color: var(--accent); }
+    }
+  }
+
+  /* one word for every waiting piece, above their cards */
+  .give-all {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-xs) var(--space-m);
+    margin-block-end: var(--space-m);
+    padding: var(--space-s) var(--space-m);
+    border: 1px solid var(--rule);
+    border-inline-start: 3px solid var(--ask);
+    border-radius: var(--radius);
+    background: var(--panel);
+    & > p { flex: 1 1 14rem; font-size: 0.9375rem; color: var(--muted); }
+  }
+
+  /* a card just answered is one receipt: what was asked, then the next card */
+  .entries:has(> .is-card) > li.is-receipt {
+    padding-block-end: var(--space-m);
+    & > .sent-line { margin-block-start: var(--space-xs); }
+    & > .said { margin-block-start: var(--space-xs); }
+    & > .next-waiting {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35em;
+      min-block-size: 2.75rem;
+      font-weight: 600;
+      & > .icon { margin: 0; }
+      &.is-none { font-weight: 400; color: var(--muted); }
+    }
+  }
+
+  /* a card just sent, collapsed in place to one row: its title, what was
+     sent, and Change; Change opens it again */
+  .entries:has(> .is-card) > li.is-collapsed {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0 var(--space-m);
+    padding-block-end: 0;
+    border-inline-start: 3px solid var(--accent);
+    & > .card-head {
+      flex: 1 1 14rem;
+      margin: 0;
+      padding-block: var(--space-xs);
+      border-block-end: 0;
+      background: none;
+      & > .text { font-size: 1rem; }
+    }
+    & > :is(.detail, .said, .next-waiting) { display: none; }
+    & > .sent {
+      flex: 2 1 14rem;
+      margin-block: 0;
+      padding: 0;
+      background: none;
+      & :is(.said, .meta) { display: none; }
+    }
+    & > .sent-line { flex: 2 1 14rem; margin: 0; }
+    & > .comment-fold { flex: none; margin-inline-start: auto; }
+  }
+
+  /* the card the page moved on to: one outline, once */
+  .entries > li.is-pulse {
+    animation: pulse 550ms ease-out 1;
+    @media (prefers-reduced-motion: reduce) { animation: none; }
+  }
+
+  /* a goal: what the session says it is, then the user's own words, set apart */
+  .goal {
+    padding: var(--space-s) var(--space-m);
+    border: 1px solid var(--rule);
+    border-inline-start: 3px solid var(--accent);
+    border-radius: var(--radius);
+    background: var(--panel);
+    overflow-wrap: anywhere;
+    & + .goal { margin-block-start: var(--space-s); }
+    & .goal-title {
+      font-size: 1.25rem;
+      font-weight: 650;
+      line-height: 1.3;
+    }
+    & .goal-short { font-size: 1.0625rem; }
+    & .goal-context {
+      margin-block-start: 0.25rem;
+      font-size: 0.875rem;
+      color: var(--muted);
+    }
+    & .goal-words {
+      margin-block-start: var(--space-s);
+      & summary {
+        font-size: 0.8125rem;
+        color: var(--muted);
+        cursor: pointer;
+      }
+      & blockquote {
+        margin-block-start: 0.25rem;
+        font-size: 1.0625rem;
+        white-space: pre-wrap;
+      }
+      &[open] > summary { margin-block-end: 0.125rem; }
+    }
+  }
+
+  /* ---- the record: one panel of folds, each a line until opened */
+  .done-fold {
+    border: 1px solid var(--rule);
+    border-block-end: 0;
+    background: var(--panel);
+    &:first-of-type { border-start-start-radius: var(--radius); border-start-end-radius: var(--radius); }
+    &:last-of-type {
+      border-block-end: 1px solid var(--rule);
+      border-end-start-radius: var(--radius);
+      border-end-end-radius: var(--radius);
+    }
+    & > summary {
+      min-block-size: 2.75rem;
+      padding: var(--space-s) var(--space-m);
+      font-weight: 600;
+    }
+    /* the space under the list is the fold's padding: a margin would pass
+       through a fold with no bottom border (folds share their borders) */
+    &[open] { padding-block-end: var(--space-m); }
+    & > .entries {
+      margin: 0 var(--space-m);
+      box-shadow: none;
+    }
+    /* a date over its decisions; the lists after the first sit lower */
+    & > h4 {
+      margin: var(--space-s) var(--space-m) var(--space-xs);
+      font-size: 0.8125rem;
+      font-weight: 600;
+      color: var(--muted);
+    }
+  }
+  /* the entries awaiting filing sit above the filed fold, in one block */
+  .entries + .done-fold { margin-block-start: var(--space-s); }
+  /* the day's answers under Waiting on you: a sub-heading over its own list */
+  #answered-today {
+    margin-block: var(--space-l) var(--space-s);
+    font-size: 1rem;
+    font-weight: 700;
+    scroll-margin-block-start: var(--space-m);
+  }
+  .done-fold + .say { margin-block-start: var(--space-m); }
+
+  /* ---- the index: one queue of what waits on the user, oldest first */
+  .queue-summary { margin-block: var(--space-xs) var(--space-m); color: var(--muted); }
+  .queue-empty { margin-block: var(--space-m); font-size: 1.0625rem; }
+  .queue {
+    /* a row turns into a stacked card when the list, not the window, is narrow */
+    container: queue / inline-size;
+    display: grid;
+    margin: 0;
+    padding: 0;
+    border: 1px solid var(--rule);
+    border-radius: var(--radius-l);
+    list-style: none;
+    background: var(--panel);
+    box-shadow: var(--shadow);
+    & > li {
+      display: grid;
+      grid-template-columns: 5.5rem minmax(0, 1fr) auto;
+      align-items: center;
+      gap: var(--space-xs) var(--space-m);
+      padding: var(--space-m) var(--space-l);
+      border-inline-start: 4px solid var(--ask);
+      & + li { border-block-start: 1px solid var(--rule); }
+      &:first-child { border-start-start-radius: var(--radius-l); }
+      &:last-child { border-end-start-radius: var(--radius-l); }
+    }
+    /* a row without a time leaves its cell blank, so the titles of
+       every row start at the same place; the column goes only when no
+       row of the queue has a time */
+    @container queue (inline-size >= 44rem) {
+      &:has(.wait) > li > .question { grid-column: 2; }
+      &:not(:has(.wait)) > li { grid-template-columns: minmax(0, 1fr) auto; }
+    }
+    & .wait { font-size: 1.25rem; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--ask); }
+    & .question { display: grid; gap: 0.125rem; min-inline-size: 0; }
+    & .title { font-weight: 700; }
+    & .title > .tag { --state: var(--ask); border-color: transparent; color: var(--on-state); background: var(--ask); white-space: nowrap; }
+    & .where {
+      font-size: 0.875rem;
+      color: var(--muted);
+      & a { color: inherit; }
+    }
+    & .answer {
+      /* the gap spaces icon and word, whichever side the icon is on */
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35em;
+      min-block-size: 2.75rem;
+      padding-inline: var(--space-l);
+      border-radius: var(--radius);
+      font-weight: 600;
+      color: var(--on-state);
+      background: var(--accent);
+      text-decoration: none;
+      &:hover { filter: brightness(1.1); }
+    }
+
+    @container queue (inline-size < 44rem) {
+      & > li {
+        grid-template-columns: minmax(0, 1fr) auto;
+        & > .question, & > .answer { grid-column: 1 / -1; }
+        & > .answer { justify-self: start; }
+      }
+      & .wait { justify-self: end; font-size: 1rem; }
+    }
+  }
+
+  /* below the queue: the sessions' turn, and the ledgers */
+  .index-panels {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 24rem), 1fr));
+    gap: var(--space-m);
+    margin-block-start: var(--space-l);
+    & > section {
+      /* a phone's table needs every column's width */
+      padding: var(--space-m) clamp(var(--space-m), 4cqi, var(--space-l));
+      border: 1px solid var(--rule);
+      border-block-start: 4px solid var(--rule);
+      border-radius: var(--radius-l);
+      background: var(--panel);
+      box-shadow: var(--shadow);
+    }
+    & h2 {
+      margin: 0 0 var(--space-s);
+      font-size: 0.8125rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    & .theirs { border-block-start-color: var(--accent); & h2 { color: var(--accent); } }
+    & .ledgers { border-block-start-color: var(--ok); & h2 { color: var(--ok); } }
+    & .theirs ul { display: grid; gap: var(--space-xs); }
+    /* the sessions' box is as tall as what it holds, not as the table beside it */
+    & > .theirs { align-self: start; }
+    & table { inline-size: 100%; border-collapse: collapse; font-size: 0.9375rem; font-variant-numeric: tabular-nums; }
+    /* cells wrap between words, never inside a name: the panel scrolls instead */
+    & th, & td {
+      padding: var(--space-xs) var(--space-s) var(--space-xs) 0;
+      text-align: start;
+      vertical-align: baseline;
+      overflow-wrap: normal;
+      & a { overflow-wrap: normal; }
+    }
+    & tbody th { white-space: nowrap; }
+    & td > span { white-space: nowrap; }
+    & thead th { font-size: 0.8125rem; font-weight: 600; color: var(--muted); }
+    & tbody th a { font-weight: 600; }
+    & tr.is-ask .state { color: var(--ask); }
+    /* what an 'other' word needs: a line under its row, read as part of it */
+    & tr:has(+ tr.state-line) > :is(th, td) { padding-block-end: 0; }
+    & tr.state-line > td {
+      padding-block: 0.125rem var(--space-s);
+      font-size: 0.8125rem;
+      font-weight: 400;
+      color: var(--muted);
+      overflow-wrap: break-word;
+    }
+    & tr.is-flight .state { color: var(--accent); }
+    & tr.is-done .state { color: var(--ok); }
+    & tr.is-fail .state { color: var(--fail); }
+    & .state { font-weight: 600; }
+    & tbody th .changed {
+      display: block;
+      font-size: 0.8125rem;
+      font-weight: 400;
+      color: var(--muted);
+    }
+    /* a narrow panel keeps its table by scrolling it, not by squeezing it */
+    & .ledgers { overflow-x: auto; }
+  }
+
+  /* ---- a ledger page: narrow, one column in source order (waiting, the
+     folded sections, the goal and the rest); with room, the sections
+     stand beside and waiting still comes before the goal */
+  .ledger-layout {
+    display: grid;
+    gap: var(--space-m) var(--space-xl);
+    margin-block-start: var(--space-l);
+
+    @container page (inline-size > 60rem) {
+      grid-template-columns: 17rem minmax(0, 1fr);
+      grid-template-areas: "nav waiting" "nav main";
+      align-items: start;
+      & > .waiting { grid-area: waiting; }
+      & > .ledger-main { grid-area: main; }
+      & > .sections {
+        position: sticky;
+        inset-block-start: var(--space-m);
+        grid-area: nav;
+        max-block-size: calc(100dvh - 2 * var(--space-m));
+        overflow-y: auto;
+        & > summary { display: none; }
+        & > .question-nav { padding-block-start: var(--space-s); }
+      }
+      & .question-nav ul { flex-direction: column; flex-wrap: nowrap; }
+    }
+  }
+  .waiting > h2:first-child { margin-block-start: 0; }
+  /* the folded list is the panel: the list inside draws none of its own */
+  .sections {
+    border: 1px solid var(--rule);
+    border-radius: var(--radius-l);
+    background: var(--panel);
+    /* narrow, the fold says it is one: a marker and its name */
+    & > summary {
+      display: list-item;
+      list-style: disclosure-closed inside;
+      padding: var(--space-s) var(--space-m);
+      font-weight: 600;
+      cursor: pointer;
+    }
+    &[open] > summary { list-style-type: disclosure-open; }
+    & > .question-nav { border: 0; background: none; padding-block-start: 0; }
+  }
+  .ledger-main {
+    min-inline-size: 0;
+    & > h2:first-child { margin-block-start: var(--space-l); }
+  }
+  /* a criterion's pieces, counted, their links folded */
+  .entries .piece-list {
+    margin-block-start: 0.25rem;
+    & > summary { min-block-size: 1.5rem; font-size: 0.8125rem; color: var(--muted); }
+  }
+  .question-nav {
+    display: grid;
+    gap: var(--space-xs);
+    padding: var(--space-s) var(--space-m) var(--space-m);
+    border: 1px solid var(--rule);
+    border-radius: var(--radius-l);
+    background: var(--panel);
+    & h2 {
+      margin: var(--space-s) 0 0;
+      font-size: 0.75rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    & ul { display: flex; flex-wrap: wrap; gap: 0.125rem var(--space-s); }
+    /* an item whose id ends its line fills its share of the row, so the id
+       sits at the right edge when the list wraps on a narrow screen too:
+       a piece takes the whole row, words owed share one */
+    & li.is-piece { flex: 1 1 100%; }
+    /* the sections elsewhere are links of unequal length: one per line at
+       every width, where wrapping would break the rows unevenly */
+    & ul.elsewhere { flex-direction: column; flex-wrap: nowrap; }
+    /* words owed: equal columns, so an odd last item keeps its column's
+       width and its id stays under the ids above it */
+    & ul:has(> li.is-word) { display: grid; grid-template-columns: minmax(0, 1fr); }
+    & li.is-word a {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto auto;
+      align-items: center;
+      column-gap: var(--space-xs);
+    }
+    & a {
+      display: flex;
+      align-items: baseline;
+      gap: var(--space-xs);
+      min-block-size: 1.75rem;
+      padding: 0.25rem var(--space-xs);
+      border-radius: var(--radius);
+      font-size: 0.9375rem;
+      color: var(--ink);
+      text-decoration: none;
+      &:hover { background: var(--inset); }
+    }
+    /* an id is one word: it never shrinks or wraps beside its title; one
+       width for all, so the titles after them start in one column */
+    & .tag { flex: none; min-inline-size: 3.6em; margin-inline-end: 0; text-align: center; white-space: nowrap; }
+    /* an icon has no text baseline (its bottom edge stands in): centred on
+       its line instead of riding above the words */
+    & a > .icon, & .words { align-self: center; }
+    & li.is-ask .tag { color: var(--ask); }
+    & li.is-flight .tag { color: var(--accent); }
+    & .elsewhere a { color: var(--accent); }
+  }
+
+  /* the first link on the page, seen only while it has the focus */
+  .skip-link {
+    position: absolute;
+    inset-block-start: var(--space-s);
+    inset-inline-start: var(--space-s);
+    z-index: 4;
+    padding: var(--space-xs) var(--space-m);
+    border-radius: var(--radius);
+    font-weight: 600;
+    color: var(--on-state);
+    background: var(--accent);
+    &:not(:focus) {
+      clip-path: inset(50%);
+      inline-size: 1px;
+      block-size: 1px;
+      overflow: hidden;
+      white-space: nowrap;
+    }
+  }
+  /* words said as icons keep their words for a screen reader */
+  .visually-hidden {
+    position: absolute;
+    clip-path: inset(50%);
+    inline-size: 1px;
+    block-size: 1px;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+}
+
+@keyframes pulse {
+  0% { outline: 3px solid transparent; outline-offset: 2px; }
+  30% { outline: 3px solid var(--accent); outline-offset: 4px; }
+  100% { outline: 3px solid transparent; outline-offset: 2px; }
+}
+
+@layer components {
+  /* the cards slide into the room a collapse leaves; none of it with reduced motion */
+  ::view-transition-group(*) { animation-duration: 300ms; }
+  @media (prefers-reduced-motion: reduce) {
+    ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none; }
+  }
+}

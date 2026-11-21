@@ -4,9 +4,9 @@ require_relative "text"
 
 module LedgerViewer
     module Render
-        # Several lines of Markdown, as md_block() of ledger-serve.py
-        # draws them: paragraphs, `-`/`*` and `1.` lists, `>` quotes
-        # (nested by recursion), fenced code; each line through inline().
+        # Several lines of Markdown: paragraphs, `-`/`*` and `1.` lists,
+        # `>` quotes (nested by recursion), fenced code; each line through
+        # inline().
         class Blocks
             ITEM = /\A[[:space:]\x1c-\x1f]*([-*]|\d+[.)])
                     [[:space:]\x1c-\x1f]+(.*)\z/mx

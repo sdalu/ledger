@@ -11,10 +11,12 @@
 # of independent probes -- gems, files, tools, addresses -- that share
 # a printer. Splitting either to satisfy a line count scatters the
 # commands across files without making any one of them easier to
-# find. The rule is right about logic and wrong about tables.
+# find. A migration is the same: a table of columns. The rule is
+# right about logic and wrong about tables.
 Metrics/BlockLength:
   Exclude:
     - "rakelib/*.rake"
+    - "lib/ledger/migrations/*.rb"
 
 Metrics/ModuleLength:
   Exclude:

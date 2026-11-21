@@ -30,8 +30,8 @@ class IndexTest < ViewerTest
     end
 
     def test_a_ledger_name_is_escaped
-        FileUtils.mkdir_p(File.join(@dir, "roots/<b>x/.git"))
-        File.write(File.join(@dir, "roots/<b>x/LEDGER.md"), "# Ledger\n")
+        Fixture.ledger(@journal, File.join(@dir, "<b>x/LEDGER.md"),
+                       project: "<b>x")
         sign_in
         https "/"
 
@@ -42,23 +42,37 @@ class IndexTest < ViewerTest
     def test_a_ledger_links_to_its_page_by_the_hash_of_its_path
         sign_in
         https "/"
-        path = File.join(@dir, "roots/alpha/LEDGER.md")
-        lid = Digest::SHA1.hexdigest(path)[0, 10]
+        lid = Digest::SHA1.hexdigest(Fixture.alpha(@dir))[0, 10]
 
         assert_includes last_response.body, %(href="/l/#{lid}")
     end
 
-    def test_a_ledger_outside_the_roots_is_never_listed
+    # A closed ledger keeps its live one's address: it has no URL.
+    def test_a_closed_ledger_is_not_listed
+        @journal.db[:ledgers].insert(
+            place: File.join(@dir, "beta"), name: "", project: "beta",
+            created_at: 0, closed_at: 1
+        )
         sign_in
         https "/"
 
         refute_includes last_response.body, "beta"
     end
 
-    def test_the_stylesheet_is_the_one_beside_the_engine
+    def test_a_new_event_moves_the_stamp
+        sign_in
+        https "/stamp"
+        before = last_response.body
+        Ledger::Write.run(@journal, Fixture.alpha(@dir), "touch", []) { nil }
+        https "/stamp"
+
+        refute_equal before, last_response.body
+    end
+
+    def test_the_stylesheet_is_the_one_in_public
         https "/viewer.css"
 
-        assert_equal File.read(@config.stylesheet), last_response.body
+        assert_equal File.binread(@config.stylesheet), last_response.body
     end
 
     def test_unknown_paths_have_a_page

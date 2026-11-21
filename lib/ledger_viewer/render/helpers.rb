@@ -4,7 +4,7 @@ require_relative "text"
 
 module LedgerViewer
     module Render
-        # The small builders ledger-serve.py's pages share: chip(),
+        # The small builders the pages share: chip(),
         # project_name(), answer_label(), answer_summary() and the
         # time's spelling. Plain functions, no page in them.
         module Helpers
@@ -96,8 +96,8 @@ module LedgerViewer
             # "s" for more than one.
             def plural(count) = count > 1 ? "s" : ""
 
-            # A thin bar filled to done/total; Python's round() goes to
-            # the even number at a half.
+            # A thin bar filled to done/total; a half rounds to the
+            # even number.
             def bar(done, total)
                 pct = 0
                 if total.positive?
@@ -114,7 +114,9 @@ module LedgerViewer
                 end
             end
 
-            def when_text(time) = Time.at(time).strftime("%Y-%m-%d %H:%M")
+            def when_text(time)
+                Time.at(time).localtime.strftime("%Y-%m-%d %H:%M")
+            end
         end
     end
 end

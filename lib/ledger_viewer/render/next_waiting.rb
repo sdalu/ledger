@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require_relative "reading"
-require_relative "text"
 
 module LedgerViewer
     module Render
@@ -13,11 +12,10 @@ module LedgerViewer
 
             # [[anchor, title]]: the cards still waiting on the user, in
             # the page's order: the questions to answer, then the pieces
-            # owed a word. waiting_cards() of ledger-serve.py.
+            # owed a word.
             def self.cards(reading)
                 asked = reading.to_answer.map do |question|
-                    title = Text.question_text(question["text"])
-                    ["q-#{question["id"]}", Text.title_of(title).first]
+                    ["q-#{question["id"]}", question["title"]]
                 end
                 asked + owed(reading)
             end
@@ -25,7 +23,7 @@ module LedgerViewer
             def self.owed(reading)
                 sent = reading.sent_words
                 reading.owed.reject { sent.key?(it["id"]) }.map do |piece|
-                    ["p-#{piece["id"]}", Text.title_of(piece["what"]).first]
+                    ["p-#{piece["id"]}", piece["title"]]
                 end
             end
 

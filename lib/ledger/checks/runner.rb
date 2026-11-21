@@ -1,0 +1,82 @@
+# frozen_string_literal: true
+
+require "ledger/checks/criteria"
+require "ledger/checks/final"
+require "ledger/checks/goal"
+require "ledger/checks/hints"
+require "ledger/checks/links"
+require "ledger/checks/open"
+require "ledger/checks/pieces"
+
+module Ledger
+    # The check rules of `ledger check` (docs/journal.md, section 5), in
+    # the order they are printed, `case-rated` and
+    # the new `verified-by` after them, the `--final` rules last. Each
+    # rule answers its problems for a Derive of the snapshot; a rule
+    # passes when it has none.
+    #
+    #     Ledger::Checks.run(snapshot, final: true)
+    #     # => [["goal-titled", true, ""], ["criteria", false, "need …"]]
+    #     Ledger::Write.run(journal, address, cmd, argv,
+    #                       checks: Ledger::Checks) { … }
+    module Checks
+        # PREFIX opens the detail of a failure, JOIN joins its problems.
+        Rule = Data.define(:name, :rule, :prefix, :join, :final) do
+            def detail(problems) = "#{prefix}#{problems.join(join)}"
+        end
+
+        def self.rule(name, rule, prefix: "", join: "; ", final: false)
+            Rule.new(name:, rule:, prefix:, join:, final:)
+        end
+
+        RULES = [
+            rule("goal-titled", Goal.method(:titled), prefix: Goal::TITLED),
+            rule("goal-revision", Goal.method(:revision),
+                 prefix: "#{Goal::GO_AHEAD}: "),
+            rule("criteria", Criteria.method(:present)),
+            rule("open-choices", Open.method(:choices)),
+            rule("open-described", Open.method(:described)),
+            rule("open-picker", Open.method(:picker)),
+            rule("self-routed", Pieces.method(:self_routed)),
+            rule("links", Links.method(:problems)),
+            rule("pieces-awaits", Awaits.method(:problems)),
+            rule("titles", ->(d) { Pieces.titles(d) + Open.titles(d) }),
+            rule("details", ->(d) { Pieces.details(d) + Open.details(d) }),
+            rule("pieces-order", Pieces.method(:order)),
+            rule("criteria-pieces", Criteria.method(:pieces)),
+            rule("case-rated", lambda do |d|
+                Open.rated(d) + Pieces.rated(d) + Goal.rated(d)
+            end),
+            rule("verified-by", Pieces.method(:verified_by)),
+            rule("final-pieces", Final.method(:pieces),
+                 prefix: "still open: ", join: ", ", final: true),
+            rule("final-awaits", Final.method(:awaits),
+                 prefix: "the user's word still owed: ", final: true),
+            rule("final-criteria", Final.method(:criteria), final: true)
+        ].freeze
+
+        module_function
+
+        # -> [[name, ok, detail]] for every rule that runs, in order;
+        # FINAL adds the rules of `check --final`.
+        def run(snapshot, final: false)
+            derive = Derive.new(snapshot)
+            RULES.select { final || !it.final }.map do |rule|
+                problems = rule.rule.call(derive)
+                [rule.name, problems.empty?,
+                 problems.empty? ? "" : rule.detail(problems)]
+            end
+        end
+
+        # -> [[name, detail]] of the rules that fail: the shape the write
+        # path's step 6 compares before and after.
+        def failures(snapshot, final: false)
+            run(snapshot, final:).reject { it[1] }.map { [it[0], it[2]] }
+        end
+
+        # The write path's callable (Write.run's `checks:`).
+        def call(snapshot) = failures(snapshot)
+
+        def hint(name) = HINTS.fetch(name)
+    end
+end

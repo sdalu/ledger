@@ -2,10 +2,8 @@
 
 module LedgerViewer
     module Render
-        # Python's html.escape and str.strip, and the text helpers of
-        # ledger.py the pages need, ported one for one (a test compares
-        # them with the Python on the fixture lines). The regexes carry
-        # (?u): Python's \w, \s and \b are Unicode, Ruby's are not.
+        # HTML escaping, white-space stripping and the text helpers the
+        # pages need.
         module Text
             ESCAPES = { "&" => "&amp;", "<" => "&lt;", ">" => "&gt;",
                         '"' => "&quot;", "'" => "&#x27;" }.freeze
@@ -14,17 +12,11 @@ module LedgerViewer
             BLANKS = /[[:space:]\x1c-\x1f]+/
             LINE_ENDS = /\r\n|[\n\r\v\f\x1c-\x1e\u0085\u2028\u2029]/
 
-            CHOICES = /(?u)\bchoices: (.+?)(?=\s+(?:—|mockup:)|\n?\z)/
-            ITEMS = /(?u)(?<= — )items: (.+?)(?=\s+(?:—|mockup:)|\n?\z)/
-            MOCKUP_REF = %r{(?u)\bmockup:[ ](?!pending\b)
-                            ([\w.-]+(?:/[\w.-]+)*)}x
-            PENDING = /(?u)\bmockup: pending \((P\d+)\)/
-            BY = /(?u)\b(?:by: P\d+|see: [CDFP]\d+(?:, [CDFP]\d+)*)\b/
-            QFIELD = /(?u)[ ]—[ ]
-                      (problem|risk|recommend|choices|items|by|see):[ ]|
-                      (?:[ ]—[ ])?(?=mockup:[ ])/x
-            CASE = %w[problem risk recommend].freeze
             RISK_RATING = %r{\A(\d+)/10(?: — |\z)}
+            # A local time as an inbox entry has it, or an ISO time with
+            # its offset as the journal gives one.
+            TIME = /\A(\d{4})-(\d\d)-(\d\d)[ T](\d\d):(\d\d):(\d\d)
+                    ([+-]\d\d:\d\d)?\z/x
 
             module_function
 
@@ -41,17 +33,17 @@ module LedgerViewer
                 "#{rstrip(text[0, limit - 3])}…"
             end
 
-            # Python's str.split(): on runs of white space, none empty.
+            # Words: runs of white space split, none empty.
             def words(text) = text.to_s.split(BLANKS).reject(&:empty?)
 
-            # Python's str.splitlines().
+            # Lines, split on every Unicode line boundary, no empty last one.
             def splitlines(text)
                 parts = text.split(LINE_ENDS, -1)
                 parts.pop if parts.last == ""
                 parts
             end
 
-            # Python's urllib.parse.quote: UTF-8 bytes, `/` kept.
+            # Percent-encoding of the UTF-8 bytes, `/` kept.
             def quote(text)
                 text.b.gsub(%r{[^A-Za-z0-9_.\-~/]}n) do |byte|
                     format("%%%<byte>02X", byte: byte.ord)
@@ -71,47 +63,11 @@ module LedgerViewer
 
             def detail(text, from) = text[from..].sub(/\A[ —]+/, "")
 
-            # [[key, start, marker end, end]] of the case fields.
-            def case_fields(text)
-                marks = text.to_enum(:scan, QFIELD).map { Regexp.last_match }
-                marks.each_with_index.filter_map do |mark, i|
-                    next unless CASE.include?(mark[1])
-
-                    follow = marks[i + 1]&.begin(0) || text.length
-                    [mark[1], mark.begin(0), mark.end(0), follow]
-                end
-            end
-
-            def case_of(text)
-                case_fields(text).to_h do |key, _, from, to|
-                    [key, strip(text[from...to])]
-                end
-            end
-
-            def strip_case(text)
-                text = text.dup
-                case_fields(text).reverse_each do |_, from, _, to|
-                    text = text[0...from] + text[to..]
-                end
-                text
-            end
-
             # [rating or nil, the text after it].
             def risk_rating(text)
                 text = strip(text)
                 found = RISK_RATING.match(text)
                 found ? [found[1].to_i, strip(found.post_match)] : [nil, text]
-            end
-
-            # A question as the reader sees it: its directives are drawn
-            # as buttons and pictures, so not printed.
-            def question_text(text)
-                text = strip_case(text)
-                [PENDING, MOCKUP_REF, ITEMS, CHOICES, BY].each do |rx|
-                    text = text.gsub(rx, "")
-                end
-                parts = text.split(" — ").map { strip(it) }.reject(&:empty?)
-                parts.empty? ? strip(text) : parts.join(" — ")
             end
 
             # ' · risk N/10' for a rated risk, '' for an unrated one.
@@ -120,8 +76,8 @@ module LedgerViewer
                 rating ? " · risk #{rating}/10" : ""
             end
 
-            # '2026-11-19 10:38:45' -> '25 min', '3 h', '2 days'; '' when
-            # it is not a time.
+            # '2026-11-19 10:38:45' (local) or an ISO time with its offset
+            # -> '25 min', '3 h', '2 days'; '' when it is not a time.
             def waited(since, now: Time.now)
                 time = local_time(since) or return ""
                 minutes = [0, (now - time).to_i / 60].max
@@ -132,11 +88,18 @@ module LedgerViewer
             end
 
             def local_time(text)
-                found = /\A(\d{4})-(\d\d)-(\d\d) (\d\d):(\d\d):(\d\d)\z/
-                        .match(text.to_s)
-                found && Time.new(*found.captures.map(&:to_i))
+                found = TIME.match(text.to_s) or return
+                *parts, zone = found.captures
+                parts = parts.map(&:to_i)
+                zone ? Time.new(*parts, zone) : Time.new(*parts)
             rescue ArgumentError
                 nil
+            end
+
+            # A time as the page writes it: 'YYYY-MM-DD HH:MM', local; ''
+            # when it is not a time.
+            def minute(text)
+                local_time(text)&.localtime&.strftime("%Y-%m-%d %H:%M").to_s
             end
         end
     end

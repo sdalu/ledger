@@ -24,7 +24,7 @@ module LedgerViewer
                 length = content_length
                 post = Sender::Post.new(
                     lid:, route:, length:, action: request.path_info,
-                    body: raw_body(length), token: form_token!
+                    body: raw_body(length), token: form_token!, actor:
                 )
                 settings.sender.call(post)
             end
@@ -55,21 +55,28 @@ module LedgerViewer
             private
 
             # A form posted by a page of this viewer: its Origin is the
-            # scheme and host the request itself came to, as ledger-
-            # serve.py's do_POST asks. No Origin is refused too: a
-            # browser always sends one with a form.
+            # scheme (rack.url_scheme, which Puma sets to https under TLS)
+            # and host the request itself came to. No Origin is refused
+            # too: a browser always sends one with a form.
             def own_origin!
-                scheme = request.env["HTTPS"] == "on" ? "https" : "http"
                 host = request.env["HTTP_HOST"].to_s
                 return if !host.empty? &&
-                          request.env["HTTP_ORIGIN"] == "#{scheme}://#{host}"
+                          request.env["HTTP_ORIGIN"] ==
+                          "#{request.scheme}://#{host}"
 
                 raise Refusal.new(403, "The form did not come from this " \
                                        "viewer's own page.")
             end
 
-            def lan_caller?
-                sesam.access.caller_for(request.env).verdict == :lan
+            def lan_caller? = caller_now.verdict == :lan
+
+            def caller_now = sesam.access.caller_for(request.env)
+
+            # Who the journal's events row names: the signed-in user, or
+            # the name sesam gives a LAN caller (its user, or lan:ADDRESS).
+            def actor
+                held = sesam.session&.held_from(request.env)
+                "viewer:#{held ? held.name : caller_now.name}"
             end
 
             def current_stamp = Render::Stamp.of(settings.ledgers.all)
@@ -93,7 +100,7 @@ module LedgerViewer
                 request.body.read([length, 0].max).to_s
             end
 
-            # The Content-Length as Python's int() reads it, -1 when it
+            # The Content-Length as an integer, -1 when it
             # is not a number.
             def content_length
                 text = request.env["CONTENT_LENGTH"] || "0"

@@ -9,7 +9,7 @@ module LedgerViewer
         # A form whose content goes to the ledger's inbox: an answer to
         # an O<n> (with its choices, a comment per option or per item), a
         # comment on a planned piece, a proposed order of the planned
-        # pieces, or a note. say_form() of ledger-serve.py.
+        # pieces, or a note.
         class SayForm
             # ref, label; choices and items of a question; order of the
             # planned pieces; rec its recommendation, {label => why};

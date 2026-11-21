@@ -4,7 +4,7 @@ require_relative "terms"
 
 module LedgerViewer
     module Render
-        # section() of ledger-serve.py: a heading with its icon and
+        # A section: a heading with its icon and
         # count, and the list under it. Mixed into what holds @scope.
         module Sectioned
             private

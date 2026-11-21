@@ -1,0 +1,89 @@
+/* The links page (views/ledger/links.erb). It uses the tokens and the layer
+   order of viewer.css, which the page carries first; the order is stated
+   again so this file is also valid read alone. */
+@layer reset, tokens, base, layout, components;
+
+@layer layout {
+  /* the two walks sit side by side while each has room for its lines, and
+     stack, back first, in the order they are read, when it has not */
+  .links-columns {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
+    gap: var(--space-l);
+    align-items: start;
+  }
+  .links-head h1 { overflow-wrap: anywhere; }
+}
+
+@layer components {
+  .links-graph {
+    & .meta { font-size: 0.8125rem; color: var(--muted); }
+    & h2 { margin-block-start: var(--space-l); }
+    & h2 + .meta { margin-block-end: var(--space-s); }
+    & ol { padding-inline-start: 0; list-style: none; }
+  }
+
+  /* a lineage is nested lists; the rule on each list's edge joins an item to
+     the one it hangs from, and a list's own indent stays small so six levels
+     still fit a phone */
+  .lineage-node {
+    --state: var(--muted);
+    min-inline-size: 0;
+    margin-block-start: var(--space-s);
+    padding: var(--space-s) var(--space-s) var(--space-s) var(--space-m);
+    border: 1px solid var(--rule);
+    border-inline-start: 3px solid var(--state);
+    border-radius: var(--radius);
+    background: var(--panel);
+    box-shadow: var(--shadow);
+    overflow-wrap: anywhere;
+    &.is-ask { --state: var(--ask); }
+    &.is-flight { --state: var(--accent); }
+    &.is-done { --state: var(--ok); }
+    &.is-fail { --state: var(--fail); }
+    & .node-head {
+      color: var(--state);
+      & > .title { color: var(--ink); font-weight: 600; }
+      & > .via { font-size: 0.8125rem; color: var(--muted); }
+    }
+    & .text { margin-block-start: var(--space-xs); }
+    & .note, & .also { margin-block-start: var(--space-xs); font-size: 0.8125rem; color: var(--muted); }
+    & .also > span { margin-inline-end: var(--space-s); }
+    & > ol {
+      margin-block-start: var(--space-xs);
+      padding-inline-start: var(--space-s);
+      border-inline-start: 1px solid var(--rule);
+    }
+  }
+
+  /* the id is a link: the chip is the target, at least the height of a row */
+  .id-link {
+    display: inline-flex;
+    align-items: center;
+    min-block-size: 1.5rem;
+    text-decoration: none;
+    &:hover .tag { border-color: currentColor; }
+  }
+
+  /* the user's own words, set apart and never reflowed into prose */
+  .words {
+    margin-block-start: var(--space-xs);
+    padding: var(--space-xs) var(--space-s);
+    border-inline-start: 3px solid var(--accent);
+    background: var(--inset);
+    border-radius: 0 var(--radius) var(--radius) 0;
+    & > q { quotes: none; white-space: pre-wrap; display: block; }
+  }
+  .whose {
+    margin: 0;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  @media (forced-colors: active) {
+    .lineage-node, .words { border: 1px solid CanvasText; }
+  }
+}

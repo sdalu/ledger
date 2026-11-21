@@ -27,7 +27,7 @@ module Preflight
     # list to fill in; an empty list skips the section entirely.
     #
     #   TOOLS = { "pdftotext" => "reading PDFs" }.freeze
-    TOOLS = { "python3" => "reading each ledger's status line" }.freeze
+    TOOLS = {}.freeze
 
     INK = begin
         require "pastel"
@@ -207,10 +207,14 @@ module Preflight
     # requiring it is what defines the settings class. Finding it
     # beats naming it: a named one goes stale on a rename and, worse,
     # a template shipped with somebody else's name checks their
-    # project and reports this one healthy.
+    # project and reports this one healthy. A checkout holding more than
+    # one program (lib/ledger.rb beside lib/ledger_viewer.rb) has the
+    # served one named by its launcher: bin/ledger-viewer serves
+    # lib/ledger_viewer.rb.
     def umbrella
         found = Dir["lib/*.rb"]
         return found.first if found.size == 1
+        return served_umbrella if found.include?(served_umbrella)
 
         why = if found.empty?
                   "no lib/*.rb to load"
@@ -219,6 +223,12 @@ module Preflight
               end
         item(:warn, "settings", why)
         nil
+    end
+
+    # lib/<launcher>.rb, the launcher's dashes as underscores; nil
+    # without a launcher.
+    def served_umbrella
+        launcher&.then { "lib/#{File.basename(it).tr("-", "_")}.rb" }
     end
 
     # The module the umbrella defined, identified by having a Config
@@ -384,15 +394,25 @@ module Preflight
         seconds ? Integer(seconds) + 5 : 15
     end
 
-    # The single executable in bin/, or ./run -- the two shapes a
-    # launcher takes here. Found rather than named, like everything
-    # else, so this file stays free of one project's spelling.
+    # The executable in bin/ that serves the app, or ./run -- the two
+    # shapes a launcher takes here. Found rather than named, like
+    # everything else, so this file stays free of one project's
+    # spelling: bin/ may hold the project's other programs too, and the
+    # launcher is then the one that execs puma.
     def launcher
         found = Dir["bin/*"].select { File.executable?(it) }
+        found = found.select { serves?(it) } if found.size > 1
         return found.first if found.size == 1
         return "./run" if File.executable?("run")
 
         nil
+    end
+
+    # Whether the program at PATH starts the server: a line execing puma.
+    def serves?(path)
+        File.foreach(path).any? { it.match?(/^\s*exec\b.*\bpuma\b/) }
+    rescue SystemCallError, ArgumentError
+        false
     end
 
     # The running pid, or nil. A pidfile outlives the process it

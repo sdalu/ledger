@@ -1,11 +1,28 @@
 # frozen_string_literal: true
 
-# What the tests of the sends share: the ledger's inbox, the token of
-# its page's forms, and a send as the page's form makes it.
+# What the tests of the sends share: the ledger's inbox in the journal,
+# the token of its page's forms, and a send as the page's form makes it.
 module Sends
-    def inbox = "#{@ledger}.inbox"
+    # The ledger's inbox entries, oldest first, each the hash
+    # Ledger::Inbox filed: id, at, the form's fields, text.
+    def entries
+        inbox_rows.map { JSON.parse(it[:payload]) }
+    end
 
-    def lines = File.exist?(inbox) ? File.readlines(inbox, chomp: true) : []
+    # The actor of the event that filed each entry, oldest first.
+    def actors
+        db = @journal.db
+        inbox_rows.map do |row|
+            filed = db[:event_rows].where(tbl: "inbox_entries",
+                                          row_id: row[:id])
+            db[:events].where(id: filed.select(:event_id)).get(:actor)
+        end
+    end
+
+    def inbox_rows
+        ledger = @journal.ledger(@ledger)
+        @journal.db[:inbox_entries].where(ledger_id: ledger[:id]).order(:n).all
+    end
 
     def token
         https "/l/#{@lid}"

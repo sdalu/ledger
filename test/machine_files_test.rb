@@ -29,7 +29,7 @@ class MachineFilesTest < Minitest::Test
                      File.join(@dir, "config"))
         File.write(File.join(@dir, "config/app.local.rb"), "{ typo: 1 }")
         local = File.join(@dir, "elsewhere.rb")
-        File.write(local, %({ roots: ["r"], session_secret: "#{"s" * 32}" }))
+        File.write(local, %({ session_secret: "#{"s" * 32}" }))
 
         assert_equal "s" * 32,
                      LedgerViewer::Config.load(root: @dir, local:)

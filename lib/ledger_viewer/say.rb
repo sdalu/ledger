@@ -1,16 +1,17 @@
 # frozen_string_literal: true
 
 require_relative "refusal"
+require_relative "render/reading"
 require_relative "render/text"
 require_relative "say_all"
 require_relative "say_answer"
 require_relative "say_word"
 
 module LedgerViewer
-    # What a posted form says, checked against the ledger as the engine
-    # reads it (the Dump's Hash), by the rules of ledger-serve.py's
-    # do_POST: the entries to append, or the Refusal that names why
-    # nothing is. SayAll is its say-all.
+    # What a posted form says, checked against the ledger's JSON v1
+    # document, by the rules of a post: the entries
+    # to append, or the Refusal that names why nothing is. SayAll is its
+    # say-all.
     class Say
         include SayAll
         include SayAnswer
@@ -26,6 +27,7 @@ module LedgerViewer
 
         def initialize(data, form)
             @data = data
+            @reading = Render::Reading.new(data)
             @form = form
             @text = clean(form["text"])
             @planned = pieces.select { it["status"] == "planned" }
@@ -124,7 +126,7 @@ module LedgerViewer
 
         def pieces = @data["pieces"]
         def piece(ref) = pieces.find { it["id"] == ref }
-        def words_of(piece) = piece ? piece["words"].map(&:first) : []
+        def words_of(piece) = piece ? piece["awaits"].map { it["word"] } : []
         def refuse(status, why) = raise(Refusal.new(status, why))
         def clean(text) = Render::Text.strip(text.gsub("\r\n", "\n"))
     end

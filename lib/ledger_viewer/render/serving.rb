@@ -1,13 +1,13 @@
 # frozen_string_literal: true
 
 require_relative "links"
-require_relative "terms"
+require_relative "status"
 
 module LedgerViewer
     module Render
         # The backlinks of a criterion: the questions citing it as meta
         # text, and the pieces serving it counted, their links folded.
-        # serving() of ledger-serve.py.
+        # A question cites a criterion with `see`.
         class Serving
             def initialize(scope, reading)
                 @scope = scope
@@ -25,22 +25,18 @@ module LedgerViewer
 
             private
 
-            # The ids of the questions that cite `id` (a question without
-            # one is spelled the way Python spells None).
+            # The ids of the questions that cite `id`.
             def citing(id)
-                found = @reading.questions.select do |question|
-                    see = Terms.split_fields(question["text"])[1]
-                               .fetch("see", "")
-                    (Terms.link_ids("see", see) || []).include?(id)
-                end
-                found.map { it["id"] || "None" }
+                @reading.questions.select { it["see"].include?(id) }
+                        .map { it["id"] }
             end
 
             def fold(mine)
                 return "" if mine.empty?
 
                 links = mine.map do |piece|
-                    "[#{piece["id"]}](#piece-#{piece["id"]}) #{piece["status"]}"
+                    "[#{piece["id"]}](#piece-#{piece["id"]}) " \
+                        "#{Status.of(piece)}"
                 end.join(", ")
                 counts = Links.counts(mine.map { it["status"] })
                 "<details class=\"piece-list\"><summary>evidence from " \

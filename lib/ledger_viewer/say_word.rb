@@ -36,7 +36,7 @@ module LedgerViewer
         end
 
         # The entries of this ledger's inbox no session has taken.
-        def pending = @data["inbox"].reject { it["taken"] }
+        def pending = @reading.inbox.reject { it["taken"] }
 
         def sent(ref, word: false)
             pending.select { it["ref"] == ref && (!word || word?(it)) }

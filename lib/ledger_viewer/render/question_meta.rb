@@ -26,20 +26,21 @@ module LedgerViewer
                 since = @reading.asked[question["id"]]
                 by = question["by"].to_s
                 [since && "waiting #{Text.waited(since)}, " \
-                          "since #{since[0, 16]}",
+                          "since #{Text.minute(since)}",
                  (by.empty? ? nil : "prepared by #{by}")].compact.join(" · ")
             end
 
             def unready(question)
-                prep = question["prep"]
-                "Not ready to answer: #{prep} (#{question["prep_status"]}) " \
+                prep = question["preparing"]
+                "Not ready to answer: #{prep} " \
+                    "(#{question["preparing_status"]}) " \
                     "is still preparing #{unready_what(question)}. It moves " \
                     "to Waiting on you when #{prep} is verified."
             end
 
             def unready_what(question)
                 return "it" if question["choices"].empty? &&
-                               !Text::PENDING.match?(question["text"])
+                               question["pictures"].none? { it["pending"] }
 
                 "its options and mockups"
             end

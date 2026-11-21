@@ -5,8 +5,8 @@ require_relative "text"
 
 module LedgerViewer
     module Render
-        # Which options a question's `— recommend:` picks. recommended()
-        # and label_fold() of ledger.py.
+        # Which options a question's `— recommend:` picks, matched on the
+        # labels folded to one spelling.
         module Recommend
             module_function
 

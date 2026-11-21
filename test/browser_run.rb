@@ -1,10 +1,14 @@
 # frozen_string_literal: true
 
-# browser_run.rb -- the Python viewer's browser checks (tests/browser/
+# browser_run.rb -- the viewer's browser checks (tests/browser/
 # viewer.cjs, unchanged) against this viewer, in Chrome and Firefox: the
-# same fixture, this app on a free port over a sandbox config and store,
-# a user made and signed in, and the browser handed that session cookie
-# through test/browser_session.cjs, which stands in for playwright-core.
+# ledger those checks expect made by bin/ledger's words in a sandbox
+# journal (test/support/browser_fixture.rb), this app on a free port
+# over it, a user made and signed in, and the browser handed that
+# session cookie through test/browser_session.cjs, which stands in for
+# playwright-core; test/browser_pages.cjs then opens the ledger's page
+# and its pictures in each browser. The checks change the ledger by
+# running bin/ledger against the journal in $LEDGER_JOURNAL.
 # Needs node and playwright-core ($PLAYWRIGHT_CORE, default
 # ~/node_modules/playwright-core) and the browsers ($CHROME, $FIREFOX);
 # without them it says what it skips and exits 0. $ONLY=chrome or
@@ -13,10 +17,8 @@
 # checkout:
 #   bundle exec ruby test/browser_run.rb
 
-require "fileutils"
 require "json"
 require "net/http"
-require "open3"
 require "securerandom"
 require "socket"
 require "tmpdir"
@@ -25,18 +27,21 @@ $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 
 require "ledger_viewer"
 
+require_relative "support/browser_fixture"
+
 module BrowserRun
     ROOT = File.expand_path("..", __dir__)
     SKILL = File.expand_path("..", ROOT)
     PASSWORD = "a long enough password"
 
-    # The fixture of the Python run (the same shell function, the engine
-    # in scripts/ledger.py) and this viewer's sandbox config over it.
+    # The fixture's ledger, with its pictures and its inbox, in a journal
+    # of the sandbox; this viewer's sandbox config over it.
     class Sandbox
-        attr_reader :dir, :ledger, :port, :local
+        attr_reader :dir, :ledger, :port, :local, :journal
 
         def initialize(dir)
             @dir = dir
+            @journal = File.join(dir, "journal.db")
             @ledger = fixture
             @port = free_port
             @local = config
@@ -50,13 +55,14 @@ module BrowserRun
 
         private
 
+        # The ledger at proj/.claude/LEDGER.md, as an address in the journal.
         def fixture
-            script = ". #{SKILL}/tests/viewer-fixture.sh; " \
-                     "ledger=#{SKILL}/scripts/ledger.py; " \
-                     "make_fixture #{dir}"
-            out, status = Open3.capture2("sh", "-c", script)
-            abort "fixture failed" unless status.success?
-            out.strip
+            path = File.join(dir, "proj", ".claude", "LEDGER.md")
+            journal = Ledger::Journal.open(@journal)
+            BrowserFixture.build(journal, path)
+            path
+        ensure
+            journal&.close
         end
 
         def free_port
@@ -64,8 +70,8 @@ module BrowserRun
             server.addr[1].tap { server.close }
         end
 
-        # Roots the fixture, store in the tmpdir, a secret of its own:
-        # nothing under ~/.config.
+        # A secret of its own, the journal in the tmpdir: nothing under
+        # ~/.config or ~/.local/state.
         def config
             file = File.join(dir, "app.local.rb")
             File.write(file, "#{settings.inspect}\n")
@@ -73,9 +79,8 @@ module BrowserRun
         end
 
         def settings
-            { bind: "127.0.0.1:#{port}", roots: [File.join(dir, "proj")],
+            { bind: "127.0.0.1:#{port}",
               lan: lan? ? ["127.0.0.1"] : [],
-              store: File.join(dir, "data", "users.json"),
               tls_dir: File.join(dir, "tls"),
               session_secret: SecureRandom.hex(32) }
         end
@@ -86,6 +91,7 @@ module BrowserRun
         def initialize(sandbox)
             @sandbox = sandbox
             @env = { "LEDGER_VIEWER_LOCAL" => sandbox.local,
+                     "LEDGER_JOURNAL" => sandbox.journal,
                      "RACK_ENV" => "test" }
         end
 
@@ -112,7 +118,7 @@ module BrowserRun
             Process.spawn(@env, "bundle", "exec", "puma",
                           "-t", "0:#{LedgerViewer::THREADS}",
                           "-b", "tcp://127.0.0.1:#{@sandbox.port}",
-                          "config.ru", chdir: ROOT, out: log, err: log)
+                          "test/browser.ru", chdir: ROOT, out: log, err: log)
         end
 
         # Signed in, once the viewer answers.
@@ -134,8 +140,8 @@ module BrowserRun
         # A user invited from the store the server reads, then signed in
         # as a browser does: JSON POSTs from the app's own origin.
         def sign_in
-            config = LedgerViewer::Config.load(local: @sandbox.local)
-            store = LedgerViewer::Accounts.open(config)
+            journal = Ledger::Journal.open(@sandbox.journal)
+            store = LedgerViewer::Accounts.open(journal)
             token = LedgerViewer::Accounts.invite(store, "alice")
             post("/session/invite", token:, password: PASSWORD)
             reply = post("/session/password", name: "alice",
@@ -158,10 +164,11 @@ module BrowserRun
         end
     end
 
-    # The shared browser test, once per browser.
+    # The shared browser test, once per browser, then every page.
     class Checks
         SHIM = File.join(__dir__, "browser_session.cjs")
         VIEWER = File.join(SKILL, "tests", "browser", "viewer.cjs")
+        PAGES = File.join(__dir__, "browser_pages.cjs")
 
         def initialize(core, browsers)
             @core = core
@@ -180,12 +187,16 @@ module BrowserRun
                 puts "skip #{name}: #{exe} not found"
                 return true
             end
-            system(env(sandbox, cookie), "node", VIEWER, sandbox.base,
-                   sandbox.ledger, name)
+            env = env(sandbox, cookie)
+            shared = system(env, "node", VIEWER, sandbox.base, sandbox.ledger,
+                            name)
+            pages = system(env, "node", PAGES, sandbox.base, name)
+            shared && pages
         end
 
         def env(sandbox, cookie)
-            { "PLAYWRIGHT_CORE" => SHIM, "PLAYWRIGHT_REAL" => @core,
+            { "LEDGER_JOURNAL" => sandbox.journal,
+              "PLAYWRIGHT_CORE" => SHIM, "PLAYWRIGHT_REAL" => @core,
               "CHROME" => @browsers["chrome"],
               "FIREFOX" => @browsers["firefox"],
               "PLAYWRIGHT_BROWSERS_PATH" =>
@@ -201,11 +212,13 @@ module BrowserRun
         return skip(core) unless node? && File.directory?(core)
 
         checks = Checks.new(core, browsers)
-        passed = Dir.mktmpdir("viewer-browser") do |dir|
-            sandbox = Sandbox.new(dir)
-            Server.new(sandbox).run { |cookie| checks.call(sandbox, cookie) }
-        end
+        passed = Dir.mktmpdir("viewer-browser") { run(it, checks) }
         passed ? 0 : 1
+    end
+
+    def self.run(dir, checks)
+        sandbox = Sandbox.new(dir)
+        Server.new(sandbox).run { |cookie| checks.call(sandbox, cookie) }
     end
 
     def self.browsers

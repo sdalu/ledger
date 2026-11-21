@@ -1,13 +1,15 @@
 # frozen_string_literal: true
 
 require_relative "clock"
+require_relative "reading"
 require_relative "terms"
 require_relative "text"
+require_relative "why"
 
 module LedgerViewer
     module Render
         # The card of a piece that waits on the user's word, and the
-        # receipt of the word once sent. word_card() of ledger-serve.py.
+        # receipt of the word once sent.
         class WordCards
             def initialize(kit, waiting)
                 @kit = kit
@@ -24,17 +26,19 @@ module LedgerViewer
                 needed = needed(piece)
                 return receipt(piece, last, needed, form) if last
 
-                "#{card(piece)}#{needed}#{form}</li>"
+                "#{card(piece)}#{needed}#{form}#{why(piece)}</li>"
             end
 
             private
 
+            def why(piece) = Why.link(@kit.lid, piece["id"])
+
             def card(piece)
-                title, detail = Text.title_of(piece["what"])
                 @scope.partial(
                     "ledger/card",
                     { cls: "is-ask is-card", anchor: "p-#{piece["id"]}",
-                      text: title, tag: piece["id"], detail:, meta: meta(piece),
+                      text: piece["title"], tag: piece["id"],
+                      detail: piece["detail"].to_s, meta: meta(piece),
                       kase: @kit.cases.facets(piece),
                       extra: @kit.word.drop(piece["id"]) }
                 )
@@ -43,23 +47,22 @@ module LedgerViewer
             def meta(piece)
                 since = @reading.word_since(piece)
                 waited = Text.waited(since)
-                wait = "waiting #{waited}, since #{since[0, 16]}"
-                [piece["route"], (wait unless waited.empty?)]
+                wait = "waiting #{waited}, since #{Text.minute(since)}"
+                [piece["route_text"], (wait unless waited.empty?)]
                     .reject { it.to_s.empty? }.join(" · ")
             end
 
             def needed(piece)
-                others = piece["words"].select { |pair| pair.first == "other" }
+                others = Reading.words(piece).select { it.first == "other" }
                 others.map do |_, desc|
                     %(<p class="needed">Needed: #{@scope.inline(desc)}</p>)
                 end.join
             end
 
             def receipt(piece, last, needed, form)
-                title = Text.title_of(piece["what"]).first
                 @scope.partial(
                     "ledger/word_receipt",
-                    { id: piece["id"], title:, line: line(last),
+                    { id: piece["id"], title: piece["title"], line: line(last),
                       said: said(last), next_waiting: @waiting.html,
                       lid: @kit.lid, needed:, form: }
                 )

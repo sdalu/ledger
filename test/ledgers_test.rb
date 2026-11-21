@@ -2,39 +2,47 @@
 
 require "test_helper"
 
-# What the index's ties and links lean on: the order ledgers are found
-# in, the id, and where the pictures are.
+# What the pages lean on from the journal: the live ledgers in its
+# order, the id in a URL, the version a stamp moves with, and the
+# document a page reads.
 class LedgersTest < Minitest::Test
-    def setup = @dir = Dir.mktmpdir("ledgers", SANDBOX)
-
-    def ledger(project, name = "LEDGER.md", sub: ".claude")
-        dir = File.join(@dir, project, sub)
-        FileUtils.mkdir_p([dir, File.join(@dir, project, ".git")])
-        File.write(File.join(dir, name), "# Ledger\n")
+    def setup
+        @dir = Dir.mktmpdir("ledgers", SANDBOX)
+        @journal = Fixture.journal(@dir)
+        @ledgers = LedgerViewer::Ledgers.new(@journal)
     end
 
-    def found = LedgerViewer::Ledgers.new([@dir]).all
+    def teardown = @journal.close
 
-    def test_the_order_is_the_searchs_not_a_sort
-        ledger("a", sub: ".")
-        ledger("a", sub: ".claude")
-        ledger("a-b")
+    def address(name) = File.join(@dir, name, "LEDGER.md")
 
-        paths = found.map { it.path.delete_prefix("#{@dir}/") }
+    def test_the_live_ledgers_in_the_journals_order
+        %w[b a].each { Fixture.ledger(@journal, address(it), project: it) }
 
-        assert_equal %w[a/LEDGER.md a/.claude/LEDGER.md a-b/.claude/LEDGER.md],
-                     paths
+        assert_equal [address("b"), address("a")], @ledgers.all.map(&:path)
     end
 
-    def test_the_mockups_folder_follows_the_engines_rule
-        ledger("p")
-        entry = found.first
+    def test_the_id_is_the_hash_of_the_address
+        Fixture.ledger(@journal, address("a"), project: "a")
 
-        assert_equal File.join(@dir, "p/.claude/mockups"), entry.mockups
-        loose = LedgerViewer::Ledgers::Entry.new(
-            id: "x", path: "/t/l/LEDGER.md", project: "/t/l"
-        )
+        assert_equal Digest::SHA1.hexdigest(address("a"))[0, 10],
+                     @ledgers.all.first.id
+    end
 
-        assert_equal "/t/l/mockups", loose.mockups
+    def test_an_event_moves_the_version
+        Fixture.ledger(@journal, address("a"), project: "a")
+        before = @ledgers.all.first.version
+        Ledger::Write.run(@journal, address("a"), "touch", []) { nil }
+
+        refute_equal before, @ledgers.all.first.version
+    end
+
+    def test_the_document_is_json_v1_with_string_keys
+        Fixture.ledger(@journal, address("a"), project: "a")
+        document = @ledgers.read(@ledgers.all.first)
+
+        assert_equal 1, document["schema"]
+        assert_equal "ledger", document["kind"]
+        assert_equal address("a"), document["ledger"]["address"]
     end
 end

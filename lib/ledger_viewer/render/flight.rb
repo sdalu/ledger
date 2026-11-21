@@ -9,6 +9,7 @@ require_relative "serving"
 require_relative "say_form"
 require_relative "status"
 require_relative "text"
+require_relative "why"
 
 module LedgerViewer
     module Render
@@ -42,23 +43,15 @@ module LedgerViewer
 
             private
 
-            def fields(piece) = Links.fields(piece, @reading.pieces)
+            def fields(piece) = Links.fields(piece, @reading.settled)
 
             def piece(piece)
-                return unparsed(piece) if piece["status"] == "unparsed"
-
                 sent = @reading.sent_words[piece["id"]]
-                return line(piece, sent) if sent && !piece["words"].empty?
+                return line(piece, sent) if sent && !piece["awaits"].empty?
 
                 dropped = @reading.unfiled_on(piece["id"])
                                   .find { it["word"] == "drop" }
                 card(piece, dropped)
-            end
-
-            def unparsed(piece)
-                @entry.html(cls: "is-fail", tag: piece["id"],
-                            text: piece["what"], state: piece["status"],
-                            **fields(piece))
             end
 
             # The user's word on it is sent: that word decides it, so the
@@ -67,7 +60,7 @@ module LedgerViewer
                 @scope.partial(
                     "ledger/flight_line",
                     { id: piece["id"], status: piece["status"], sent:,
-                      title: Text.title_of(piece["what"]).first }
+                      title: piece["title"] }
                 )
             end
 
@@ -83,13 +76,14 @@ module LedgerViewer
             end
 
             def card_head(piece)
-                title, detail = Text.title_of(piece["what"])
                 tone = piece["status"] == "blocked" ? "is-fail" : "is-flight"
-                { cls: "#{tone} is-card", tag: piece["id"], text: title,
-                  card: true, state: piece["status"], detail:,
+                { cls: "#{tone} is-card", tag: piece["id"],
+                  text: piece["title"], card: true, state: piece["status"],
+                  detail: piece["detail"].to_s,
                   kase: @kit.cases.facets(piece),
                   anchor: "piece-#{piece["id"]}",
-                  tag_tip: Status.tip(piece["status"]) }
+                  fold: Why.link(@kit.lid, piece["id"]),
+                  tag_tip: Status.tip(piece) }
             end
 
             def comment(piece)
@@ -116,7 +110,7 @@ module LedgerViewer
             def unmet
                 @reading.unmet.map do |criterion|
                     meta, fold = @serving.of(criterion)
-                    text = criterion["text"]
+                    text = Reading.criterion(criterion)
                     text = text.sub(EVIDENCE, "") unless fold.empty?
                     @entry.html(cls: "is-flight", tag: criterion["id"], text:,
                                 meta:, fold:, anchor: "crit-#{criterion["id"]}")

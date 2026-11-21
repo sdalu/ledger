@@ -7,14 +7,13 @@ require_relative "text"
 
 module LedgerViewer
     module Render
-        # What the index gathers from the ledgers, one at a time, as
-        # render_index() does in its loop: the queue of what waits on the
-        # user (each with its sort key), the sessions' turn, the table
-        # rows, the open lines with no id, and the counts of the summary.
+        # What the index gathers from the ledgers, one at a time: the
+        # queue of what waits on the user (each with its sort key), the
+        # sessions' turn, the table rows and the counts of the summary.
         class Collector
-            # The queue: [group, since, mtime, order, html]; the rest are
+            # The queue: [group, since, updated, order, html]; the rows are
             # [sort key, html].
-            attr_reader :queue, :theirs, :rows, :noid, :totals
+            attr_reader :queue, :theirs, :rows, :totals
 
             def initialize(scope)
                 @scope = scope
@@ -22,49 +21,36 @@ module LedgerViewer
                 @queue = []
                 @theirs = []
                 @rows = []
-                @noid = []
                 @totals = Hash.new(0)
             end
 
             def add(entry, data)
                 name = Helpers.project_name(entry.project, entry.path)
-                @rows << row(entry.id, name, data)
+                reading = Reading.new(data)
+                questions(entry.id, name, reading)
+                owed(entry.id, name, reading)
+                @rows << @table.row(entry.id, name, reading)
             end
 
             private
 
-            def row(lid, name, data)
-                return @table.unreadable(lid, name) unless data
-
-                read(lid, name, Reading.new(data))
-            end
-
-            def read(lid, name, reading)
-                unnamed = questions(lid, name, reading)
-                owed(lid, name, reading)
-                loose(lid, name, reading.mtime, unnamed)
-                @table.row(lid, name, reading)
-            end
-
             def questions(lid, name, reading)
-                unnamed = 0
                 reading.questions.each do |q|
-                    if Helpers.filled?(q["prep"]) then prepared(lid, name, q)
-                    elsif q["id"].nil? then unnamed += 1
+                    if q["preparing"] then prepared(lid, name, q)
                     elsif (sent = reading.sent_answers[q["id"]])
                         filed(lid, name, q["id"], "q", sent)
                     else ask(lid, name, reading, q)
                     end
                 end
-                unnamed
             end
 
             def prepared(lid, name, q)
                 @totals[:prepared] += 1
-                id = q["id"]
-                @theirs << @scope.partial("index/prepared",
-                                          lid:, name:, id:, prep: q["prep"],
-                                          status: q["prep_status"])
+                @theirs << @scope.partial(
+                    "index/prepared",
+                    lid:, name:, id: q["id"], prep: q["preparing"],
+                    status: q["preparing_status"]
+                )
             end
 
             def filed(lid, name, id, kind, entry)
@@ -78,11 +64,9 @@ module LedgerViewer
             def ask(lid, name, reading, q)
                 @totals[:asks] += 1
                 since = reading.asked.fetch(q["id"], "")
-                text = Text.question_text(q["text"])
-                risk = Text.risk_clause(Text.case_of(q["text"])["risk"].to_s)
-                title = Text.title_of(text).first
+                risk = Text.risk_clause(q["risk"]&.fetch("text").to_s)
                 queued(reading, since,
-                       id: q["id"], lid:, name:, risk:, title:,
+                       id: q["id"], lid:, name:, risk:, title: q["title"],
                        what: "question", label: "Answer",
                        anchor: "q-#{q["id"]}")
             end
@@ -98,11 +82,11 @@ module LedgerViewer
             end
 
             def ask_word(lid, name, reading, piece)
-                words = piece["words"]
-                risk = Text.risk_clause(piece.fetch("risk", ""))
-                title = Text.title_of(piece["what"]).first
+                words = Reading.words(piece)
+                risk = Text.risk_clause(piece["risk"]&.fetch("text").to_s)
                 queued(reading, reading.word_since(piece),
-                       lid:, name:, risk:, id: piece["id"], title:,
+                       lid:, name:, risk:, id: piece["id"],
+                       title: piece["title"],
                        anchor: "p-#{piece["id"]}",
                        what: "awaits #{Helpers.bare_label(words)}",
                        label: Helpers.answer_label(words))
@@ -111,18 +95,12 @@ module LedgerViewer
             def queued(reading, since, **locals)
                 wait = Text.waited(since)
                 html = @scope.partial("index/ask", wait:, **locals)
-                @queue << [since.empty? ? 1 : 0, since, reading.mtime,
+                @queue << [since.empty? ? 1 : 0, moment(since), reading.updated,
                            @queue.length, html]
             end
 
-            def loose(lid, name, mtime, unnamed)
-                return if unnamed.zero?
-
-                plural = Helpers.plural(unnamed)
-                html = @scope.partial("index/noid",
-                                      lid:, name:, plural:, count: unnamed)
-                @noid << [mtime, html]
-            end
+            # An ISO time as a Time to sort by, the epoch when there is none.
+            def moment(since) = Text.local_time(since) || Time.at(0)
         end
     end
 end

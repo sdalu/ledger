@@ -47,7 +47,9 @@ class EventsTest < ViewerTest
         https "/stamp"
         now = last_response.body
         _, _, body = stream("/events?since=#{now}")
-        chunks = take(body, 2) { File.write("#{@ledger}.inbox", "{}\n") }
+        chunks = take(body, 2) do
+            Ledger::Write.run(@journal, @ledger, "touch", []) { nil }
+        end
 
         assert_equal ": open\n\n", chunks[0]
         assert_match(/\Aevent: stamp\ndata: (?!#{now})\h{16}\n\n\z/, chunks[1])

@@ -1,52 +1,66 @@
 # frozen_string_literal: true
 
+require "ledger"
+require "ledger/inbox"
+
 require_relative "form"
-require_relative "inbox"
 require_relative "render/next_waiting"
 require_relative "render/reading"
 require_relative "say"
 
 module LedgerViewer
-    # A form posted to a ledger, taken as ledger-serve.py's do_POST takes
-    # it, in its order: the size, the token, the ledger, the reading of
-    # it, the rules of Say, then the append. Returns where the page goes
-    # back to, or raises the Refusal.
+    # A form posted to a ledger, taken in its order: the size, the token,
+    # the ledger, the reading of it, the rules of Say, then the entries
+    # filed by Ledger::Inbox.append, actor `viewer:<caller>`. The reading,
+    # the rules and the append are one write transaction, so the inbox a
+    # send checks (what it replaces) is the inbox it is filed into.
+    # Returns where the page goes back to, or raises the Refusal.
     class Sender
         MAX_BODY = 64 * 1024
 
         # What was posted: to ledger `lid`, `route` (say or say-all), a
         # `body` of `length` bytes (the Content-Length, -1 when it is no
         # number), `action` the path posted to, `token` the one this
-        # session's forms carry.
-        Post = Data.define(:lid, :route, :body, :length, :action, :token)
+        # session's forms carry, `actor` who sent it (the events row's).
+        Post = Data.define(:lid, :route, :body, :length, :action, :token,
+                           :actor)
 
-        # `reader` answers a ledger's dump (a Hash, or nil) for a path.
-        def initialize(ledgers, reader)
-            @ledgers = ledgers
-            @reader = reader
-        end
+        def initialize(ledgers) = @ledgers = ledgers
 
         def call(post)
             refuse(413, "Empty or too long.") unless
                 post.length.between?(1, MAX_BODY)
             form = Form.parse(post.body)
             stale!(form, post)
-            path, data = ledger(post.lid)
-            bodies = bodies(Say.new(data, form), post.route)
-            Inbox.append(path, bodies)
-            "/l/#{post.lid}##{anchor(path, post.route, bodies.first)}"
+            @ledgers.journal.transaction { file(form, post) }
+        rescue Ledger::Locked
+            raise
+        rescue Ledger::Refused => e
+            refuse(409, "#{e.message}; nothing was sent.")
         end
 
         private
 
+        def file(form, post)
+            entry = ledger(post.lid)
+            bodies = bodies(Say.new(@ledgers.read(entry), form), post.route)
+            Ledger::Inbox.append(@ledgers.journal, entry.path,
+                                 bodies.map { entry_of(it) },
+                                 actor: post.actor)
+            "/l/#{post.lid}##{anchor(entry, post.route, bodies.first)}"
+        end
+
+        # The hash Inbox.append files: the fields, then the text.
+        def entry_of(body) = body.fields.merge("text" => body.text)
+
         # The card acted on; an answer or a word turns its card into a
         # receipt, so the page moves on to the first card still waiting,
         # the one acted on when none does.
-        def anchor(path, route, body)
+        def anchor(entry, route, body)
             return body.anchor unless route == "say" && receipt?(body)
 
-            after = @reader.read(path)
-            first = after && Render::NextWaiting.cards(Render::Reading.new(after)).first
+            reading = Render::Reading.new(@ledgers.read(entry))
+            first = Render::NextWaiting.cards(reading).first
             first ? first[0] : body.anchor
         end
 
@@ -58,13 +72,8 @@ module LedgerViewer
 
         def bodies(say, route) = route == "say-all" ? say.all : say.one
 
-        # The path of the live ledger `lid` and what the engine reads of it.
         def ledger(lid)
-            entry = @ledgers.all.find { it.id == lid } or
-                refuse(404, "No live ledger by that name.")
-            data = @reader.read(entry.path) or
-                refuse(409, "The ledger cannot be read.")
-            [entry.path, data]
+            @ledgers.find(lid) or refuse(404, "No live ledger by that name.")
         end
 
         def refuse(status, why) = raise(Refusal.new(status, why))

@@ -1,19 +1,22 @@
 # frozen_string_literal: true
 
+require "json"
+require "time"
+
 require_relative "helpers"
 require_relative "standing"
 require_relative "text"
 
 module LedgerViewer
     module Render
-        # A ledger as ledger-dump.py gives it (a Hash, string keys), with
-        # the derived views ledger-serve.py's summary(), sent_answers(),
-        # sent_words(), owed(), word_since(), state_cell() and counts()
-        # compute from it. What the index shows of a ledger is here.
+        # A ledger as its JSON v1 document gives it (Ledger::Read, string
+        # keys), with the derived views the pages compute from it: the
+        # answers and words sent and not filed, what is owed, when a word
+        # was first awaited, the index's state cell and counts. What the
+        # index shows of a ledger is here.
         class Reading
             IN_FLIGHT = %w[blocked back out planned].freeze
             MET = %w[x -].freeze
-            DEAD = %w[dropped unparsed].freeze
             # How many criteria, pieces and kept pieces a ledger counts.
             Counts = Data.define(:crit_met, :crit, :verified, :pieces, :kept)
 
@@ -21,15 +24,43 @@ module LedgerViewer
 
             def initialize(data) = @data = data
 
+            # The open questions, those being prepared among them.
             def questions = @data.fetch("questions")
 
             def pieces = @data.fetch("pieces")
 
+            # The decisions' ids (X<n>), in the order of their lines.
+            def decision_ids = @data.fetch("decisions").map { it["id"] }
+
+            # {"O3" => ISO time, "P4:commit" => ISO time}.
             def asked = @data.fetch("asked")
 
-            def mtime = @data.fetch("mtime")
-
             def criteria = @data.fetch("criteria")
+
+            # When the ledger last changed: its last event.
+            def updated = Time.iso8601(@data.fetch("ledger")["updated_at"])
+
+            # A piece's words as [[word, what 'other' needs or ""]].
+            def self.words(piece)
+                piece["awaits"].map { [it["word"], it["what"].to_s] }
+            end
+
+            # A question's options as their lines, `A = what; cost`.
+            def self.options(question)
+                question["choices"].map { it["text"] }
+            end
+
+            # A criterion's text with its evidence or why, as its line
+            # says it after the id.
+            def self.criterion(criterion)
+                criterion["line"].sub(/\A- \[.\] D\d+: /, "")
+            end
+
+            # A piece's title and detail as one line, `Title: detail`.
+            def self.what(piece)
+                detail = piece["detail"].to_s
+                detail.empty? ? piece["title"] : "#{piece["title"]}: #{detail}"
+            end
 
             # {O<n> => the latest answer sent and no session took}.
             def sent_answers
@@ -46,12 +77,12 @@ module LedgerViewer
             end
 
             # The pieces that cannot move without the user's word.
-            def owed = pieces.reject { it["words"].empty? }
+            def owed = pieces.reject { it["awaits"].empty? }
 
             # When a piece's longest-awaited word was first seen, or "".
             def word_since(piece)
-                keys = piece["words"].map { "#{piece["id"]}:#{it.first}" }
-                keys.filter_map { asked[it] }.min || ""
+                keys = piece["awaits"].map { "#{piece["id"]}:#{it["word"]}" }
+                keys.filter_map { asked[it] }.min_by { Time.iso8601(it) } || ""
             end
 
             # [rank, label]: lower ranks first.
@@ -65,8 +96,8 @@ module LedgerViewer
             end
 
             def counts
-                live = pieces.reject { DEAD.include?(it["status"]) }
-                kept = live.count { it["status"].start_with?("kept:") }
+                live = pieces.reject { it["status"] == "dropped" }
+                kept = live.count { it["status"] == "kept" }
                 Counts.new(kept:, pieces: live.length - kept, **criteria_count,
                            verified: status_count("verified"))
             end
@@ -87,7 +118,7 @@ module LedgerViewer
 
             private
 
-            def unfiled = @data.fetch("inbox").reject { it["taken"] }
+            def unfiled = inbox.reject { it["taken"] }
 
             def filled?(value) = Helpers.filled?(value)
 
@@ -104,7 +135,7 @@ module LedgerViewer
 
             def open_criteria? = criteria.any? { it["mark"] == " " }
 
-            def unprepared = questions.reject { filled?(it["prep"]) }
+            def unprepared = questions.reject { it["preparing"] }
 
             def waiting?
                 unprepared.any? { !sent_answers.key?(it["id"]) } ||
@@ -114,7 +145,7 @@ module LedgerViewer
             def answered? = !unprepared.empty? || !owed.empty?
 
             def flying?
-                questions.any? { filled?(it["prep"]) } ||
+                questions.any? { it["preparing"] } ||
                     pieces.any? { IN_FLIGHT.include?(it["status"]) }
             end
 
@@ -125,7 +156,7 @@ module LedgerViewer
                 owed.each do |piece|
                     next if sent_words.key?(piece["id"])
 
-                    piece["words"].each do |word, desc|
+                    Reading.words(piece).each do |word, desc|
                         tally[word] += 1
                         needs << desc if word == "other" && filled?(desc)
                     end

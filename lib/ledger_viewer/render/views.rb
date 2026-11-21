@@ -6,6 +6,7 @@ require "erubi"
 require_relative "helpers"
 require_relative "icons"
 require_relative "markup"
+require_relative "reading"
 require_relative "terms"
 require_relative "text"
 require_relative "tips"
@@ -13,11 +14,11 @@ require_relative "tips"
 module LedgerViewer
     module Render
         # The ERB files of views/, rendered outside Sinatra: <%= %> is
-        # escaped the way Python's html.escape does it (a quote is
+        # escaped the way html.escape does it (a quote is
         # &#x27;, a slash is left), <%== %> is for markup a helper built.
         # A fragment's source has its line breaks, and the indentation
-        # after them, removed before it is compiled, because the Python
-        # viewer's body is one line; a template that must keep its
+        # after them, removed before it is compiled, because a page's
+        # body is one line; a template that must keep its
         # newlines is rendered with `verbatim: true`.
         class Views
             OPTIONS = { escape: true, freeze_template_literals: false,
@@ -81,7 +82,7 @@ module LedgerViewer
             # A piece's awaited words as icons; the words themselves
             # follow them, for a screen reader only unless `visible`.
             def words_span(piece, visible: false)
-                words = piece["words"]
+                words = Reading.words(piece)
                 icons = words.map { icon(Terms::WORD_ICON.fetch(it.first)) }
                 cls = visible ? "word" : "visually-hidden"
                 %(<span class="words">#{icons.uniq.join}<span class="#{cls}">) +

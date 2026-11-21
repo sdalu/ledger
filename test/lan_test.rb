@@ -16,7 +16,7 @@ class LanTest < ViewerTest
     def setup
         super
         config = Fixture.config(@dir, lan: ["192.0.2.0/24"])
-        @app = LedgerViewer::Web.configured(config, db: @db).new
+        @app = LedgerViewer::Web.configured(config, journal: @journal).new
     end
 
     def test_a_caller_in_the_network_reads_the_pages_without_signing_in
@@ -32,8 +32,8 @@ class LanTest < ViewerTest
         say([%w[ref], %w[text hello]], token: lan_token, headers: inside)
 
         assert_equal 303, last_response.status
-        assert_equal 1, lines.length
-        assert_includes lines.first, "hello"
+        assert_equal(["hello"], entries.map { it["text"] })
+        assert_equal ["viewer:lan:192.0.2.9"], actors
     end
 
     def test_a_caller_outside_is_sent_to_sign_in_or_refused
@@ -50,7 +50,7 @@ class LanTest < ViewerTest
         say([%w[ref], %w[text x]], token: lan_token, headers: outside)
 
         assert_equal 401, last_response.status
-        assert_empty lines
+        assert_empty entries
     end
 
     def test_a_forwarded_address_does_not_make_a_caller_inside
@@ -65,7 +65,7 @@ class LanTest < ViewerTest
         say([%w[ref], %w[text x]], token: "wrong", headers: inside)
 
         refute_equal 303, last_response.status
-        assert_empty lines
+        assert_empty entries
     end
 
     def test_the_origin_and_the_site_still_hold
@@ -76,7 +76,7 @@ class LanTest < ViewerTest
 
             assert_equal 403, last_response.status, name
         end
-        assert_empty lines
+        assert_empty entries
     end
 
     def test_an_address_that_is_no_network_stops_the_start

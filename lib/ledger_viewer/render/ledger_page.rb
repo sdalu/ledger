@@ -21,32 +21,25 @@ require_relative "word_form"
 
 module LedgerViewer
     module Render
-        # A ledger's page: render_ledger() of ledger-serve.py. Its top
-        # half (the head with its tiles, Waiting on you, the list beside
-        # the page, the goal, the note, Sent and Being prepared) ends
-        # where the section of unfinished pieces opens; what follows is
-        # the rest, which closes the page.
+        # A ledger's page. Its top half (the head with its tiles,
+        # Waiting on you, the list beside the page, the goal, the note,
+        # Sent and Being prepared) ends where the section of unfinished
+        # pieces opens; what follows is the rest, which closes the page.
         class LedgerPage
             CRUMBS = '<p class="crumbs"><a href="/">All ledgers</a></p>'
             NOTE = "A note to the session working on this ledger"
-            CUT = "\0cut\0"
             REST = "</div></div>"
 
-            def initialize(scope, page)
+            # ledgers: where a picture's bytes are read.
+            def initialize(scope, page, ledgers)
                 @scope = scope
                 @page = page
+                @ledgers = ledgers
             end
 
-            # The page of the ledger `entry`, read as `data`.
+            # The page of the ledger `entry`, its document `data`.
             def html(entry, data, stamp, token)
                 wrap(entry, body(entry, Reading.new(data), token).join, stamp)
-            end
-
-            # The page from its start to where the section of unfinished
-            # pieces opens.
-            def top(entry, data, stamp, token)
-                top, = body(entry, Reading.new(data), token)
-                wrap(entry, top + CUT, stamp).split(CUT, 2).first
             end
 
             private
@@ -101,23 +94,26 @@ module LedgerViewer
                         say: SayForm.new(scope, lid, token, cases),
                         word: WordForm.new(scope, lid, token),
                         refs: Refs.new(scope), blocks: Blocks.new(scope),
-                        mockups: Mockups.new(scope, lid, entry.mockups,
-                                             reading.statuses))
+                        mockups: Mockups.new(scope, lid, reading,
+                                             bytes(entry)))
+            end
+
+            # The bytes of a picture of one file, by its name.
+            def bytes(entry)
+                lambda do |name|
+                    @ledgers.picture(entry, name, "").fetch(:bytes).to_s
+                end
             end
 
             # What an id stands for, so that a link to it can say.
             def titles(reading)
-                named = reading.questions.select { it["id"] }
-                [[reading.pieces, "what"], [named, "text"],
-                 [reading.criteria, "text"]].each_with_object({}) do |(l, k), h|
-                    l.each { h[it["id"]] = title(it, k) }
+                titled = (reading.pieces + reading.questions)
+                         .to_h { [it["id"], it["title"]] }
+                reading.criteria.each do |criterion|
+                    title, = Text.title_of(criterion["text"])
+                    titled[criterion["id"]] = title
                 end
-            end
-
-            def title(item, key)
-                text = item[key]
-                text = Text.question_text(text) if item.key?("choices")
-                Text.title_of(text).first
+                titled
             end
         end
     end

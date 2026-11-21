@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require_relative "reading"
 require_relative "terms"
 require_relative "text"
 
@@ -15,7 +16,7 @@ module LedgerViewer
 
             def item(piece)
                 line, state = turn(piece)
-                title = Text.shorten(Text.title_of(piece["what"]).first, 60)
+                title = Text.shorten(piece["title"], 60)
                 id = piece["id"]
                 [%(<li class="#{state} is-piece"><a href="#piece-#{id}">),
                  %(<span class="what">#{Text.escape(title)}</span>),
@@ -30,7 +31,7 @@ module LedgerViewer
             def turn(piece)
                 status = piece["status"]
                 sent = @reading.sent_words[piece["id"]]
-                return quiet(piece, status) if piece["words"].empty? && !sent
+                return quiet(piece, status) if piece["awaits"].empty? && !sent
                 return [owing(piece, status), "is-ask"] unless sent
 
                 ["#{status} · your #{sent["word"]} sent, awaiting filing",
@@ -38,7 +39,8 @@ module LedgerViewer
             end
 
             def owing(piece, status)
-                "#{status} · awaits your #{Terms.awaits_label(piece["words"])}"
+                "#{status} · awaits your " \
+                    "#{Terms.awaits_label(Reading.words(piece))}"
             end
 
             def quiet(piece, status)
@@ -50,8 +52,8 @@ module LedgerViewer
             end
 
             def with(piece, status)
-                who = piece["route"].to_s.delete_prefix("peer: ")
-                                    .split(",").first.to_s
+                route = piece["route_text"].to_s.delete_prefix("peer: ")
+                who = route.split(",").first.to_s
                 who.empty? ? status : "#{status} · with #{who}"
             end
 
@@ -62,10 +64,7 @@ module LedgerViewer
                 "#{status} · after #{waiting.join(", ")}"
             end
 
-            def settled?(id)
-                other = @reading.pieces.find { it["id"] == id }
-                Terms.settled?(other ? other["status"] : "")
-            end
+            def settled?(id) = @reading.settled.fetch(id, false)
         end
     end
 end

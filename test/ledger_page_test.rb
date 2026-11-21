@@ -4,7 +4,7 @@ require "test_helper"
 require_relative "support/ledger_fixture"
 
 # A ledger's page and its pictures, through the whole app: who may see
-# them, the headers the Python viewer sends, the form token, and what
+# them, the headers the viewer sends, the form token, and what
 # a send answers until the next piece takes it.
 class LedgerPageTest < ViewerTest
     include LedgerFixture
@@ -28,9 +28,9 @@ class LedgerPageTest < ViewerTest
         assert_includes last_response.headers["Content-Type"], "text/html"
     end
 
-    def test_a_page_carries_the_python_viewers_headers
+    def test_a_page_carries_the_viewers_headers
         sign_in
-        csp = python_csp
+        csp = { "page" => LedgerViewer::Headers::PAGE_CSP }
 
         ["/", "/l/#{@lid}"].each do |path|
             https path

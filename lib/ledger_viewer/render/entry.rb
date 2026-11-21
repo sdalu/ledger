@@ -5,7 +5,7 @@ require_relative "text"
 module LedgerViewer
     module Render
         # A row of a list on the ledger page, or with `card` a card whose
-        # text is its heading: entry() of ledger-serve.py. `kase` is the
+        # text is its heading. `kase` is the
         # facets under a card's head, `fold` ready-made markup after its
         # meta, `state` a status tag of its own before the id tag, and
         # `tag_tip` what the status (else the tag) means, said on hover.

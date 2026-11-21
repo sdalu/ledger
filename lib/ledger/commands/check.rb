@@ -1,0 +1,72 @@
+# frozen_string_literal: true
+
+require "json"
+
+module Ledger
+    module Commands
+        # `check [--final] [--peek] [--fix-hints] [--json] PATH`: every
+        # rule's verdict, then the status line, which beats unless --peek.
+        class Check < CLI::Command
+            USAGE = "PATH"
+
+            private
+
+            def flags(parser)
+                parser.on("--final") { @opts[:final] = true }
+                parser.on("--peek") { @opts[:peek] = true }
+                parser.on("--fix-hints") { @opts[:hints] = true }
+                parser.on("--json") { @opts[:json] = true }
+            end
+
+            def run(path)
+                ledger = journal.ledger(path)
+                snapshot = Snapshot.read(journal.db, ledger[:id])
+                results = Checks.run(snapshot,
+                                     final: @opts.fetch(:final, false))
+                status = beat(ledger, status_line(snapshot))
+                @opts[:json] ? json(results, status) : plain(results, status)
+                results.all? { it[1] } ? 0 : 1
+            end
+
+            def plain(results, status)
+                results.each do |name, ok, detail|
+                    mark = ok ? "ok  " : "FAIL"
+                    @out.puts "#{mark} #{name}#{detail_of(ok, detail)}"
+                    @out.puts "  hint: #{hint(name)}" if @opts[:hints] && !ok
+                end
+                @out.puts status
+            end
+
+            def detail_of(ok, detail)
+                ok || detail.empty? ? "" : " -- #{detail}"
+            end
+
+            def hint(name)
+                Checks::HINTS.fetch(name, "no hint for this report")
+            end
+
+            def json(results, status)
+                reports = results.map do |name, ok, detail|
+                    { name:, ok:, detail: }
+                end
+                schema = Render::Json::SCHEMA
+                @out.puts JSON.generate(schema:, kind: "check", reports:,
+                                        status:)
+            end
+
+            # The line, with `unchanged xN` when it has not moved since the
+            # last check; a peek is a read and counts nothing.
+            def beat(ledger, line)
+                return line if @opts[:peek]
+
+                count, text = Derive::StatusLine.beat(line, ledger[:beat_line],
+                                                      ledger[:beat_count])
+                journal.transaction do
+                    journal.db[:ledgers].where(id: ledger[:id])
+                           .update(beat_line: line, beat_count: count)
+                end
+                text
+            end
+        end
+    end
+end

@@ -4,35 +4,13 @@ require_relative "terms"
 
 module LedgerViewer
     module Render
-        # A ledger's folder of pictures: which file a name reaches, what
-        # kind of picture it is, and which names are one before/after
-        # pair. mockup_file(), mock_kind() and mock_pairs() of
-        # ledger-serve.py.
+        # A ledger's pictures by name: what kind of picture a name is,
+        # and which names are one before/after pair.
         module Folder
             ITEM_CODE = /\A[a-z]+\d+-/i
             BEFORE = "before-"
 
             module_function
-
-            # The real path of `name` inside the folder, or nil: no
-            # escape by `..` or by a symlink, and only the kinds of file
-            # Terms::MOCKUP_TYPES lists.
-            def file(folder, name)
-                root = File.realpath(folder)
-                real = File.realpath(File.join(root, name))
-                real if inside?(root, real) && served?(real)
-            rescue SystemCallError
-                nil
-            end
-
-            def inside?(root, real)
-                real != root && real.start_with?("#{root.chomp("/")}/")
-            end
-
-            def served?(real)
-                Terms::MOCKUP_TYPES.key?(Terms.ext(real).downcase) &&
-                    File.file?(real)
-            end
 
             def kind(name)
                 low = name.downcase
@@ -45,7 +23,7 @@ module LedgerViewer
             # {after name => before name}: `before-X.ext` pairs with the
             # image or page of the directory whose name, minus one
             # leading item code and the extension, is X. `real` maps each
-            # name to its file or nil.
+            # name to its one file, or nil for a directory.
             def pairs(names, real)
                 stems = stems_of(names, real)
                 names.each_with_object({}) do |name, found|

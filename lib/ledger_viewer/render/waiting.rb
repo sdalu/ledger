@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "answered"
+require_relative "reading"
 require_relative "sectioned"
 require_relative "terms"
 require_relative "text"
@@ -9,14 +10,13 @@ module LedgerViewer
     module Render
         # The sections of questions and words: Waiting on you, with the
         # one word for every piece that awaits the same, and what was
-        # answered today; Sent, awaiting filing; Being prepared. section()
-        # and the matching part of render_ledger().
+        # answered today; Sent, awaiting filing; Being prepared.
         class Waiting
             include Sectioned
 
             REMAINS = '<h2 id="waiting">Remains</h2><p>Nothing: every ' \
                       "criterion marked, no piece in flight, no question " \
-                      "open. Ready for <code>ledger.py close</code>.</p>"
+                      "open. Ready for <code>bin/ledger close</code>.</p>"
 
             NOTHING = "Nothing asked of you."
             BELOW = " Being prepared, below."
@@ -83,7 +83,8 @@ module LedgerViewer
             # The words every one of several pieces awaits, if they are the
             # same and the user can give them with one click.
             def shared(owing)
-                sets = owing.map { |piece| piece["words"].map(&:first) }.uniq
+                sets = owing.map { |piece| Reading.words(piece).map(&:first) }
+                            .uniq
                 sets.first if owing.length > 1 && sets.length == 1 &&
                               !sets.first.include?("other")
             end

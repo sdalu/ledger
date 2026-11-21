@@ -17,8 +17,7 @@ module LedgerViewer
 
         # A key given that nothing reads is refused: a typo is not
         # silent.
-        KEYS = %i[bind ledger_py python dump_timeout store session_days
-                  roots session_secret tls tls_dir lan].freeze
+        KEYS = %i[bind session_days session_secret tls tls_dir lan].freeze
 
         # host:port, the host a name, an IPv4 address or [IPv6].
         ADDRESS = %r{\A(?:[^\s:/\[\]]+|\[[0-9a-f:]+\]):\d+\z}i
@@ -62,13 +61,9 @@ module LedgerViewer
             raise ConfigError, "#{file}: does not end in a Hash"
         end
 
-        # bind: host:port, as written or as tcp://host:port. roots:
-        # directories searched for ledgers (or a ledger file).
-        # ledger_py: relative to the checkout; store: the JSON file of
-        # sesam's state, ~ expanded.
-        attr_reader :bind, :roots, :session_secret, :python, :ledger_py,
-                    :store, :dump_timeout, :session_days, :tls,
-                    :tls_dir, :lan
+        # bind: host:port, as written or as tcp://host:port.
+        attr_reader :bind, :session_secret, :session_days, :tls, :tls_dir,
+                    :lan
 
         def initialize(root: ROOT, **settings)
             unknown = settings.keys - KEYS
@@ -76,24 +71,21 @@ module LedgerViewer
                 unknown.empty?
 
             @bind = binds(settings.fetch(:bind))
-            @roots = roots_of(settings[:roots], root)
             @session_secret = secret(settings[:session_secret])
             @lan = Lan.networks(settings[:lan])
-            paths(root, settings)
             limits(settings, root)
             freeze
         end
 
-        # Where the stylesheet is: beside the engine, read from there.
-        def stylesheet = File.join(File.dirname(@ledger_py), "viewer.css")
+        # The page's stylesheet and script, served from public/.
+        def stylesheet = File.join(ROOT, "public", "viewer.css")
+
+        def script = File.join(ROOT, "public", "viewer.js")
 
         # Where rakelib/tls.rake leaves the certificate and key.
         def tls_cert = File.join(@tls_dir, "cert.pem")
 
         def tls_key = File.join(@tls_dir, "key.pem")
-
-        # The directory the store lives in.
-        def data_dir = File.dirname(@store)
 
         # What puma is asked to listen on: ssl:// with the certificate
         # when tls is set, tcp:// when it is nil.
@@ -110,20 +102,11 @@ module LedgerViewer
 
         private
 
-        # The engine and its interpreter: relative to the checkout; the
-        # store: where it says, ~ expanded.
-        def paths(root, settings)
-            @python = settings.fetch(:python).to_s
-            @ledger_py = File.expand_path(settings.fetch(:ledger_py), root)
-            @store = File.expand_path(settings.fetch(:store), root)
-        end
-
         # The numbers, and tls: nil, or what rakelib/tls.rake reads, and where
         # it leaves the files.
         def limits(settings, root)
             @tls = tls_of(settings[:tls])
             @tls_dir = File.expand_path(settings.fetch(:tls_dir), root)
-            @dump_timeout = positive(:dump_timeout, settings)
             @session_days = positive(:session_days, settings)
         end
 
@@ -151,13 +134,6 @@ module LedgerViewer
             return given.transform_keys(&:to_sym).freeze if given.is_a?(Hash)
 
             raise ConfigError, "tls: nil, or a Hash (ca:, protocol:, root:)"
-        end
-
-        def roots_of(given, root)
-            list = Array(given).map(&:to_s)
-            raise ConfigError, "roots: at least one directory" if list.empty?
-
-            list.map { File.expand_path(it, root) }.freeze
         end
 
         def secret(given)

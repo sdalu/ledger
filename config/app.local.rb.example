@@ -11,10 +11,6 @@
 # The values below are documentation values: replace them.
 
 {
-    # The directories searched for ledgers (three levels down, for git
-    # projects), or a ledger file named directly.
-    roots: ["/srv/projects"],
-
     # What signs browsers' sessions: 32 characters at least, kept here
     # because one made up per boot would sign everybody out at every
     # restart. For example: ruby -rsecurerandom -e 'puts SecureRandom.hex(32)'

@@ -159,8 +159,8 @@ namespace :server do
         end
 
         launcher = Preflight.launcher or
-            abort("no launcher found: expected one executable in bin/, " \
-                  "or ./run")
+            abort("no launcher found: expected an executable in bin/ " \
+                  "that execs puma, or ./run")
         if (how = Detached.requested)
             Detached.start(*how, File.expand_path(launcher, "#{__dir__}/.."))
             next

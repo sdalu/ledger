@@ -7,8 +7,7 @@ require_relative "text"
 module LedgerViewer
     module Render
         # The decisions dated today that answer a question: what the
-        # page lists under Waiting on you as answered. answered_today()
-        # of ledger-serve.py.
+        # page lists under Waiting on you as answered.
         module Answered
             DECISION = /\A- (\d{4}-\d{2}-\d{2}) — (O\d+): (.*)\z/
             QUOTED = /\A"((?:[^"\\]|\\.)*)"/

@@ -60,8 +60,7 @@ module Help
               #{paint("Running", :bold)}
                 rake server               serve it (alias for server:start)
                 rake server DEBUG=1       to be edited: real errors, request
-                                          logging, templates reloaded, and a
-                                          throwaway store
+                                          logging, templates reloaded
                 rake server PRODUCTION=1  to be used: templates cached, the
                                           environment named rather than left
                                           to an unset variable

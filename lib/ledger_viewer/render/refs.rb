@@ -1,12 +1,11 @@
 # frozen_string_literal: true
 
-require_relative "terms"
 require_relative "text"
 
 module LedgerViewer
     module Render
         # The ledger items a question names with `— see:`, spelled out
-        # under it: refs_fold() and ref_html() of ledger-serve.py.
+        # under it.
         class Refs
             # `menu.css:28`, `home.css:789-794`: a place in the code.
             SPOT = %r{(?u)(?<![\w/])
@@ -17,17 +16,20 @@ module LedgerViewer
             KIND_TITLE = { "fact" => "Fact", "constraint" => "Constraint",
                            "criterion" => "Criterion",
                            "piece" => "Piece" }.freeze
+            # The kind letters of the document's refs, as words.
+            KINDS = { "F" => "fact", "C" => "constraint", "D" => "criterion",
+                      "P" => "piece" }.freeze
+            DASH = /\A- /
 
             def initialize(scope) = @scope = scope
 
-            # The fold under a question, or "".
-            def fold(text, refs)
-                seen = Terms.link_ids("see", Terms.split_fields(text)[1]
-                                                  .fetch("see", "")) || []
-                ids = seen.select { refs.key?(it) }
+            # The fold under a question, `see` its ids, `refs` the
+            # document's; or "".
+            def fold(see, refs)
+                ids = see.select { refs.key?(it) }
                 return "" if ids.empty?
 
-                rows = ids.map { "<li>#{html(it, *refs[it])}</li>" }
+                rows = ids.map { "<li>#{html(it, *kind_line(refs[it]))}</li>" }
                 @scope.partial("ledger/refs", ids:, rows:)
             end
 
@@ -45,6 +47,10 @@ module LedgerViewer
             end
 
             private
+
+            def kind_line(ref)
+                [KINDS.fetch(ref["kind"]), ref["line"].sub(DASH, "")]
+            end
 
             def head(id, kind, where)
                 @scope.partial(

@@ -5,8 +5,8 @@ require_relative "helpers"
 module LedgerViewer
     module Render
         # What the ledger page reads of a ledger beyond what the index
-        # does: the parts of the dump, and the numbers of the tiles that
-        # counts() of ledger-serve.py computes. Mixed into Reading.
+        # does: the parts of its document, and the numbers of the tiles.
+        # Mixed into Reading.
         module Standing
             # The numbers the tiles and the head show: a question already
             # answered is the session's turn, not the user's, until filed.
@@ -19,51 +19,60 @@ module LedgerViewer
 
             def goals = @data.fetch("goals")
 
-            def constraints = @data.fetch("constraints")
+            # The constraints, facts and decisions as the lines `show`
+            # prints them.
+            def constraints = lines("constraints")
 
-            def facts = @data.fetch("facts")
+            def facts = lines("facts")
 
+            def decisions = lines("decisions")
+
+            # {id => {"kind" => letter, "line" => the line}}.
             def refs = @data.fetch("refs")
 
-            def decisions = @data.fetch("decisions")
-
-            def scope_lines = @data.fetch("scope")
+            def scope_lines = @data.fetch("noticed")
 
             def status = @data.fetch("status")
 
-            def inbox = @data.fetch("inbox")
+            # [{name, files: [{path, type, size}]}] of the ledger.
+            def pictures = @data.fetch("pictures")
 
-            def taken_at = @data.fetch("taken_at")
+            # The entries sent from the viewer, each its payload's fields
+            # with whether it was taken, when and whether it is malformed;
+            # a malformed entry's whole line is its text.
+            def inbox
+                @inbox ||= @data.fetch("inbox").map { entry(it) }
+            end
 
-            def fails = @data.fetch("fails")
+            # [[name, detail]] of the checks failing.
+            def fails
+                @data.fetch("fails").map { it.values_at("name", "detail") }
+            end
 
             # {id => status} of every piece.
             def statuses = pieces.to_h { [it["id"], it["status"]] }
 
+            # {id => whether the piece is settled} of every piece.
+            def settled = pieces.to_h { [it["id"], it["settled"]] }
+
             # The questions the user can answer now, in the page's order.
             def to_answer
                 questions.select do |q|
-                    q["id"] && !filled?(q["prep"]) &&
-                        !sent_answers.key?(q["id"])
+                    !q["preparing"] && !sent_answers.key?(q["id"])
                 end
             end
 
-            # The questions asked of the user and not answered; one that
-            # has no id is among them, to be flagged.
-            def open_questions
-                questions.reject do |q|
-                    filled?(q["prep"]) || sent_answers.key?(q["id"])
-                end
-            end
+            # The questions asked of the user and not answered.
+            def open_questions = to_answer
 
             # The questions answered and not filed yet.
             def sent_questions
                 questions.select do |q|
-                    !filled?(q["prep"]) && sent_answers.key?(q["id"])
+                    !q["preparing"] && sent_answers.key?(q["id"])
                 end
             end
 
-            def prepared_questions = questions.select { filled?(it["prep"]) }
+            def prepared_questions = questions.select { it["preparing"] }
 
             # The pieces whose word the user has not sent.
             def unsent_words = owed.reject { sent_words.key?(it["id"]) }
@@ -71,9 +80,7 @@ module LedgerViewer
             # The unfinished pieces, the most urgent first.
             def flight
                 order = Reading::IN_FLIGHT
-                live = pieces.select do |p|
-                    order.include?(p["status"]) || p["status"] == "unparsed"
-                end
+                live = pieces.select { order.include?(it["status"]) }
                 live.sort_by.with_index do |p, i|
                     [order.index(p["status"]) || -1, i]
                 end
@@ -88,9 +95,8 @@ module LedgerViewer
 
             def unmet = criteria.select { [" ", "?"].include?(it["mark"]) }
 
-            # The shape checks failing, but the open lines without an id,
-            # which the page flags under Waiting on you.
-            def failing = fails.reject { |pair| pair.first == "open" }
+            # The shape checks failing.
+            def failing = fails
 
             # The messages sent and not taken.
             def said_count = inbox.count { !it["taken"] }
@@ -106,8 +112,8 @@ module LedgerViewer
             end
 
             def figures
-                live = pieces.reject { Reading::DEAD.include?(it["status"]) }
-                kept = live.count { it["status"].start_with?("kept:") }
+                live = pieces.reject { it["status"] == "dropped" }
+                kept = live.count { it["status"] == "kept" }
                 Figures.new(**asking, **flight_counts, **criteria_count,
                             verified: status_count("verified"),
                             pieces: live.length - kept, kept:,
@@ -120,6 +126,15 @@ module LedgerViewer
             end
 
             private
+
+            def lines(key) = @data.fetch(key).map { it["line"] }
+
+            def entry(row)
+                fields = if row["malformed"] then { "text" => row["payload"] }
+                         else JSON.parse(row["payload"])
+                         end
+                fields.merge(row.slice("id", "taken", "taken_at", "malformed"))
+            end
 
             def unsent(part)
                 return part unless part.start_with?(WORD_LEAD)

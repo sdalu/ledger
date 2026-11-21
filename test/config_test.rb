@@ -10,10 +10,8 @@ class ConfigTest < Minitest::Test
 
     def config(**given)
         LedgerViewer::Config.new(
-            root: @dir, bind: "tcp://127.0.0.1:4590", ledger_py: "e.py",
-            python: "python3", dump_timeout: 5, store: "data/v.json",
-            session_days: 1, roots: ["r"], session_secret: "s" * 32,
-            tls_dir: "tls", **given
+            root: @dir, bind: "tcp://127.0.0.1:4590", session_days: 1,
+            session_secret: "s" * 32, tls_dir: "tls", **given
         )
     end
 
@@ -63,6 +61,15 @@ class ConfigTest < Minitest::Test
 
     def test_a_setting_nothing_reads_is_refused
         assert_raises(LedgerViewer::ConfigError) { config(typo: 1) }
+    end
+
+    # The ledgers come from the journal: no setting names where.
+    def test_the_old_settings_of_the_engine_are_refused
+        %i[roots ledger_py python dump_timeout store].each do |key|
+            assert_raises(LedgerViewer::ConfigError, key.to_s) do
+                config(key => "x")
+            end
+        end
     end
 
     def test_a_short_session_secret_is_refused

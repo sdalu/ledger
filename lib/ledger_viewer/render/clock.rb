@@ -9,7 +9,7 @@ module LedgerViewer
         # The times a ledger page writes: when a file changed, when an
         # answer was sent, how long it has been unfiled.
         module Clock
-            # An ISO time as Python's datetime.fromisoformat reads it.
+            # An ISO 8601 time: date, optional time and offset, `T` or a space.
             ISO = /\A(\d{4})-(\d\d)-(\d\d)(?:[T ](\d\d)(?::(\d\d)
                    (?::(\d\d)(?:[.,]\d{1,6})?)?)?)?(Z|[+-]\d\d:?\d\d)?\z/x
 
@@ -56,8 +56,8 @@ module LedgerViewer
 
             # 'today HH:MM', or the date before the time when it is not
             # today.
-            def updated(mtime)
-                time = Time.at(mtime)
+            def updated(moment)
+                time = Time.at(moment).localtime
                 today = time.to_date == Date.today
                 time.strftime(today ? "today %H:%M" : "%Y-%m-%d %H:%M")
             end

@@ -2,34 +2,38 @@
 
 module LedgerViewer
     module Render
-        # The page around a body, as ledger-serve.py's page() writes it
-        # with the viewer script on and no MathJax: the stylesheet and the
-        # script inline, read as the Python viewer's own files, the
+        # The page around a body, with the viewer script on and no
+        # MathJax: the stylesheet and the script of public/ inline (the
+        # page's policy allows inline style and script only), the
         # script's icon slots filled.
         class Page
             SLOTS = { "__ICON_X__" => "x",
                       "__ICON_MAXIMIZE__" => "maximize-2",
                       "__ICON_REFRESH__" => "refresh-cw" }.freeze
+            LOOK = { skip: false, ledger: false, styles: [].freeze }.freeze
 
-            def initialize(views, scope, stylesheet)
+            def initialize(views, scope, stylesheet, javascript)
                 @views = views
                 @scope = scope
                 @css = File.read(stylesheet, encoding: "UTF-8")
-                @js = script(File.join(File.dirname(stylesheet), "viewer.js"))
+                @js = script(javascript)
             end
 
-            # skip: the link past the page's head to what waits; ledger:
-            # the page is a ledger's, which the script and the style
-            # address.
-            def html(title:, body:, stamp:, skip: false, ledger: false)
-                render(title:, body:, stamp:, skip:, ledger:, live: true)
+            # How a page looks beyond its body (LOOK): skip, the link past
+            # the page's head to what waits; ledger, the page is a
+            # ledger's, which the script and the style address; styles,
+            # more stylesheets' text, after the viewer's.
+            def html(title:, body:, stamp:, **look)
+                unknown = look.keys - LOOK.keys
+                raise ArgumentError, "unknown: #{unknown}" if unknown.any?
+
+                render(title:, body:, stamp:, **LOOK, **look, live: true)
             end
 
             # A page that only says something (why a send was not
             # taken): no stamp, and the script left out.
             def notice(title:, body:)
-                render(title:, body:, stamp: "", skip: false, ledger: false,
-                       live: false)
+                render(title:, body:, stamp: "", **LOOK, live: false)
             end
 
             private

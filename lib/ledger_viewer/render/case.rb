@@ -1,14 +1,14 @@
 # frozen_string_literal: true
 
 require_relative "helpers"
+require_relative "reading"
 require_relative "recommend"
 require_relative "text"
 
 module LedgerViewer
     module Render
         # A card's case: what is wrong, what is at stake, what will be
-        # done, and what each option of a question does. facets(),
-        # case_block() and option_html() of ledger-serve.py.
+        # done, and what each option of a question does.
         class Case
             FACETS = [%w[problem Problem circle-alert],
                       %w[risk Risk shield-alert],
@@ -17,9 +17,19 @@ module LedgerViewer
 
             def initialize(scope) = @scope = scope
 
+            # A piece's or a question's case as {key => text}: problem,
+            # risk (its text, the rating leading it), plan, recommend.
+            def self.fields(item)
+                { "problem" => item["problem"],
+                  "risk" => item["risk"]&.fetch("text"), "plan" => item["plan"],
+                  "recommend" => item["recommend"] }
+            end
+
             # What is wrong, at stake and to be done, as facets side by
-            # side; a rated risk shows a ten-step meter.
-            def facets(case_of)
+            # side; a rated risk shows a ten-step meter. `item` is a piece
+            # or a question.
+            def facets(item)
+                case_of = Case.fields(item)
                 rows = FACETS.filter_map { facet(case_of, *it) }
                 return "" if rows.empty?
 
@@ -29,9 +39,9 @@ module LedgerViewer
             # A question's case under its title: the problem, the risk,
             # what each option does, and the one recommended.
             def block(question)
-                fields = Text.case_of(question["text"])
+                fields = Case.fields(question)
                 rows = options(question, fields) + recommended(question, fields)
-                lead = facets(fields)
+                lead = facets(question)
                 return lead if rows.empty?
 
                 lead + @scope.partial("ledger/case", rows:)
@@ -71,7 +81,7 @@ module LedgerViewer
             end
 
             def options(question, fields)
-                choices = question["choices"]
+                choices = Reading.options(question)
                 return [] unless !question["items"].empty? &&
                                  choices.any? { it.include?(" = ") }
 
@@ -93,7 +103,7 @@ module LedgerViewer
 
             def single?(question)
                 !question["choices"].empty? && question["items"].empty? &&
-                    !Helpers.filled?(question["prep"])
+                    !question["preparing"]
             end
         end
     end

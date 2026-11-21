@@ -2,94 +2,75 @@
 
 require "digest"
 
+require "ledger"
+require "ledger/read"
+
 module LedgerViewer
-    # The live ledgers under the configured roots, found afresh each time
-    # by the rule ledger-serve.py's discover() uses: a root is searched
-    # three levels down for git projects; a project's ledgers are the
-    # LEDGER*.md files directly in it or in its .claude/; a root that is
-    # a file is a ledger named directly. A closed ledger lives in
-    # ledgers-closed/, which is not entered.
+    # The live ledgers of the journal, read afresh each time, and what a
+    # page reads of one: its JSON v1 document (Ledger::Read). A closed
+    # ledger keeps its live one's address, so it has no id of its own in
+    # a URL and is not listed.
     class Ledgers
-        DEPTH = 3
-        SKIP = %w[.git node_modules vendor ledgers-closed worktrees].freeze
-        NAME = /\ALEDGER[[:word:].-]*\.md\z/
+        # id: what names a ledger in a URL, the first ten hex digits of
+        # sha1(address); path: its address; ledger_id: its row; version:
+        # its last event, which moves whenever the ledger does.
+        Entry = Data.define(:id, :path, :project, :ledger_id, :version)
 
-        # id: what names a ledger in a URL (never a path); project: the
-        # directory it belongs to.
-        Entry = Data.define(:id, :path, :project) do
-            # The folder of the ledger's pictures, by ledger.py's
-            # mockups_dir() rule.
-            def mockups
-                here = File.dirname(path)
-                return File.join(here, "mockups") if
-                    File.basename(here) == ".claude"
-                return File.join(here, ".claude", "mockups") if
-                    File.exist?(File.join(here, ".git"))
+        attr_reader :journal
 
-                File.join(here, "mockups")
-            end
-        end
+        def initialize(journal) = @journal = journal
 
-        def initialize(roots) = @roots = roots
-
-        # Every live ledger, one per path, in the order the search found
-        # them: the order ledger-serve.py's discover() gives, which the
-        # index's ties are broken by.
+        # Every live ledger, in the journal's order.
         def all
-            found = {}
-            @roots.each { search(it, found) }
-            found.values
+            db = @journal.db
+            last = db[:events].where(ledger_id: Sequel[:ledgers][:id])
+                              .select { max(:id) }
+            db[:ledgers].where(closed_at: nil).order(:id)
+                        .select_append(last.as(:version)).all
+                        .map { entry(it) }
         end
+
+        def find(lid) = all.find { it.id == lid }
+
+        # The ledger's JSON v1 document, string keys.
+        def read(entry)
+            document = Ledger::Read.ledger(@journal, entry.ledger_id)
+            Ledger::Read.parse(JSON.generate(document))
+        end
+
+        # The bytes and type of a picture's file, or nil: NAME is a
+        # picture of the ledger, PATH its file under it ("" for one file).
+        def picture(entry, name, path)
+            @journal.db[:pictures]
+                    .where(ledger_id: entry.ledger_id, name:, path:)
+                    .select(:type, :bytes).first
+        end
+
+        # The picture REST names, NAME or NAME/PATH, or nil: a name may
+        # hold a slash, so the longest name leading REST is the one.
+        def picture_at(entry, rest)
+            name = picture_names(entry)
+                   .select { rest == it || rest.start_with?("#{it}/") }
+                   .max_by(&:length) or return
+            picture(entry, name, rest[(name.length + 1)..].to_s)
+        end
+
+        # The names of a ledger's pictures.
+        def picture_names(entry)
+            @journal.db[:pictures].where(ledger_id: entry.ledger_id)
+                    .distinct.select_map(:name)
+        end
+
+        def self.url_id(address) = Digest::SHA1.hexdigest(address)[0, 10]
 
         private
 
-        def search(root, found)
-            if File.file?(root)
-                add(found, root, File.dirname(File.expand_path(root)))
-            else
-                walk(File.expand_path(root), 0, found)
-            end
-        end
-
-        def add(found, path, project)
-            path = File.expand_path(path)
-            id = Digest::SHA1.hexdigest(path)[0, 10]
-            found[id] = Entry.new(id:, path:, project:)
-        end
-
-        def walk(dir, depth, found)
-            ledgers_in(dir, found) if File.exist?(File.join(dir, ".git"))
-            return if depth == DEPTH
-
-            subdirectories(dir).each { walk(it, depth + 1, found) }
-        end
-
-        def ledgers_in(dir, found)
-            [dir, File.join(dir, ".claude")].each do |sub|
-                names(sub).each do |name|
-                    path = File.join(sub, name)
-                    add(found, path, dir) if File.file?(path)
-                end
-            end
-        end
-
-        def names(dir)
-            Dir.children(dir).sort.grep(NAME)
-        rescue SystemCallError
-            []
-        end
-
-        # Real directories only: a symlink is not followed, a dot
-        # directory or a skipped name is not entered.
-        def subdirectories(dir)
-            Dir.children(dir).sort.filter_map do |name|
-                next if name.start_with?(".") || SKIP.include?(name)
-
-                path = File.join(dir, name)
-                path if File.lstat(path).directory?
-            end
-        rescue SystemCallError
-            []
+        def entry(row)
+            address = Ledger::Address.new(place: row[:place],
+                                          name: row[:name]).to_s
+            Entry.new(id: self.class.url_id(address), path: address,
+                      project: row[:project], ledger_id: row[:id],
+                      version: row[:version] || 0)
         end
     end
 end

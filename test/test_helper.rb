@@ -14,10 +14,11 @@ require "tmpdir"
 
 require "ledger_viewer"
 
-# Nothing a test runs may reach a real ledger, the real store or the
-# real local config: all of it is in this directory.
+# Nothing a test runs may reach the real journal or the real local
+# config: all of it is in this directory.
 SANDBOX = Dir.mktmpdir("ledger-viewer-test")
 Minitest.after_run { FileUtils.rm_rf(SANDBOX) }
+ENV["LEDGER_JOURNAL"] = File.join(SANDBOX, "journal.db")
 
 # The machine's local file and certificate directory are under ~/.config,
 # which the suite never reads or writes: the loader is pointed here.
@@ -25,8 +26,8 @@ ENV["LEDGER_VIEWER_LOCAL"] = File.join(SANDBOX, "app.local.rb")
 File.write(ENV.fetch("LEDGER_VIEWER_LOCAL"),
            %({ tls_dir: #{File.join(SANDBOX, "tls").inspect} }\n))
 
-# A viewer over a sandbox: one project with a ledger under `roots`, one
-# ledger outside them, an empty store.
+# A viewer over a sandbox: a journal of its own holding one live
+# ledger, alpha, and no user.
 module Fixture
     SECRET = "x" * 40
     PASSWORD = "a long enough password"
@@ -34,24 +35,30 @@ module Fixture
     HOST = { "HTTP_HOST" => "localhost", "REMOTE_ADDR" => "127.0.0.1",
              "HTTPS" => "on" }.freeze
 
-    # One project with a ledger under the roots, one outside them.
-    def self.projects(dir)
-        %w[roots/alpha elsewhere/beta].each do |project|
-            FileUtils.mkdir_p(File.join(dir, project, ".git"))
-            File.write(File.join(dir, project, "LEDGER.md"), "# Ledger\n")
-        end
-    end
-
     def self.config(dir, **extra)
-        projects(dir)
         LedgerViewer::Config.new(
-            roots: [File.join(dir, "roots")], session_secret: SECRET,
-            bind: "127.0.0.1:4599", store: File.join(dir, "data", "users.json"),
-            ledger_py: File.expand_path("../../scripts/ledger.py", __dir__),
-            python: "python3", dump_timeout: 20, session_days: 1,
+            session_secret: SECRET, bind: "127.0.0.1:4599", session_days: 1,
             tls_dir: File.join(dir, "tls"), root: dir, **extra
         )
     end
+
+    # The journal of `dir`, opened as the viewer opens one.
+    def self.journal(dir)
+        Ledger::Journal.open(File.join(dir, "state", "journal.db"),
+                             busy_ms: LedgerViewer::Accounts::BUSY_MS)
+    end
+
+    # A live ledger at ADDRESS in JOURNAL with its first event, as `new`
+    # makes one: every ledger of the journal has an event.
+    def self.ledger(journal, address, project:)
+        journal.transaction do
+            journal.create_ledger(address, project:)
+            Ledger::Write.run(journal, address, "new", []) { nil }
+        end
+    end
+
+    # The live ledger alpha, its address under `dir`.
+    def self.alpha(dir) = File.join(dir, "alpha", "LEDGER.md")
 end
 
 class ViewerTest < Minitest::Test
@@ -60,9 +67,13 @@ class ViewerTest < Minitest::Test
     def setup
         @dir = Dir.mktmpdir("viewer", SANDBOX)
         @config = Fixture.config(@dir)
-        @db = LedgerViewer::Accounts.open(@config)
-        @app = LedgerViewer::Web.configured(@config, db: @db).new
+        @journal = Fixture.journal(@dir)
+        Fixture.ledger(@journal, Fixture.alpha(@dir), project: "alpha")
+        @db = LedgerViewer::Accounts.open(@journal)
+        @app = LedgerViewer::Web.configured(@config, journal: @journal).new
     end
+
+    def teardown = @journal.close
 
     # Not the class: calling it memoises the middleware stack.
     attr_reader :app

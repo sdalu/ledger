@@ -3,17 +3,18 @@
 require_relative "decisions"
 require_relative "entry"
 require_relative "links"
+require_relative "reading"
 require_relative "serving"
 require_relative "status"
 require_relative "terms"
 require_relative "text"
+require_relative "why"
 
 module LedgerViewer
     module Render
         # Done and on record: the folds holding what is settled, the
         # criteria marked, the pieces closed, the constraints, facts,
-        # decisions and what was left out of scope. The end of
-        # render_ledger().
+        # decisions and what was left out of scope.
         class Record
             CONSTRAINT = /\A- (C\d+): "(.+?)" — (.+?)(?: \((.+)\))?\z/
             FACT = /\A- (F\d+): (.+?) — (\S.*)\z/
@@ -25,7 +26,7 @@ module LedgerViewer
                 @lid = kit.lid
                 @entry = Entry.new(@scope)
                 @serving = Serving.new(@scope, @reading)
-                @decisions = Decisions.new(@scope, @entry)
+                @decisions = Decisions.new(@scope, @entry, @lid)
             end
 
             def html
@@ -71,7 +72,9 @@ module LedgerViewer
                 lines.map { @entry.html(text: undashed(it)) }
             end
 
-            def decisions = @decisions.html(@reading.decisions)
+            def decisions
+                @decisions.html(@reading.decisions, @reading.decision_ids)
+            end
 
             def marked
                 met = @reading.criteria.select { %w[x -].include?(it["mark"]) }
@@ -84,25 +87,25 @@ module LedgerViewer
                 @entry.html(
                     cls: done ? "is-done" : "", meta:, fold:,
                     tag: "#{criterion["id"]} #{done ? "met" : "not met"}",
-                    text: criterion["text"], anchor: "crit-#{criterion["id"]}"
+                    text: Reading.criterion(criterion),
+                    anchor: "crit-#{criterion["id"]}"
                 )
             end
 
             def settled
                 shut = @reading.pieces.reject do |piece|
-                    Reading::IN_FLIGHT.include?(piece["status"]) ||
-                        piece["status"] == "unparsed"
+                    Reading::IN_FLIGHT.include?(piece["status"])
                 end
                 shut.map { settled_row(it) }
             end
 
             def settled_row(piece)
-                status = piece["status"]
                 @entry.html(cls: "is-done", tag: piece["id"],
-                            text: piece["what"], state: status,
-                            tag_tip: Status.tip(status),
+                            text: Reading.what(piece), state: Status.of(piece),
+                            tag_tip: Status.tip(piece),
                             anchor: "piece-#{piece["id"]}",
-                            **Links.fields(piece, @reading.pieces))
+                            fold: Why.link(@lid, piece["id"]),
+                            **Links.fields(piece, @reading.settled))
             end
 
             # Constraint and fact rows as their parts: the id chip, the

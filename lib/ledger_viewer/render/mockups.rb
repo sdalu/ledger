@@ -1,43 +1,47 @@
 # frozen_string_literal: true
 
-require_relative "folder"
-require_relative "terms"
 require_relative "text"
 require_relative "tiles"
 
 module LedgerViewer
     module Render
-        # The pictures an Open line names, or a flag for each one
-        # missing: mockup_layout() of ledger-serve.py. Each name is one
-        # Tiles::Part, a tile in the card's strip or a figure loose in it.
+        # The pictures a question names, and a flag for each one still
+        # pending. Each name is one Tiles::Part, a tile in the card's
+        # strip or a figure loose in it.
         class Mockups
-            # statuses: {piece id => status}.
-            def initialize(scope, lid, folder, statuses)
+            # reading: the ledger's Reading; bytes: answers the bytes of
+            # the picture of one file a name is.
+            def initialize(scope, lid, reading, bytes)
                 @scope = scope
-                @folder = folder
-                @statuses = statuses
-                @tiles = Tiles.new(scope, lid, folder)
+                @reading = reading
+                @tiles = Tiles.new(scope, lid, files(reading), bytes)
             end
 
-            # [the card's part, {item => the tiles for that item}]; an
-            # item takes the tiles whose file starts with its code.
-            def layout(text, items = [])
-                names = text.scan(Text::MOCKUP_REF).flatten
+            # [the card's part, {item => the tiles for that item}] of a
+            # question's `pictures`; an item takes the tiles whose file
+            # starts with its code.
+            def layout(pictures, items = [])
+                names = pictures.filter_map { it["name"] }
                 shown, missing = @tiles.parts(names)
                 loose, inside = split(shown, items)
-                [flags(text) + missing.join + lay(loose),
+                [flags(pictures) + missing.join + lay(loose),
                  inside.transform_values { lay(it) }]
             end
 
             private
 
-            def flags(text)
-                text.scan(Text::PENDING).flatten.map { pending(it) }.join
+            # {name => its files} of the ledger's pictures.
+            def files(reading)
+                reading.pictures.to_h { [it["name"], it["files"]] }
+            end
+
+            def flags(pictures)
+                pictures.filter_map { it["pending"] }.map { pending(it) }.join
             end
 
             def pending(id)
-                status = @statuses.fetch(id, "missing")
-                done = Terms.settled?(status)
+                status = @reading.statuses.fetch(id)
+                done = @reading.settled.fetch(id)
                 @scope.partial("ledger/mock_pending", { id:, status:, done: })
             end
 

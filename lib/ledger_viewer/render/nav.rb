@@ -28,9 +28,7 @@ module LedgerViewer
 
             private
 
-            def title(text)
-                Text.escape(Text.shorten(Text.title_of(text).first, SIDE))
-            end
+            def title(text) = Text.escape(Text.shorten(text, SIDE))
 
             def heading(icon, title, count)
                 %(<h2>#{@scope.icon(icon)}#{title} ) +
@@ -49,7 +47,7 @@ module LedgerViewer
             def word(piece)
                 id = piece["id"]
                 [%(<li class="is-ask is-word"><a href="#p-#{id}">),
-                 %(<span class="text">#{title(piece["what"])}</span>),
+                 %(<span class="text">#{title(piece["title"])}</span>),
                  @scope.words_span(piece), @scope.chip(id), "</a></li>"].join
             end
 
@@ -69,7 +67,7 @@ module LedgerViewer
             end
 
             def flight
-                live = @reading.flight.reject { it["status"] == "unparsed" }
+                live = @reading.flight
                 return "" if live.empty?
 
                 rows = live.map { |piece| @pieces.item(piece) }.join
@@ -109,7 +107,7 @@ module LedgerViewer
 
             def question(question, state)
                 id = question["id"]
-                text = title(Text.question_text(question["text"]))
+                text = title(question["title"])
                 %(<li class="#{state}"><a href="#q-#{id}">) +
                     "#{@scope.chip(id)} #{text}</a></li>"
             end

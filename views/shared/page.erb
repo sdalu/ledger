@@ -5,13 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title><%= title %></title>
 <style><%== css %></style>
-
+<% styles.each do |style| %><style><%== style %></style>
+<% end %>
 </head>
 <body data-stamp="<%= stamp %>"<% if ledger %> data-page="ledger"<% end %>>
 <% if skip %><a class="skip-link" href="#waiting">Skip to waiting work</a><% end %>
 <main>
 <%== body %>
-<p class="live-note">Rebuilt from the files on every request; the index reloads when a ledger changes, a ledger page says so and waits for you. What you send goes to the ledger's inbox, never into the ledger: its session files it there.</p>
+<p class="live-note">Rebuilt from the journal on every request; the index reloads when a ledger changes, a ledger page says so and waits for you. What you send goes to the ledger's inbox, never into the ledger: its session files it there.</p>
 </main>
 <% if live %><script><%== js %></script><% end %>
 </body>

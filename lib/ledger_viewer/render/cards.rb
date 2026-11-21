@@ -3,6 +3,7 @@
 require_relative "clock"
 require_relative "helpers"
 require_relative "question_meta"
+require_relative "reading"
 require_relative "say_form"
 require_relative "recommend"
 require_relative "text"
@@ -10,8 +11,7 @@ require_relative "text"
 module LedgerViewer
     module Render
         # The cards of the questions: to answer, sent and awaiting
-        # filing, being prepared. ask() and preparing() of
-        # ledger-serve.py.
+        # filing, being prepared.
         class Cards
             include QuestionMeta
 
@@ -26,8 +26,6 @@ module LedgerViewer
             # session has not filed.
             def ask(question)
                 id = question["id"]
-                return plain(question) unless id
-
                 said = @reading.unfiled_on(id)
                 shown, inside = pictures(question)
                 form = @kit.say.html(spec(question, said, inside))
@@ -42,35 +40,30 @@ module LedgerViewer
                 head = head(question, "is-flight is-card",
                             @kit.word.drop(question["id"]),
                             unready(question))
-                shown = @kit.mockups.layout(question["text"]).first
+                shown = @kit.mockups.layout(question["pictures"]).first
                 "#{head}#{case_of(question)}#{shown}</li>"
             end
 
             private
 
-            def plain(question)
-                text = question["text"]
-                @scope.partial("ledger/plain", cls: "is-fail", tag: "no id",
-                                               text:)
-            end
-
             def case_of(question)
                 @kit.cases.block(question) +
-                    @kit.refs.fold(question["text"], @reading.refs)
+                    @kit.refs.fold(question["see"], @reading.refs)
             end
 
             # The pictures; each item of a question with a choice per
             # item has its own.
             def pictures(question)
                 items = question["choices"].empty? ? [] : question["items"]
-                @kit.mockups.layout(question["text"], items)
+                @kit.mockups.layout(question["pictures"], items)
             end
 
             def spec(question, said, inside)
                 after = said.empty? ? @reading.next_of[question["id"]] : nil
                 SayForm::BLANK.with(
                     ref: question["id"], label: label(question),
-                    choices: question["choices"], items: question["items"],
+                    choices: Reading.options(question),
+                    items: question["items"],
                     rec: recommended(question), inside:,
                     replaces: said.map { it["id"] }, prev: said.last,
                     next_id: after
@@ -78,18 +71,17 @@ module LedgerViewer
             end
 
             def recommended(question)
-                said = Text.case_of(question["text"])["recommend"]
-                Recommend.of(said, question["choices"], question["items"])
+                Recommend.of(question["recommend"], Reading.options(question),
+                             question["items"])
             end
 
             # The head of a card: its title, id, drop and meta.
             def head(question, cls, extra = "", meta = "")
-                text = Text.question_text(question["text"])
-                title, detail = Text.title_of(text)
                 @scope.partial(
                     "ledger/card",
-                    { cls:, anchor: "q-#{question["id"]}", text: title,
-                      tag: question["id"], extra:, kase: "", detail:, meta: }
+                    { cls:, anchor: "q-#{question["id"]}",
+                      text: question["title"], tag: question["id"], extra:,
+                      kase: "", detail: question["detail"].to_s, meta: }
                 )
             end
 

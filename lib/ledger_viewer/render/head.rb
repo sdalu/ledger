@@ -24,8 +24,8 @@ module LedgerViewer
                     { lid: @lid, nxt: next_step, tiles:,
                       path: Clock.short(path), status: data.status_text,
                       name: Helpers.project_name(@entry.project, path),
-                      updated: Clock.updated(data.mtime),
-                      changed: Helpers.when_text(data.mtime) }
+                      updated: Clock.updated(data.updated),
+                      changed: Helpers.when_text(data.updated) }
                 )
             end
 
@@ -57,7 +57,7 @@ module LedgerViewer
             end
 
             def answer(question)
-                title = long(Text.question_text(question["text"]))
+                title = long(question["title"])
                 id = question["id"]
                 fixed("a", "#q-#{id}", "Answer #{id}: #{title}")
             end
@@ -65,14 +65,12 @@ module LedgerViewer
             def word(piece)
                 words = @scope.words_span(piece, visible: true)
                 inner = "#{@scope.chip(piece["id"])}Your word: " \
-                        "#{long(piece["what"])}#{words}"
+                        "#{long(piece["title"])}#{words}"
                 fixed("a", "#p-#{piece["id"]}", inner)
             end
 
-            # The title of `text`, cut when long, escaped.
-            def long(text)
-                Text.escape(Text.shorten(Text.title_of(text).first, 90))
-            end
+            # A title, cut when long, escaped.
+            def long(title) = Text.escape(Text.shorten(title, 90))
 
             def tiles
                 figures = @reading.figures
@@ -93,7 +91,8 @@ module LedgerViewer
             def longest(figures)
                 return unless figures.asks.positive? && !figures.waits.empty?
 
-                "longest #{Text.waited(figures.waits.min)}"
+                first = figures.waits.min_by { Text.local_time(it) }
+                "longest #{Text.waited(first)}"
             end
 
             def preparing(count)

@@ -7,7 +7,7 @@ module LedgerViewer
     module Render
         # The user's word on a piece (one button per word it awaits, the
         # combined one first), and the fold that asks the session to
-        # close an item: word_form() and drop_fold() of ledger-serve.py.
+        # close an item.
         class WordForm
             DROPS = {
                 "P" => "The session marks it dropped and does nothing more " \
@@ -56,8 +56,8 @@ module LedgerViewer
             private
 
             def buttons(piece)
-                names = piece["words"].map(&:first)
-                lines = (Terms.scope_words(piece["scope"] || "") || []).to_h
+                names = piece["awaits"].map { it["word"] }
+                lines = piece["scope"].to_h { [it["word"], it["text"]] }
                 all = names.length > 1 ? [combined(piece["id"], names)] : []
                 all + names.map do |word|
                     choice(piece["id"], word, single(word), lines[word])

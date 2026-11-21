@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
 module LedgerViewer
-    # The live updates, as a Rack body: server-sent events, which ledger-
-    # serve.py's events() writes. "event: stamp" when the stamp moves, a
+    # The live updates, as a Rack body: server-sent events.
+    # "event: stamp" when the stamp moves, a
     # comment line every 15 quiet seconds, and it ends when the client
     # goes (the write that cannot be made raises in the server).
     # `since` is the page's own stamp, so a change between the page's

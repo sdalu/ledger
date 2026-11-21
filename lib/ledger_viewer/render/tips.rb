@@ -5,8 +5,8 @@ require_relative "text"
 module LedgerViewer
     module Render
         # The tooltips of one page: each pairs an anchor with a tip by a
-        # name of its own, so no two on a page collide. tip() of
-        # ledger-serve.py, with its counter per page, not per process.
+        # name of its own, so no two on a page collide; the counter is per
+        # page, not per process.
         class Tips
             def initialize = @count = 0
 
