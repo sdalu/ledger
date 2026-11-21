@@ -501,7 +501,12 @@ What the page takes, all as inbox entries, of the four kinds
   as soon as any entry waits, the Close sent before among them. Sent,
   the head shows *close asked* with its receipt until a session files
   it with `ledger close PATH --take N<n>`, closing the ledger and
-  taking the entry in one event; a close refused takes nothing.
+  taking the entry in one event; a close refused takes nothing. With
+  every criterion marked, no piece in flight and no question open, the
+  Remains section says *Ready for `bin/ledger close`* only when the
+  Close is offered; otherwise it says what the status line holds the
+  close on: *Not yet: an entry from you waits to be filed (N1).*, or
+  *`bin/ledger check --final` still fails* when the line names nothing.
 - **The abandon of the ledger**, on any live ledger, after the Close
   when the Close is offered: *Abandon the ledger*, a fold that says what
   abandoning does (the pieces not finished dropped, the open questions

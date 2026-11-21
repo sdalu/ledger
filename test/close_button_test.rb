@@ -38,6 +38,29 @@ class CloseButtonTest < ViewerTest
                      fold)
     end
 
+    def test_a_done_ledger_says_ready_with_nothing_pending
+        finish
+        sign_in
+        https "/l/#{@lid}"
+        page = last_response.body
+
+        assert_includes page, "Ready for <code>bin/ledger close</code>."
+        assert_includes page, %(<details class="close-fold")
+    end
+
+    def test_a_done_ledger_with_an_entry_pending_names_it_not_ready
+        finish
+        sign_in
+        say([%w[ref], %w[text later]])
+        https "/l/#{@lid}"
+        page = last_response.body
+
+        assert_includes page, "Not yet: an entry from you waits to be " \
+                              "filed (N1).</p>"
+        refute_includes page, "Ready for <code>bin/ledger close</code>"
+        refute_includes page, %(<details class="close-fold")
+    end
+
     def test_the_close_is_filed_and_the_page_goes_back_to_it
         finish
         sign_in
