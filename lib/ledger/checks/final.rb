@@ -7,11 +7,18 @@ module Ledger
         module Final
             module_function
 
-            # Each piece planned, out or back.
+            # Each piece planned, out or back; a deferred one is said by
+            # `deferred`, with its condition.
             def pieces(derive)
-                derive.pieces.select { derive.unfinished?(it) }.map do |piece|
+                open = derive.pieces.select { derive.unfinished?(it) }
+                open.reject { it[:status] == "deferred" }.map do |piece|
                     "#{derive.ref(piece)} [#{piece[:status]}]"
                 end
+            end
+
+            # Each piece deferred, as `P6 (CONDITION)`.
+            def deferred(derive)
+                derive.deferred.map { derive.deferral(it) }
             end
 
             # Each piece still awaiting the user's word.

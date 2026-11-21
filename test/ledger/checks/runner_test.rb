@@ -107,9 +107,10 @@ class ChecksRunnerTest < CheckCase
                 open-described open-picker self-routed links pieces-awaits
                 pictures titles details codes pieces-order criteria-pieces
                 case-rated verified-by].freeze
-    FINAL = %w[final-pieces final-awaits final-criteria].freeze
+    FINAL = %w[final-pieces final-deferred final-awaits
+               final-criteria].freeze
 
-    def test_the_rules_run_in_order_and_final_adds_three
+    def test_the_rules_run_in_order_and_final_adds_four
         assert_equal ALWAYS, Ledger::Checks.run(snapshot).map(&:first)
         assert_equal ALWAYS + FINAL,
                      Ledger::Checks.run(snapshot, final: true).map(&:first)

@@ -360,6 +360,33 @@ low; `contract`, the delegate broke the escalation contract; `env`, the
 environment failed. The row goes through the write path, so `undo` and
 `restore` take it back with the status.
 
+```ruby
+# frozen_string_literal: true
+
+# lib/ledger/migrations/004_deferred.rb (sketch)
+Sequel.migration do
+    no_transaction                   # Sequel turns the foreign keys off
+    up do
+        alter_table(:pieces) { add_column :until, String } # P
+        alter_table(:pieces) do      # the table rebuilt, every CHECK given
+            add_constraint :pieces_status, "status IN (…, 'deferred')"
+            # … the other CHECKs of 001, as they were
+        end
+    end
+end
+```
+
+**A deferred piece.** A piece not done that waits on an event to come,
+not on the user (`Judge the practices after three closures`), is
+`deferred`, the event in `pieces.until`: `piece P<n> --status deferred
+--until CONDITION`. Any later status clears `until`. SQLite changes a
+`CHECK` only by rebuilding the table: 004 lets Sequel's `alter_table`
+rebuild `pieces` (columns, the unique `(ledger_id, n)`, the index and
+the foreign keys carried over) and gives every `CHECK` again, since
+the rebuild keeps only those it is given. It runs outside a migration
+transaction, so that Sequel can turn the foreign keys off and the
+tables naming `pieces` keep naming it.
+
 The `CHECK` constraints the migrations add, each one a check rule the
 schema makes impossible (section 5):
 
@@ -369,7 +396,7 @@ schema makes impossible (section 5):
 | criteria | `mark IN (' ','x','-')`; not both `evidence` and `why` |
 | facts | `pointer <> ''` |
 | decisions | `by IN ('user','me')`; `date` matches `____-__-__` |
-| pieces | `status IN (planned,out,back,verified,blocked,dropped,kept)` |
+| pieces | `status IN (planned,out,back,verified,blocked,dropped,kept,deferred)` (004) |
 | pieces | kept: `kept_reason <> ''` and no route; else `model`+`effort` or `peer` |
 | pieces | `model`, `effort` in their lists; `done_when` NULL or `<> ''` |
 | pieces | `status <> 'verified'` or `evidence <> ''` and `verified_by` set |
@@ -502,14 +529,15 @@ last ten events (`E<n>  time  actor  command  summary`) and exits 2.
 ## 3. Derived states (U2, U14)
 
 Stored: `planned`, `out`, `back`, `verified`, `blocked`, `dropped`,
-`kept` (with its reason). Everything below is computed per read from
-the snapshot and the events, never stored.
+`kept` (with its reason), `deferred` (with its `until`). Everything
+below is computed per read from the snapshot and the events, never
+stored.
 
 | State | Rule |
 |---|---|
 | settled | `verified` or `kept` |
-| unfinished | `planned`, `out` or `back` (`--final` fails on these) |
-| in flight | `blocked`, `back`, `out`, `planned`, in that urgency |
+| unfinished | `planned`, `out`, `back` or `deferred` (`--final` fails on these) |
+| in flight | `blocked`, `back`, `out`, `planned`, `deferred`, in that urgency |
 | ready | `planned` and every `after` piece settled |
 | awaiting | its `piece_awaits` rows, in position order |
 | stalled (U14) | `out`, and no event row touching it for more than the stall budget: 60 minutes, `LEDGER_STALL_MINUTES` overrides (S2) |
@@ -529,11 +557,13 @@ a whole number above 0 is refused, exit 2, at the first command that
 derives (hard error over a silent default). A question with
 `closed_at` set is in no derived state.
 
-**The status line**, with `stalled:` (U14) after `blocked:`:
+**The status line**, with `deferred:` (each piece with its condition)
+then `stalled:` (U14) after `blocked:`:
 
 ```
 Status — criteria 3/4 · pieces 14/15 verified, 1 kept · out: P2 ·
-back: … · blocked: … · stalled: P2 · waiting on you: O3 · being
+back: … · blocked: … · deferred: P6 (three closures) · stalled: P2 ·
+waiting on you: O3 · being
 prepared: O9 (P36) · your word: P47 (commit, deploy) · from the
 viewer: N1 · done: propose close
 ```
@@ -564,7 +594,7 @@ command's refusal, exit 2, nothing written.
 | `close PATH [--take N<n>…]` | the after-action block, read from the ledger's events once the close is written: `after action:`, then each of these lines that has an item: `returned: P2 (depth), P5 (unrecorded)` (every return, its cause from `piece_returns`, `unrecorded` without a row), `blocked: P4` (the pieces ever blocked), `stalled: P6 (2.5 h)` (the pieces with a span out over an hour, the longest), `answered: O1 12 min, O3 2.1 h` (each closed question, from the event inserting it to the event writing its `answers` edge; `O3 (no ask record)` or `O3 (no answer record)` when that event or edge is not found), `by me: X4` (the decisions by me); with none of these, the block is the one line `after action: nothing returned, blocked or stalled`; the returns, blocked pieces and spans are those `stats` counts, from the events still in force. Then `closed: ADDRESS (L<id>)`, then `noticed, to carry: N` and the lines; `--take` takes the entries (the viewer's Close, `ref` `close`) in the close's event | `--final` fails (FAIL lines, exit 1), a refused close taking nothing; inbox pending besides the entries taken; an entry unknown or taken |
 | `inbox PATH [--wait [--timeout S] \| --follow [--quiet S]]` | the pending entries, or "inbox: nothing pending"; polls the ledger's newest event id each second | `--wait` timeout exit 1 |
 | `take PATH N<n>…` | `taken: …; pending: …`; one `take` event setting `taken_id` | unknown id; "already taken at TIME: another session filed it" |
-| `piece PATH new\|P<n> [--status --route --title --what --done-when --evidence --after --for --problem --risk --plan --scope --awaits --verified-by --session --by X<n> --cause C --claim --no-picture WHY --dry-run]` | the new id (new), `claimed: P<n> from HOLDER` (`--claim`), the piece line, status line | target shape; no such piece; title, detail; scope grammar or a word not awaited; new without title; awaiting without problem and rated risk; no route and not kept; a return (`--status planned` from out or back) without `--cause` or with a cause not in `brief`, `split`, `depth`, `contract`, `env`; `--cause` on any other change; out without a session, or out under another holder; `--claim` on a new piece, with `--status`, without a session, or on a piece not out; verified without `--verified-by`; an empty `--no-picture`; checks (`pictures`: awaiting commit, deploy, push or merge without a before and an after or a reason) |
+| `piece PATH new\|P<n> [--status --route --title --what --done-when --evidence --after --for --problem --risk --plan --scope --awaits --verified-by --session --by X<n> --cause C --until CONDITION --claim --no-picture WHY --dry-run]` | the new id (new), `claimed: P<n> from HOLDER` (`--claim`), the piece line (a deferred one with `— until: CONDITION`), status line | target shape; no such piece; title, detail; scope grammar or a word not awaited; new without title; awaiting without problem and rated risk; no route and not kept; a return (`--status planned` from out or back) without `--cause` or with a cause not in `brief`, `split`, `depth`, `contract`, `env`; `--cause` on any other change; `--status deferred` without `--until` or with it empty, `--until` without `--status deferred` (any other status clears `until`); out without a session, or out under another holder; `--claim` on a new piece, with `--status`, without a session, or on a piece not out; verified without `--verified-by`; an empty `--no-picture`; checks (`pictures`: awaiting commit, deploy, push or merge without a before and an after or a reason) |
 | `ask PATH QUESTION --title [--choices --by --items --see --problem --risk --recommend] (--mockup N \| --pending P \| --no-picture WHY) [--replaces O<n>] [--dry-run]` | the id, the line, a warning at 7–8 options, the picker card (dry run), status line | title, detail; problem and rated risk; empty question; not exactly one picture decision; pending piece missing or dropped; no picture of that name in the journal; `--by` dropped; option grammar; `--items` without `--choices`; `--replaces` not open or with an untaken entry; checks |
 | `answer PATH O<n> --decision [--date] [--take N…] [--replaces X<n>] [--dry-run]` | the id (`X<n>`), the decision line, the take line, status line | not open; empty decision; unknown or already taken entry; checks |
 | `word PATH P<n> --word W [--date] [--take N…] [--dry-run]` | the id (`X<n>`), the decision line, the piece line, the take line, status line | not P<n>; no piece; empty; awaits no word; a word not awaited; unknown or taken entry; checks |
@@ -575,7 +605,7 @@ command's refusal, exit 2, nothing written.
 | `constraint PATH QUOTE --where W [--dry-run]` | the id, the line, status line | empty quote; empty where |
 | `decide PATH TEXT --by user\|me [--note] [--date] [--rests-on F<n>,C<n>…] [--led-to P<n>,O<n>…] [--replaces X<n>] [--dry-run]` | the id (`X<n>`), the line, status line | by; empty; a target not this ledger's or of another kind; checks |
 | `noticed PATH TEXT [--dry-run]` | the line, status line | empty |
-| `criterion PATH new --text T`, `criterion PATH D<n> (--met E \| --unmet W \| --text T) [--dry-run]` | the id (new), the line, status line | not D<n>; empty value; no such criterion; `--text` with `--met` or `--unmet`; checks (`criteria-pieces`) |
+| `criterion PATH new --text T`, `criterion PATH D<n> (--met E \| --unmet W \| --unmark \| --text T) [--dry-run]` | the id (new), the line, status line; `--unmark` takes a mark `[x]` or `[-]` back to `[ ]`, its evidence or why cleared | not D<n>; empty value; no such criterion; not one of `--met`, `--unmet`, `--unmark`, `--text`; `--unmark` on a criterion not marked; checks (`criteria-pieces`) |
 | `edit PATH ID --text T [--dry-run]`, `edit PATH F<n> [--text T] [--pointer W]`, `edit PATH goal [--text T] [--short S] [--context C] [--dry-run]` | the line, or each goal field changed (`Title:`, `In short:`, `Context:`), status line | unknown or other kind of id; a `P<n>` (its detail is `piece --what`'s); empty text; `goal` with none of its three; a fact with neither `--text` nor `--pointer`; `--short` or `--context` on another id, `--pointer` on another than a fact; checks |
 | `renumber PATH OLD NEW [--dry-run]` | NEW, `renumbered OLD -> NEW: its heading and N reference(s)`, status line | shapes; kinds differ; same; OLD heads nothing; untaken entry about OLD; NEW given before (counter) or referenced; checks |
 | `undo PATH [--dry-run]` | `undone: ADDRESS is back as it was before E<n>`, status line | nothing to undo; a row changed since |
@@ -634,6 +664,7 @@ per rule, its commands spelled for `bin/ledger`
 | case-rated | a rated risk on every open question and on every piece awaiting a word, a problem on that piece, Title and In short on the latest Goal | `checks/open.rb`, `checks/pieces.rb`, `checks/goal.rb` |
 | verified-by | a verified piece is not verified by its own route | `checks/pieces.rb` |
 | final-pieces | `--final`: none planned, out or back | `checks/final.rb` |
+| final-deferred | `--final`: none deferred, each named with its condition, `deferred: P6 (three closures)` | `checks/final.rb` |
 | final-awaits | `--final`: no word owed | `checks/final.rb` |
 | final-criteria | `--final`: every criterion `[x]` with evidence or `[-]` with why | `checks/final.rb` |
 
@@ -658,7 +689,8 @@ other reader through `--json`; the hooks read the `Snapshot` and the
 - `check --json`: `{schema, kind: "check", reports: [{name, ok, detail}],
   status}`.
 - `status --json`: `{schema, kind: "status", line, criteria: [met,
-  total], pieces: {verified, live, kept}, out, back, blocked, stalled,
+  total], pieces: {verified, live, kept}, out, back, blocked,
+  deferred: [{piece, until}], stalled,
   waiting, preparing: [[O, P]], words: [{piece, words}], from_viewer,
   propose_close}`.
 - `survey --json`: `{schema, kind: "survey", dir, ledgers: [{address, status,
@@ -684,7 +716,7 @@ other reader through `--json`; the hooks read the `Snapshot` and the
 | links | `[{kind, from, to}]`, visible ids at both ends |
 | closed_questions | the `questions` shape plus `closed_at`, the rows with `closed_at` set, oldest first (the graph page reads them) |
 | pictures | `[{name, files: [{path, type, size}]}]` |
-| pieces | `[{id, status, kept_reason, route: {model, effort, skills, peer} \| null, route_text, title, detail, done_when, evidence, after: [P], for: [D], awaits: [{word, what}], scope: [{word, text}], problem, risk: {rating, text}, plan, verified_by, claim: {session, since} \| null, ready, stalled, settled, brief: {version, at} \| null, criteria: [{text, mark, evidence}], returns: [{cause, from, at, actor}], pictures: [{role, name}], no_picture, line}]` (`returns` oldest first, `pictures` before first) |
+| pieces | `[{id, status, kept_reason, until, route: {model, effort, skills, peer} \| null, route_text, title, detail, done_when, evidence, after: [P], for: [D], awaits: [{word, what}], scope: [{word, text}], problem, risk: {rating, text}, plan, verified_by, claim: {session, since} \| null, ready, stalled, settled, brief: {version, at} \| null, criteria: [{text, mark, evidence}], returns: [{cause, from, at, actor}], pictures: [{role, name}], no_picture, line}]` (`returns` oldest first, `pictures` before first) |
 | questions | `[{id, title, detail, problem, risk: {rating, text}, recommend, choices: [{label, effect, cost, text}], items, by, see: [ids], pictures: [{name} \| {pending}], preparing: P \| null, preparing_status, asked_since, line}]` |
 | refs | `{id: {kind, line}}` for C, D, F, P and X |
 | noticed | `[line]` |
@@ -763,7 +795,7 @@ objection.
 | `heartbeat` (PostToolUse, Bash) | the tool output | a command naming `ledger … check\|status`: the last `Status —` line as `systemMessage`. Stdlib only, no bundler, no Sequel: a bare interpreter start after every Bash call (the launcher's rule above) |
 | `brief-constraints` (PreToolUse, Agent) | `constraints.quote` of the session's ledgers | deny a brief naming a path a constraint's quote names without carrying the quote (whitespace and case folded) |
 | `journal-write` (PreToolUse, Bash) | the command words | deny a command that writes the journal by hand: `sqlite3` on it without `-readonly`, a redirect, `cp`, `mv`, `rm`, `install`, `tee` onto it or its `-wal`/`-shm`, `sed`, `perl` or `ruby` in place, interpreter code opening it; a segment whose program is the launcher passes; the refusal names the `bin/ledger` commands. Stdlib only |
-| `finish` (Stop) | snapshot, checks | a ledger with a piece, none planned, out, back or blocked, none awaiting a word and no question open, that fails `--final`: refuse once with the FAIL lines and the finish steps; on the retry the stop goes through |
+| `finish` (Stop) | snapshot, checks | a ledger with a piece, none planned, out, back or blocked, none awaiting a word and no question open, that fails `--final`: refuse once with the FAIL lines and the finish steps; a ledger failing only `final-deferred` lets the stop through, the session waiting on the event as it would on the user; on the retry the stop goes through |
 | `inbox` (Stop) | inbox entries | pending entries refuse the stop once, verbatim, with the filing steps; on the retry the stop goes through |
 | `session-start` (SessionStart) | snapshot, entries | pending entries with the steps (every source); for `source` in startup, resume, compact also the resume view (U5) |
 
@@ -777,8 +809,9 @@ never cut). Per ledger, every line as `show` prints it:
 3. every Goal block, verbatim;
 4. Constraints, verbatim;
 5. Open: each question's line;
-6. In flight: each blocked, back, out, planned piece's line, `(ready)`
-   or `(stalled)` appended where derived.
+6. In flight: each blocked, back, out, planned, deferred piece's line
+   (a deferred one ends `— until: CONDITION`), `(ready)` or `(stalled)`
+   appended where derived.
 
 Over budget, the view drops from the end: pieces in flight, then
 questions, each replaced by `… N more: bin/ledger show ADDRESS`. When

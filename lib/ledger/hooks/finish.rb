@@ -9,9 +9,14 @@ module Ledger
         # against the Goal. It acts only when a ledger has a piece, no
         # piece is planned, out, back or blocked, none awaits the user's
         # word, and no question is open: a turn ending then can only be a
-        # finish. On the retry (stop_hook_active) the stop goes through.
+        # finish. A ledger whose only failure is its pieces deferred until
+        # an event lets the stop through: the session waits on that
+        # event, as it would on the user. On the retry (stop_hook_active)
+        # the stop goes through.
         module Finish
             UNSETTLED = %w[planned out back blocked].freeze
+            # The --final rule a ledger may fail alone and still stop.
+            WAITING = "final-deferred"
             STEPS = "Before reporting done (orchestration, Finish): re-read " \
                     "the Goal, every revision, and Done when; check each " \
                     "criterion against the artifact, not the reports, and " \
@@ -33,12 +38,14 @@ module Ledger
                 Answer.refuse([STEPS, *lines].join("\n"))
             end
 
-            # -> the `--final` FAIL lines of a ledger whose work is over.
+            # -> the `--final` FAIL lines of a ledger whose work is over;
+            # none when deferred pieces are all it fails on.
             def failures(found)
                 return [] unless over?(found.derive)
-                Checks.run(found.snapshot, final: true)
-                      .reject { |_, ok, _| ok }
-                      .map do |name, _, detail|
+                failed = Checks.run(found.snapshot, final: true)
+                               .reject { |_, ok, _| ok }
+                return [] if failed.all? { |name,| name == WAITING }
+                failed.map do |name, _, detail|
                     detail.empty? ? "FAIL #{name}" : "FAIL #{name} -- #{detail}"
                 end
             end

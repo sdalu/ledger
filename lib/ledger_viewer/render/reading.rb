@@ -15,7 +15,7 @@ module LedgerViewer
         # was first awaited, the index's state cell and counts. What the
         # index shows of a ledger is here.
         class Reading
-            IN_FLIGHT = %w[blocked back out planned].freeze
+            IN_FLIGHT = %w[blocked back out planned deferred].freeze
             MET = %w[x -].freeze
             # How many criteria, pieces and kept pieces a ledger counts.
             Counts = Data.define(:crit_met, :crit, :verified, :pieces, :kept)

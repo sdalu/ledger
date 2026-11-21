@@ -205,6 +205,59 @@ class PieceStatusTest < PieceCase
     end
 end
 
+# `piece --status deferred --until CONDITION`: a piece waiting on an
+# event to come, its condition on its line, cleared by any other
+# status.
+class PieceDeferredTest < PieceCase
+    def test_deferred_keeps_its_condition_on_the_line
+        add
+        out = ok("piece", BETA, "P1", "--status", "deferred", "--until",
+                 " three closures ")
+
+        assert_equal ["deferred", "three closures"],
+                     row.values_at(:status, :until)
+        assert_equal "- P1 [deferred] sonnet, effort: medium — Build the " \
+                     "parser — until: three closures", out.lines.first.chomp
+        assert_includes out.lines.last,
+                        "deferred: P1 (three closures)"
+    end
+
+    def test_deferred_needs_a_condition
+        add
+        refused("P1", "--status", "deferred",
+                "--status deferred needs --until CONDITION")
+        refused("P1", "--status", "deferred", "--until", " ",
+                "--status deferred needs --until CONDITION")
+    end
+
+    def test_until_goes_with_deferred_alone
+        add
+        refused("P1", "--until", "later",
+                "--until goes with --status deferred")
+        refused("P1", "--status", "planned", "--until", "later",
+                "--until goes with --status deferred")
+    end
+
+    def test_any_later_status_clears_the_condition
+        add
+        ["planned", "kept: the user keeps it", "dropped"].each do |status|
+            defer
+            ok("piece", BETA, "P1", "--status", status)
+
+            assert_nil row[:until], status
+        end
+        defer
+        ok("piece", BETA, "P1", "--status", "out", "--session", "s1")
+
+        assert_equal ["out", nil], row.values_at(:status, :until)
+    end
+
+    def defer
+        ok("piece", BETA, "P1", "--status", "deferred", "--until", "x",
+           *ROUTE)
+    end
+end
+
 # `piece --status planned --cause`: a piece out or back that goes back
 # to planned says why, in a piece_returns row of the write's event,
 # shown by `show` and reverted by undo and restore.

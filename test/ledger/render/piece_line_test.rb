@@ -24,6 +24,13 @@ class PieceLineTest < RenderTest
                                 model: nil, effort: nil, dash: true)
     end
 
+    def test_deferred_carries_its_condition_first
+        assert_equal "- P1 [deferred] sonnet, effort: low — Piece 1 — " \
+                     "until: three closures — plan: judge them",
+                     piece_text(status: "deferred", until: "three closures",
+                                plan: "judge them")
+    end
+
     def test_kept_written_without_a_dash_keeps_none
         assert_equal "- P1 [kept: mine] Piece 1",
                      piece_text(status: "kept", kept_reason: "mine",

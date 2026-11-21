@@ -46,6 +46,8 @@ module LedgerViewer
             def quiet(piece, status)
                 case status
                 when "blocked" then %w[blocked is-fail]
+                when "deferred"
+                    ["deferred · until #{piece["until"]}", "is-flight"]
                 when "out", "back" then [with(piece, status), "is-flight"]
                 else [after(piece, status), "is-flight"]
                 end

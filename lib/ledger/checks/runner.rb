@@ -55,6 +55,8 @@ module Ledger
             rule("verified-by", Pieces.method(:verified_by)),
             rule("final-pieces", Final.method(:pieces),
                  prefix: "still open: ", join: ", ", final: true),
+            rule("final-deferred", Final.method(:deferred),
+                 prefix: "deferred: ", join: ", ", final: true),
             rule("final-awaits", Final.method(:awaits),
                  prefix: "the user's word still owed: ", final: true),
             rule("final-criteria", Final.method(:criteria), final: true)

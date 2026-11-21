@@ -43,7 +43,14 @@ module LedgerViewer
 
             private
 
-            def fields(piece) = Links.fields(piece, @reading.settled)
+            # A deferred piece's meta opens with what it waits on.
+            def fields(piece)
+                found = Links.fields(piece, @reading.settled)
+                condition = piece["until"] or return found
+
+                meta = ["until #{condition}", found[:meta]].reject(&:empty?)
+                found.merge(meta: meta.join(" · "))
+            end
 
             def piece(piece)
                 sent = @reading.sent_words[piece["id"]]

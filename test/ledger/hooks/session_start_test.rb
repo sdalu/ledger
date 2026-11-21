@@ -36,6 +36,17 @@ class SessionStartTest < HookTest
         assert_match(/^- P3 \[planned\] .* \(ready\)$/, text)
     end
 
+    def test_in_flight_lists_a_deferred_piece_with_its_condition
+        write("import") do |change|
+            piece(change, status: "deferred", until: "three closures")
+        end
+
+        text = context("startup")
+
+        assert_includes text, "In flight:\n- P1 [deferred] "
+        assert_match(/^- P1 .* — until: three closures$/, text)
+    end
+
     def test_clear_shows_nothing_but_entries
         fill
 

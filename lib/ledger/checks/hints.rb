@@ -90,6 +90,10 @@ module Ledger
                 "no piece planned, out or back; `bin/ledger piece PATH P<n> " \
                 "--status verified --verified-by me --evidence …` or " \
                 "`--status dropped` with a Decision",
+            "final-deferred" =>
+                "no piece deferred: the ledger waits for its event; once " \
+                "it came, `bin/ledger piece PATH P<n> --status planned`, " \
+                "or `--status dropped` with a Decision",
             "final-awaits" =>
                 "no piece waits for the user's word; `bin/ledger word PATH " \
                 "P<n> --word W` once given, or `--word drop`",

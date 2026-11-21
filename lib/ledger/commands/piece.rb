@@ -8,11 +8,13 @@ module Ledger
     module Commands
         # `piece PATH new|P<n> [--status --route --title --what --done-when
         # --evidence --after --for --problem --risk --plan --scope --awaits
-        # --verified-by --session --by --cause --no-picture]`: add a piece
-        # or change one; `--by X<n>` writes the decision's led_to edge to
-        # it, `--status out` claims it for the session (U12), `--status
-        # planned` on a piece out or back records its return with
-        # `--cause`, `--no-picture WHY` says why it needs no before/after.
+        # --verified-by --session --by --cause --until --no-picture]`:
+        # add a piece or change one; `--status deferred --until
+        # CONDITION` defers it; `--by X<n>` writes the decision's
+        # led_to edge to it, `--status out` claims it for the session
+        # (U12), `--status planned` on a piece out or back records its
+        # return with `--cause`, `--no-picture WHY` says why it needs no
+        # before/after.
         class Piece < CLI::Command
             USAGE = "PATH TARGET"
             SYNOPSIS = "PATH new|P<n> [--FIELD VALUE...]"
@@ -21,8 +23,8 @@ module Ledger
             ID = /\AP[1-9]\d*\z/
             # Each flag and what its value is, as the help says it.
             FLAGS = {
-                "status" => "planned, out, back, verified, blocked, dropped " \
-                            "or kept: REASON",
+                "status" => "planned, out, back, verified, blocked, dropped, " \
+                            "deferred or kept: REASON",
                 "route" => "who does it: MODEL, effort: E[, skills: S], " \
                            "or peer: SESSION",
                 "title" => "a short name, at most 60 characters",
@@ -41,7 +43,9 @@ module Ledger
                 "session" => "who claims an out ($CLAUDE_CODE_SESSION_ID)",
                 "by" => "X<n>, the decision that led to it",
                 "cause" => "why a piece out or back goes back to planned: " \
-                           "brief, split, depth, contract or env"
+                           "brief, split, depth, contract or env",
+                "until" => "the event a deferred piece waits on, with " \
+                           "--status deferred"
             }.freeze
 
             private
@@ -338,7 +342,11 @@ module Ledger
         # to @row from @opts; a value that is not the column's shape is
         # refused.
         module PieceFlags
-            STATUSES = %w[planned out back verified blocked dropped].freeze
+            STATUSES = %w[planned out back verified blocked dropped
+                          deferred].freeze
+            UNTIL = "--status deferred needs --until CONDITION: the event " \
+                    "the piece waits on"
+            UNTIL_ALONE = "--until goes with --status deferred"
             SKILL = '[\p{Word}.:-]+'
             MODEL = Regexp.new(
                 "\\A(haiku|sonnet|opus|fable), " \
@@ -398,12 +406,14 @@ module Ledger
                 end
             end
 
+            # Any status but deferred clears the condition `--until` set.
             def status
-                word = @opts["status"]&.strip or return
+                word = stated or return
                 if word.start_with?("kept:")
                     kept(word.delete_prefix("kept:").strip)
+                elsif word == "deferred" then deferred
                 elsif STATUSES.include?(word)
-                    @row.merge!(status: word, kept_reason: nil)
+                    @row.merge!(status: word, kept_reason: nil, until: nil)
                 else
                     refuse("--status #{word}: one of " \
                            "#{STATUSES.join(", ")}, or 'kept: REASON'")
@@ -423,9 +433,24 @@ module Ledger
                 @row[:no_picture] = why
             end
 
+            # The status given, stripped; `--until` is refused without
+            # `--status deferred`.
+            def stated
+                word = @opts["status"]&.strip
+                refuse(UNTIL_ALONE) if @opts.key?("until") && word != "deferred"
+                word
+            end
+
             def kept(reason)
                 refuse("--status 'kept: REASON' says why") if reason.empty?
-                @row.merge!(status: "kept", kept_reason: reason)
+                @row.merge!(status: "kept", kept_reason: reason, until: nil)
+            end
+
+            def deferred
+                condition = @opts["until"].to_s.strip
+                refuse(UNTIL) if condition.empty?
+                @row.merge!(status: "deferred", kept_reason: nil,
+                            until: condition)
             end
         end
 
@@ -476,8 +501,8 @@ module Ledger
             include PieceFlags
             include PieceCause
 
-            COLUMNS = (%i[status kept_reason dash title detail risk_rating
-                          no_picture] +
+            COLUMNS = (%i[status kept_reason until dash title detail
+                          risk_rating no_picture] +
                        NO_ROUTE.keys + PROSE.values).freeze
             NEW = COLUMNS.to_h { [it, nil] }
                          .merge(status: "planned", dash: true).freeze

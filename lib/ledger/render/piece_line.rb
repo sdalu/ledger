@@ -50,7 +50,8 @@ module Ledger
 
             # [[name, value, tail]] of the fields the piece has, in order.
             def fields(piece)
-                [["problem", piece[:problem]], ["risk", piece[:risk]],
+                [["until", piece[:until]],
+                 ["problem", piece[:problem]], ["risk", piece[:risk]],
                  ["plan", piece[:plan]], ["scope", scope(piece)],
                  ["done when", piece[:done_when]], *links(piece),
                  ["awaits", awaits(piece)], ["evidence", piece[:evidence]]]
