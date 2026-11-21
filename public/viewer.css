@@ -558,7 +558,7 @@
     }
     /* the icon is part of the control, at its own size inside the 44 px target */
     & .icon { inline-size: 1.5rem; block-size: 1.5rem; }
-    /* the trash says Close in words where the card is narrow; wide, its
+    /* the trash says Drop in words where the card is narrow; wide, its
        tooltip and accessible name still say the whole request */
     & > summary > .drop-label { display: none; }
     @container questions (inline-size < 36rem) {
