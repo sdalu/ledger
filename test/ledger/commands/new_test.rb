@@ -23,6 +23,24 @@ class NewTest < CommandCase
                      snap.criteria.first[:text]
     end
 
+    # A second live ledger in a place is a fork the user confirms.
+    def test_a_second_ledger_in_a_place_needs_the_users_words
+        fork = "/work/beta/.claude/LEDGER-web.md"
+        assert_refused("new", fork, *GOAL,
+                       "a live ledger already sits here: /work/beta/LEDGER.md")
+        ok("new", fork, *GOAL, "--confirmed", "yes, a second one for the web")
+
+        id = db[:ledgers].where(name: "web").get(:id)
+        assert_equal ["\"yes, a second one for the web\" — a second live " \
+                      "ledger here, beside /work/beta/LEDGER.md", "user"],
+                     db[:decisions].where(ledger_id: id).get(%i[body by])
+    end
+
+    def test_confirmed_with_nothing_beside_is_refused
+        assert_refused("new", GAMMA, *GOAL, "--confirmed", "yes",
+                       "--confirmed: no live ledger sits here")
+    end
+
     def test_a_live_address_is_refused
         assert_refused("new", BETA, *GOAL, "exists; refusing to overwrite")
     end

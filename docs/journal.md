@@ -660,7 +660,7 @@ command's refusal, exit 2, nothing written.
 
 | Command | Output | Refusals (exit 2) |
 |---|---|---|
-| `new PATH --goal --title --short [--context] [--date] [--carry CLOSED]` | the address | address live; title fails the title rule; empty `--short`; `--carry` names no closed ledger (it takes an address, its newest close, or `L<id>`) |
+| `new PATH --goal --title --short [--context] [--date] [--carry CLOSED] [--confirmed WORDS]` | the address; with `--confirmed`, the new ledger holds a Decision by user quoting the words and naming the live ledgers it sits beside | address live; another live ledger in the same directory or its `.claude/` without `--confirmed` (the refusal names them: a second ledger there is a fork the user confirms); `--confirmed` with no live ledger there; title fails the title rule; empty `--short`; `--carry` names no closed ledger (it takes an address, its newest close, or `L<id>`) |
 | `goal PATH --quote --title --short [--context] [--date] [--dry-run]` | the new Goal block (its id the next `G<n>`), status line | title; empty short; quote under 4 words (a go-ahead); `--done` or `--undone` without a `G<n>`; checks |
 | `goal PATH G<n> (--done EVIDENCE \| --undone) [--dry-run]` | the Goal block, status line | not `G<n>`; no such block; neither or both of `--done`, `--undone`; empty evidence; `--done` on a block done, `--undone` on one active; with `--quote`, `--title`, `--short`, `--context` or `--date`; checks |
 | `check [--final] [--peek] [--fix-hints] [--json] PATH` | `ok  name` / `FAIL name -- detail` per rule, `  hint:` after a FAIL, status line (the beat, unless `--peek`); `--json` prints JSON v1 | exit 1 on any FAIL |

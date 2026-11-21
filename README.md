@@ -187,7 +187,10 @@ the same kind; every structured reference follows by key, free prose is
 never rewritten, and it refuses while the inbox holds an entry about OLD
 not taken. `close` ends by listing the closed ledger's `Out of scope,
 noticed` lines under `noticed, to carry: N`, and `new --carry CLOSED`
-starts the new ledger with them.
+starts the new ledger with them. A second live ledger in a place (the
+same directory or its `.claude/`) is a fork: `new` refuses it, naming
+the live ones, until `--confirmed "the user's words"` is given, and the
+new ledger then holds those words as a Decision by user.
 
 An id is never reused: the counters live beside the events, so an
 answered, dropped or undone item does not give its id back. Each writer

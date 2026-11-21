@@ -14,7 +14,7 @@ class SurveyTest < CommandCase
     def setup
         super
         @session = ENV.delete("CLAUDE_CODE_SESSION_ID")
-        ok("new", NESTED, *GOAL)
+        ok("new", NESTED, *GOAL, "--confirmed", "a second one, yes")
         ok("new", OTHER, *GOAL)
         route(BETA, "peer: Ledger")
         route(OTHER, "peer: Ledger")
