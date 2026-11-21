@@ -68,8 +68,9 @@ module LedgerViewer
 
             def word(piece)
                 words = @scope.words_span(piece, visible: true)
-                inner = "#{@scope.chip(piece["id"])}Your word: " \
-                        "#{long(piece["title"])}#{words}"
+                text = "Your word: #{long(piece["title"])}"
+                inner = "#{@scope.chip(piece["id"])}" \
+                        "<span class=\"next-text\">#{text}</span>#{words}"
                 fixed("a", "#p-#{piece["id"]}", inner)
             end
 

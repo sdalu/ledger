@@ -271,6 +271,12 @@
       & .words { display: inline-flex; align-items: center; gap: 0.25em; & > .icon { margin: 0; } }
       & .word { font-weight: 600; }
       & .tag { margin: 0; color: var(--ask); }
+      /* a flex item is a block, so the link's underline would run through
+         the id chip and the words: the line goes on the text alone */
+      &:has(> .next-text) {
+        text-decoration: none;
+        & > .next-text { text-decoration: underline; }
+      }
     }
     & .next > a:not(.next-step) { font-size: 0.875rem; }
     & .ledger-details > summary { min-block-size: 1.5rem; font-size: 0.8125rem; color: var(--muted); }
@@ -364,6 +370,10 @@
       justify-content: center;
       padding: 0;
       overflow: clip;
+      /* an id never breaks: a heading's overflow-wrap: anywhere would
+         let its halves shrink to one character each */
+      white-space: nowrap;
+      overflow-wrap: normal;
       & > .l {
         padding: 0.05em 0.35em;
         color: var(--state, currentColor);
