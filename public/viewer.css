@@ -622,12 +622,20 @@
 
   /* what an `other (…)` word needs, said on its card */
   .entries > li > .needed { margin-block-start: var(--space-xs); font-weight: 600; }
-  /* the way to a piece's or a decision's links page: one quiet line, its
-     link a full target */
-  .entries > li > .why {
-    margin-block-start: var(--space-xs);
-    font-size: 0.8125rem;
-    & a { display: inline-flex; align-items: center; min-block-size: 1.5rem; }
+  /* the way to a piece's or a decision's links page: a quiet icon beside its
+     id chip, its sentence said on hover and to a screen reader */
+  .why-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-inline-size: 1.75rem;
+    min-block-size: 1.75rem;
+    margin-inline-start: 0.15rem;
+    border-radius: var(--radius);
+    color: var(--muted);
+    vertical-align: middle;
+    &:hover, &:focus-visible { color: var(--ink); background: var(--inset); }
+    & > .icon { inline-size: 1.1rem; block-size: 1.1rem; margin: 0; }
   }
 
   /* the case under a question: problem, risk, the options, the one recommended */

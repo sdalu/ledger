@@ -82,7 +82,7 @@ module LedgerViewer
                   detail: piece["detail"].to_s,
                   kase: @kit.cases.facets(piece),
                   anchor: "piece-#{piece["id"]}",
-                  fold: Why.link(@kit.lid, piece["id"]),
+                  why: Why.icon(@kit.lid, piece["id"]),
                   tag_tip: Status.tip(piece) }
             end
 

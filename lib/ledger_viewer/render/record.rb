@@ -104,7 +104,7 @@ module LedgerViewer
                             text: Reading.what(piece), state: Status.of(piece),
                             tag_tip: Status.tip(piece),
                             anchor: "piece-#{piece["id"]}",
-                            fold: Why.link(@lid, piece["id"]),
+                            why: Why.icon(@lid, piece["id"]),
                             **Links.fields(piece, @reading.settled))
             end
         end

@@ -84,13 +84,15 @@ module LedgerViewer
                              question["items"])
             end
 
-            # The head of a card: its title, id, drop and meta.
+            # The head of a card: its title, id, drop and meta; a question
+            # has no links page, so no icon to one.
             def head(question, cls, extra = "", meta = "")
                 @scope.partial(
                     "ledger/card",
                     { cls:, anchor: "q-#{question["id"]}",
                       text: question["title"], tag: question["id"], extra:,
-                      kase: "", detail: question["detail"].to_s, meta: }
+                      why: "", kase: "", detail: question["detail"].to_s,
+                      meta: }
                 )
             end
 

@@ -26,12 +26,10 @@ module LedgerViewer
                 needed = needed(piece)
                 return receipt(piece, last, needed, form) if last
 
-                "#{card(piece)}#{needed}#{form}#{why(piece)}</li>"
+                "#{card(piece)}#{needed}#{form}</li>"
             end
 
             private
-
-            def why(piece) = Why.link(@kit.lid, piece["id"])
 
             def card(piece)
                 @scope.partial(
@@ -40,7 +38,8 @@ module LedgerViewer
                       text: piece["title"], tag: piece["id"],
                       detail: piece["detail"].to_s, meta: meta(piece),
                       kase: @kit.cases.facets(piece),
-                      extra: @kit.word.drop(piece["id"]) }
+                      extra: @kit.word.drop(piece["id"]),
+                      why: Why.icon(@kit.lid, piece["id"]) }
                 )
             end
 

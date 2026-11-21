@@ -7,17 +7,18 @@ module LedgerViewer
         # A row of a list on the ledger page, or with `card` a card whose
         # text is its heading. `kase` is the
         # facets under a card's head, `fold` ready-made markup after its
-        # meta, `state` a status tag of its own before the id tag, and
-        # `tag_tip` what the status (else the tag) means, said on hover.
+        # meta, `state` a status tag of its own before the id tag,
+        # `tag_tip` what the status (else the tag) means, said on hover, and
+        # `why` the icon to the links page, after the id tag.
         class Entry
             Spec = Data.define(
                 :cls, :tag, :text, :meta, :evidence, :done, :card, :anchor,
-                :extra, :tag_tip, :detail, :state, :kase, :fold
+                :extra, :tag_tip, :detail, :state, :kase, :fold, :why
             )
             BLANK = Spec.new(
                 cls: "", tag: "", text: "", meta: "", evidence: "", done: "",
                 card: false, anchor: "", extra: "", tag_tip: "", detail: "",
-                state: "", kase: "", fold: ""
+                state: "", kase: "", fold: "", why: ""
             )
 
             def initialize(scope) = @scope = scope
@@ -27,7 +28,7 @@ module LedgerViewer
                 @scope.partial(
                     "ledger/entry",
                     { cls: spec.cls, card: spec.card, text: spec.text,
-                      anchor: anchor(spec), tags: tags(spec),
+                      anchor: anchor(spec), tags: "#{tags(spec)}#{spec.why}",
                       extra: spec.extra, kase: spec.kase,
                       detail: detail(spec), rest: rest(spec) }
                 )

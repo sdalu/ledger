@@ -67,14 +67,14 @@ module LedgerViewer
 
             def plain(line, at)
                 @entry.html(text: line.sub(/\A- /, ""), anchor: "dec-#{at}",
-                            fold: why_link(at))
+                            why: why_link(at))
             end
 
-            # The link to the links page of the line at AT, when its id
+            # The icon to the links page of the line at AT, when its id
             # has one.
             def why_link(at)
                 id = @ids[at].to_s
-                id.match?(Why::STARTABLE) ? Why.link(@lid, id) : ""
+                id.match?(Why::STARTABLE) ? Why.icon(@lid, id) : ""
             end
 
             # "- DATE — what — why — by user|me", a note after it or a

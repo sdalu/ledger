@@ -12,10 +12,13 @@ module LedgerViewer
 
             def path(lid, id) = "/l/#{lid}/why/#{id}"
 
-            # The paragraph a card or a line ends with.
-            def link(lid, id)
-                %(<p class="why"><a href="#{path(lid, id)}">) \
-                    "Why #{id}, and what it led to</a></p>"
+            # The icon beside an id chip that leads to its links page, the
+            # sentence it stands for as its title and accessible name.
+            def icon(lid, id)
+                said = "Why #{id}, and what it led to"
+                %(<a class="why-icon" href="#{path(lid, id)}" ) +
+                    %(title="#{said}" aria-label="#{said}">) +
+                    "#{Icons.icon("route")}</a>"
             end
         end
     end
