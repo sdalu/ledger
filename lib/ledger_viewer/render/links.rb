@@ -14,6 +14,70 @@ module LedgerViewer
                 ids.map { "[#{it}](##{kind}-#{it})" }.join(", ")
             end
 
+            # 'needed by P5, P10': the pieces not settled whose after names
+            # ID, in row order; nil when none.
+            def needed_by(id, pieces)
+                ids = pieces.filter_map do |piece|
+                    piece["id"] if piece["after"].include?(id) &&
+                                   !piece["settled"]
+                end
+                "needed by #{ids(ids, "piece")}" if ids.any?
+            end
+
+            # 'prepares O3': the open questions whose by names ID; nil when
+            # none.
+            def prepares(id, questions)
+                ids = questions.select { it["by"] == id }.map { it["id"] }
+                "prepares #{ids(ids, "q")}" if ids.any?
+            end
+
+            # 'decided in X2, X5': the decisions with a led_to link to ID,
+            # each to its row in the record; nil when none.
+            def decided(id, reading)
+                rows = reading.decision_ids
+                said = reading.links.filter_map do |link|
+                    next unless link["kind"] == "led_to" && link["to"] == id
+
+                    at = rows.index(link["from"]) and
+                        "[#{link["from"]}](#dec-#{at})"
+                end
+                "decided in #{said.uniq.join(", ")}" if said.any?
+            end
+
+            # 'waiting 3 h' once a question has waited over an hour; nil
+            # before that.
+            def waiting(question)
+                since = question["asked_since"]
+                at = Ledger::Text.local_time(since)
+                return unless at && Time.now - at > 3600
+
+                "waiting #{Ledger::Text.waited(since)}"
+            end
+
+            # The issues of an open question as one line: how long it has
+            # waited, its answering piece stalled (the text STALLED says of
+            # that piece); "" when it has none.
+            def question_issues(question, pieces, stalled)
+                by = pieces.find { it["id"] == question["by"] }
+                said = [waiting(question)]
+                if by&.dig("stalled")
+                    said << "answered by #{ids([by["id"]], "piece")} " \
+                            "(#{stalled.call(by)})"
+                end
+                said.compact.join(" · ")
+            end
+
+            # 'waits for P3' (or its after pieces settled), 'serves D2',
+            # 'needed by P5, P10', 'prepares O3': what a piece's RAID line
+            # says of the pieces and questions around it.
+            def forward(piece, reading)
+                [(waits(piece, reading.settled) if piece["after"].any?),
+                 ("serves #{ids(piece["for"], "crit")}" if
+                     piece["for"].any?),
+                 needed_by(piece["id"], reading.pieces),
+                 prepares(piece["id"], reading.questions)].compact
+            end
+
             # The meta, evidence and done fields of a piece's row: what it
             # waits for and serves is its RAID line's (Raid).
             def fields(piece)

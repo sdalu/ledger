@@ -148,6 +148,76 @@ class RaidLineTest < ViewerTest
     end
 end
 
+# The RAID line's forward parts: what waits on a piece, the question it
+# prepares, the decisions behind an entry, a question's issues.
+class RaidForwardTest < ViewerTest
+    include RaidFixture
+
+    def ask_by(*by)
+        ledger("ask", "which tool?", "--title", "Lexer tool",
+               "--problem", "two tools", "--risk", "2/10 — rework",
+               *by, "--no-picture", "a choice of words")
+    end
+
+    # O1 or O2 waiting HOURS, as the journal's question row says.
+    def age_questions(hours)
+        at = Ledger::Write.now - (hours * 3_600_000)
+        @journal.db[:events].update(at:)
+        @page = nil
+    end
+
+    def test_a_piece_says_which_pieces_wait_on_it_linked_to_their_cards
+        line = raid(card("piece-P1"))
+        assert_includes line, 'needed by <a href="#piece-P2"'
+        refute_includes raid(card("piece-P2")), "needed by"
+    end
+
+    def test_a_settled_piece_is_not_listed_as_waiting
+        ledger("piece", "new", *RaidFixture::ROUTE, "--title", "done soon",
+               "--after", "P3", "--status", "verified", "--verified-by", "me",
+               "--evidence", "it builds")
+        refute_includes raid(card("piece-P3")), "needed by"
+    end
+
+    def test_a_piece_says_the_question_it_prepares
+        ask_by("--by", "P2")
+        assert_includes raid(card("piece-P2")), 'prepares <a href="#q-O2"'
+        refute_includes raid(card("piece-P1")), "prepares"
+    end
+
+    def test_an_entry_names_the_decisions_that_led_to_it
+        ledger("decide", "split the work", "--by", "me",
+               "--led-to", "P1,O1")
+        assert_match(/decided in <a href="#dec-\d+"[^>]*>[^<]*X\d/,
+                     raid(card("piece-P1")))
+        assert_includes raid(card("q-O1")), "decided in"
+        refute_includes raid(card("piece-P2")), "decided in"
+    end
+
+    def test_the_decided_link_lands_on_the_decision_row
+        ledger("decide", "split the work", "--by", "me", "--led-to", "P1")
+        at = raid(card("piece-P1"))[/href="#(dec-\d+)"/, 1]
+        assert_includes page, %(id="#{at}")
+    end
+
+    def test_a_question_waiting_over_an_hour_says_how_long
+        ask_by
+        refute_includes raid(card("q-O2")), "waiting"
+        age_questions(3)
+        assert_includes raid(card("q-O2")), "waiting 3 h"
+    end
+
+    def test_a_question_says_its_answering_piece_is_stalled
+        stale_piece
+        ledger("ask", "which tool?", "--title", "Lexer tool",
+               "--problem", "two tools", "--risk", "2/10 — rework",
+               "--by", "P4", "--no-picture", "a choice of words")
+        assert_includes raid(card("q-O2")),
+                        "answered by <a href=\"#piece-P4\""
+        assert_includes raid(card("q-O2")), "(stalled 2 h)"
+    end
+end
+
 # The record's RAID fold: Risks, Assumptions, Issues, Dependencies.
 class RaidFoldTest < ViewerTest
     include RaidFixture

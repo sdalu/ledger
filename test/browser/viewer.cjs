@@ -691,6 +691,32 @@ t('A2: the status pill\'s summary is at least 24 px', await p.evaluate(() => {
     t('P22 ' + w + ': no horizontal overflow with the RAID fold open', r.fits);
   }
   run('undo');
+  // P14: a piece's RAID line says which pieces wait on it and which question it prepares, an entry which decision
+  // led to it; each link lands on its card or its decision row; undone after
+  run('decide', 'start with the header', '--by', 'me', '--led-to', 'P1');
+  for (const w of [1300, 412]) {
+    await p.setViewportSize({width: w, height: 900});
+    await p.goto(base + page);
+    const land = async (sel, target) => {
+      await p.locator(sel).first().evaluate(a => a.click());
+      await p.waitForTimeout(150);
+      return p.evaluate(t => location.hash === '#' + t && !!document.getElementById(t)
+        && document.getElementById(t).getBoundingClientRect().height > 0, target);
+    };
+    const said = await p.evaluate(() => ({
+      needed: /needed by/.test(document.querySelector('#piece-P1 .raid')?.textContent || ''),
+      prepares: /prepares/.test(document.querySelector('#piece-P2 .raid')?.textContent || ''),
+      decided: /decided in/.test(document.querySelector('#piece-P1 .raid')?.textContent || ''),
+      fits: document.documentElement.scrollWidth <= document.documentElement.clientWidth}));
+    t('P14 ' + w + ': P1 says what waits on it, P2 the question it prepares, P1 the decision behind it',
+      said.needed && said.prepares && said.decided);
+    t('P14 ' + w + ': a "needed by" link lands on the card', await land('#piece-P1 .raid a[href="#piece-P3"]', 'piece-P3'));
+    t('P14 ' + w + ': a "prepares" link lands on the question', await land('#piece-P2 .raid a[href="#q-O2"]', 'q-O2'));
+    t('P14 ' + w + ': a "decided in" link lands on the decision row',
+      await land('#piece-P1 .raid .decided a', await p.evaluate(() => document.querySelector('#piece-P1 .raid .decided a').hash.slice(1))));
+    t('P14 ' + w + ': no horizontal overflow', said.fits);
+  }
+  run('undo');
   // P70: the side list's subtitle is meta text, never drawn as a link
   for (const w of [1300, 412]) {
     await p.setViewportSize({width: w, height: 900});

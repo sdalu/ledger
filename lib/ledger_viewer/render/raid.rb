@@ -22,12 +22,13 @@ module LedgerViewer
             # rated is said.
             def piece(piece, flight: false)
                 line([risk(piece, flight), assumed(piece), issues(piece),
-                      depends(piece_links(piece))])
+                      depends(Links.forward(piece, @reading)), decided(piece)])
             end
 
             def question(question)
                 line([risk(question, false), assumed(question),
-                      depends(question_links(question))])
+                      question_issues(question),
+                      depends(question_links(question)), decided(question)])
             end
 
             # 'blocked', 'stalled 2 h', 'ready, not sent for 3 h',
@@ -117,11 +118,17 @@ module LedgerViewer
                 part("issues", Text.escape(said.join(" · ")))
             end
 
-            # 'waits for P3' (or its after pieces settled), 'serves D2'.
-            def piece_links(piece)
-                [(Links.waits(piece, @reading.settled) if piece["after"].any?),
-                 ("serves #{Links.ids(piece["for"], "crit")}" if
-                     piece["for"].any?)].compact
+            # 'waiting 3 h', 'answered by P16 (stalled 2 h)'.
+            def question_issues(question)
+                said = Links.question_issues(question, @reading.pieces,
+                                             Raid.method(:stalled))
+                said.empty? ? "" : part("issues", @scope.inline(said))
+            end
+
+            # 'decided in X2, X5', each linked to its row in the record.
+            def decided(item)
+                said = Links.decided(item["id"], @reading)
+                said ? part("decided", @scope.inline(said)) : ""
             end
 
             # 'answered by P5' while that piece is not settled, 'see F2'.
