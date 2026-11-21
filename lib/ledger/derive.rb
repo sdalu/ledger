@@ -2,6 +2,7 @@
 
 require "json"
 
+require "ledger/raid"
 require "ledger/snapshot"
 require "ledger/text/awaits"
 
@@ -17,6 +18,8 @@ module Ledger
     # Requiring this file loads the check rules too: the status line
     # proposes closing only when `--final` passes.
     class Derive
+        include Raid
+
         # The stall budget in minutes (S2); LEDGER_STALL_MINUTES overrides.
         STALL_MINUTES = 60
         SETTLED    = %w[verified kept].freeze
@@ -90,9 +93,8 @@ module Ledger
 
         # An out piece no event has touched for more than the budget.
         def stalled?(piece)
-            raise ArgumentError, "stalled? needs the events" unless @activity
-            return false unless piece[:status] == "out"
-            @now - @activity.touched.fetch(piece[:id]) > @stall_ms
+            touched = touched_at(piece)
+            piece[:status] == "out" && @now - touched > @stall_ms
         end
 
         def after(piece) = links(piece, "after").map { piece(it[:after_id]) }
@@ -246,7 +248,8 @@ module Ledger
         end
 
         # The status line `ledger status` prints, with `deferred:` (each
-        # piece with its condition) then `stalled:` after blocked (U14).
+        # piece with its condition), `assuming:` (the open assumptions)
+        # then `stalled:` after blocked (U14).
         # The beat's `unchanged ×N` is the check command's to append
         # (StatusLine.beat).
         class StatusLine
@@ -286,9 +289,12 @@ module Ledger
                 [named("out") { it[:status] == "out" },
                  named("back") { it[:status] == "back" },
                  named("blocked") { it[:status] == "blocked" },
-                 deferred,
+                 deferred, assumed,
                  named("stalled") { @derive.stalled?(it) }].compact
             end
+
+            # The assumptions waiting on their check.
+            def assumed = clause("assuming", @derive.assuming)
 
             def deferred
                 clause("deferred",

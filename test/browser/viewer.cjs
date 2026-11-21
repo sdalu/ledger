@@ -118,7 +118,7 @@ const [base, ledger, which] = process.argv.slice(2);
   // an open record fold keeps space under its list, whichever fold it is
   t('record folds keep their bottom padding', await p.evaluate(() => {
     const gaps = [...document.querySelectorAll('details.done-fold')].map(f => {
-      f.open = true; const ul = f.querySelector(':scope > .entries');
+      f.open = true; const ul = f.querySelector(':scope > .entries, :scope > .raid-fold');
       return f.getBoundingClientRect().bottom - ul.getBoundingClientRect().bottom;
     });
     for (const f of document.querySelectorAll('details.done-fold')) f.open = false;
@@ -488,7 +488,7 @@ const [base, ledger, which] = process.argv.slice(2);
         return e && e.classList.contains('tip') ? e.textContent : ''; };
       const f = s => [...document.querySelectorAll(s)].filter(a => /^[A-Z]\d+$/.test(a.textContent.trim()));
       const after = f('a[href^="#piece-"]').find(a => /waits for|after/.test(a.parentElement.textContent));
-      const forD = f('a[href^="#crit-"]').find(a => /for/.test(a.parentElement.textContent));
+      const forD = f('a[href^="#crit-"]').find(a => /serves|for/.test(a.parentElement.textContent));
       const gone = f('a[href="#piece-P99"]')[0];
       const side = [...document.querySelectorAll('.question-nav li.is-piece a')];
       return {after: after && tipOf(after), forD: forD && tipOf(forD), gone: gone ? tipOf(gone) : null,
@@ -496,7 +496,7 @@ const [base, ledger, which] = process.argv.slice(2);
               title: !!document.querySelector('a[href="#piece-P1"][aria-describedby]')};
     });
     t('P66 ' + w + ': an "after P<n>" (waits for) link carries its piece\'s title', /\S/.test(ids.after || '') && /^[a-z]/.test(ids.after));
-    t('P66 ' + w + ': a "for D<n>" link carries its criterion\'s title', /\S/.test(ids.forD || ''));
+    t('P66 ' + w + ': a "serves D<n>" link carries its criterion\'s title', /\S/.test(ids.forD || ''));
     t('P66 ' + w + ': a link to an id not in the ledger has no tip', ids.gone === '');
     t('P66 ' + w + ': a side-list link that shows its title has no tip', ids.side);
     const link = p.locator('a[href="#piece-P1"][aria-describedby]').first();
@@ -512,6 +512,30 @@ const [base, ledger, which] = process.argv.slice(2);
     t('P66 ' + w + ': the tip shows on keyboard focus', await p.evaluate(i => document.activeElement.getAttribute('aria-describedby') === i
       && getComputedStyle(document.getElementById(i)).display !== 'none', tid));
   }
+  // P22: a piece's and a question's card carry their RAID line, an assumption's chip leading to its row in the
+  // RAID fold, which lists Risks, Assumptions, Issues and Dependencies; nothing overflows the page; undone after
+  run('assume', 'the header fits one line — draw it at 412 px', '--for', 'P2,O1');
+  for (const w of [1300, 412]) {
+    await p.setViewportSize({width: w, height: 900});
+    await p.goto(base + page);
+    const r = await p.evaluate(() => {
+      const fold = document.querySelector('details.done-fold[id$="-raid"]');
+      if (fold) fold.open = true;
+      const line = document.querySelector('#piece-P1 .raid');
+      const row = document.getElementById('raid-A1');
+      return {line: !!line && line.getBoundingClientRect().height > 0 && /no risk rated/.test(line.textContent),
+              rests: !!document.querySelector('#q-O1 .raid a[href="#raid-A1"]') && !!row
+                && row.getBoundingClientRect().height > 0,
+              lists: fold ? [...fold.querySelectorAll('h3')].map(h => h.textContent.split(' (')[0]).join(', ') : '',
+              fits: document.documentElement.scrollWidth <= document.documentElement.clientWidth};
+    });
+    t('P22 ' + w + ': a piece in flight says its risk is not rated on its RAID line', r.line);
+    t('P22 ' + w + ': a question\'s line names A1, which leads to its row in the RAID fold', r.rests);
+    t('P22 ' + w + ': the RAID fold lists Risks, Assumptions, Issues, Dependencies',
+      r.lists === 'Risks, Assumptions, Issues, Dependencies');
+    t('P22 ' + w + ': no horizontal overflow with the RAID fold open', r.fits);
+  }
+  run('undo');
   // P70: the side list's subtitle is meta text, never drawn as a link
   for (const w of [1300, 412]) {
     await p.setViewportSize({width: w, height: 900});

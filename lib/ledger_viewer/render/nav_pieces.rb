@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require_relative "raid"
 require_relative "reading"
 require_relative "terms"
 require_relative "text"
@@ -48,9 +49,17 @@ module LedgerViewer
                 when "blocked" then %w[blocked is-fail]
                 when "deferred"
                     ["deferred · until #{piece["until"]}", "is-flight"]
-                when "out", "back" then [with(piece, status), "is-flight"]
+                when "out", "back" then [with(piece, stalled(piece, status)),
+                                         "is-flight"]
                 else [after(piece, status), "is-flight"]
                 end
+            end
+
+            # 'out · stalled 2 h' for a stalled piece.
+            def stalled(piece, status)
+                return status unless piece["stalled"]
+
+                "#{status} · #{Raid.stalled(piece)}"
             end
 
             def with(piece, status)

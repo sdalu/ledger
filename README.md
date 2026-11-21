@@ -167,6 +167,19 @@ piece awaits and leaves its `awaits` once every awaited word is given);
 TEXT` add one line to Facts, Constraints, Decisions and Out of scope,
 noticed (`constraint` strips one pair of outer double quotes from
 QUOTE). A command that gives a new id prints it alone on its first line.
+`assume PATH "TEXT — how it will be checked" [--see F<n>,C<n>…] [--for
+P<n>,O<n>…]` records an assumption, `A<n>` under *Assumptions:* after
+Facts: what the plan takes as true without having checked it (unlike a
+fact it is not verified, unlike a decision it is a belief, not a
+choice), with what it rests on (`— see:`) and the pieces and questions
+resting on it (`— for:`), open until a fact of the ledger settles it:
+`assume PATH A<n> --confirmed-by F<n>` or `--refuted-by F<n>` (the line
+ends `— by: F4`; settled once, `--reopen` first to settle it again),
+`--for IDS` to replace what rests on it. While a piece in flight or an
+open question rests on a refuted one, `check` fails
+`assumptions-refuted`; one settled without its fact fails
+`assumptions-settled`. The status line names the open ones, `assuming:
+A2, A5`, and the resume view lists them with their check.
 `criterion PATH D<n> (--met EVIDENCE | --unmet WHY | --unmark | --text
 T)` marks a criterion `[x]` with evidence or `[-]` with why, takes the
 mark back to `[ ]` (`--unmark`, its evidence or why cleared), or
@@ -301,6 +314,22 @@ session's status line folded under *Ledger details*, then what remains
 (questions to answer, answers sent and awaiting filing, questions being
 prepared, unfinished pieces with a fold to propose their order,
 criteria not met, failing shape checks) with what is done folded below.
+Every piece card (in flight, waiting on a word, on record) and every
+question card carries a RAID line under its case, each part left out
+when it has nothing to say: the risk (its ten-step meter, or *no risk
+rated* for a piece in flight), the assumptions it rests on (`rests on
+A1 (open), A2 (refuted)`, each chip leading to its row), its issues
+(`blocked`, `stalled 2 h`, `returned 2: depth, unrecorded`) and what it
+depends on (`waits for P3`, `serves D2`, `answered by P5`, `see F2`).
+The record opens with a *RAID* fold of four lists: Risks (every rated
+one, highest first), Assumptions (open first, then confirmed and
+refuted, each with its check, what it rests on, what rests on it and the
+fact that settled it; then the decisions by me, the session's
+reviewable judgements, each with what it rests on), Issues (open
+questions, blocked and stalled pieces, failing
+checks, noticed lines) and Dependencies (each after or by piece not
+settled, each deferred condition). A stalled piece says so in the side
+list too (`out · stalled 2 h · with sonnet`).
 A question already answered counts as the session's turn, not the
 user's. Every request reads the journal, and the index reloads itself
 within three seconds of a ledger changing, unless a form differs from
@@ -352,8 +381,8 @@ What the page takes, all as inbox entries, of the four kinds
 `O<n>`, `P<n>`, `order`), the one list `inbox` and the hooks use:
 
 - **An answer** to each open question, which carries its case:
-  `— problem:`, `— risk: N/10 — …` (rated 0 to 10, shown as a badge
-  coloured by band), each option `X = what it does, what it
+  `— problem:`, `— risk: N/10 — …` (rated 0 to 10, shown on the card's
+  RAID line as a meter coloured by band), each option `X = what it does, what it
   costs`, and `— recommend: X, why`, shown as labelled rows under the
   question's title, the recommended option marked. `check` fails a
   question without its problem and risk, or, once it can be answered,
@@ -392,8 +421,8 @@ What the page takes, all as inbox entries, of the four kinds
 - **A word on a piece** the ledger says awaits one (`— awaits: start`,
   on a planned or kept piece; `commit, deploy`, `other (what)`; the
   words are start, commit, deploy, push, merge): its card under Waiting
-  on you reads problem first (head, problem, risk, plan, then *What it
-  covers* folded) and has
+  on you reads problem first (head, problem and plan, its RAID line,
+  then *What it covers* folded) and has
   a button per word, the one for all of them filled and first (no click
   is the wait); the entry carries `word`, and the server refuses a word
   the piece does not await. A piece may carry `— scope: commit = what it
@@ -634,7 +663,8 @@ Read only:
   nowhere else: a ledger addressed in a subdirectory passes
   `bin/ledger`, but no hook sees it. `session-start` also shows the
   resume view (at most 10 000 characters across the session's ledgers:
-  status line, Goal blocks, Constraints, open questions, pieces in
+  status line, Goal blocks, Constraints, open questions, open
+  assumptions, pieces in
   flight), at a start, a resume and a compaction; any error is a silent
   exit 0, a start hook never blocks a session.
 - The viewer reads the journal through `Ledger::Read`, and writes inbox

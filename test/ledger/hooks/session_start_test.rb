@@ -47,6 +47,24 @@ class SessionStartTest < HookTest
         assert_match(/^- P1 .* — until: three closures$/, text)
     end
 
+    def assumption(change, state)
+        change.insert(:assumptions, n: change.next_id("A"),
+                                    text: "it is #{state}", check: "try it",
+                                    state:)
+    end
+
+    def test_the_open_assumptions_are_listed_with_their_check
+        write("import") do |change|
+            %w[open confirmed].each { assumption(change, it) }
+        end
+        text = context("startup")
+
+        assert_includes text, "Assuming:\n- A1 [open] it is open — check: " \
+                              "try it"
+        refute_includes text, "A2 [confirmed]"
+        assert_includes text, "assuming: A1"
+    end
+
     def test_clear_shows_nothing_but_entries
         fill
 

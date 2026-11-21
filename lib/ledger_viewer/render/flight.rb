@@ -45,7 +45,7 @@ module LedgerViewer
 
             # A deferred piece's meta opens with what it waits on.
             def fields(piece)
-                found = Links.fields(piece, @reading.settled)
+                found = Links.fields(piece)
                 condition = piece["until"] or return found
 
                 meta = ["until #{condition}", found[:meta]].reject(&:empty?)
@@ -87,10 +87,15 @@ module LedgerViewer
                 { cls: "#{tone} is-card", tag: piece["id"],
                   text: piece["title"], card: true, state: piece["status"],
                   detail: piece["detail"].to_s,
-                  kase: @kit.cases.facets(piece),
-                  anchor: "piece-#{piece["id"]}",
+                  kase: kase(piece), anchor: "piece-#{piece["id"]}",
                   why: Why.icon(@kit.lid, piece["id"]),
                   tag_tip: Status.tip(piece) }
+            end
+
+            # The facets, then the RAID line.
+            def kase(piece)
+                facets = @kit.cases.facets(piece)
+                facets + @kit.raid.piece(piece, flight: true)
             end
 
             def comment(piece)

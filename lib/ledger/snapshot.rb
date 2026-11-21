@@ -9,16 +9,22 @@ module Ledger
         # Keyed by ledger_id.
         LEDGER_TABLES = %i[goals criteria constraints facts decisions links
                            pieces piece_returns questions noticed
-                           inbox_entries].freeze
+                           inbox_entries assumptions].freeze
         # Keyed by piece_id, through pieces.
         PIECE_TABLES = %i[piece_links piece_awaits piece_scopes
                           piece_briefs piece_criteria piece_pictures].freeze
         # Keyed by question_id, through questions.
         QUESTION_TABLES = %i[question_choices question_items question_sees
                              question_pictures].freeze
+        # Keyed by assumption_id, through assumptions.
+        ASSUMPTION_TABLES = %i[assumption_sees assumption_links].freeze
+        # The child tables, by the key naming their owner and its table.
+        CHILDREN = { piece_id: [:pieces, PIECE_TABLES],
+                     question_id: [:questions, QUESTION_TABLES],
+                     assumption_id: [:assumptions, ASSUMPTION_TABLES] }.freeze
         PICTURE_COLUMNS = %i[id ledger_id name path type event_id].freeze
         TABLES = (LEDGER_TABLES + PIECE_TABLES + QUESTION_TABLES +
-                  [:pictures]).freeze
+                  ASSUMPTION_TABLES + [:pictures]).freeze
 
         def self.read(db, ledger_id)
             ledger = db[:ledgers].where(id: ledger_id).first
@@ -35,14 +41,12 @@ module Ledger
 
         # The condition that picks a table's rows of one ledger.
         def self.owner(db, table, ledger_id)
-            case table
-            when *PIECE_TABLES
-                { piece_id: db[:pieces].where(ledger_id:).select(:id) }
-            when *QUESTION_TABLES
-                { question_id: db[:questions].where(ledger_id:).select(:id) }
-            else
-                { ledger_id: }
+            key, (parent,) = CHILDREN.find do |_, (_, tables)|
+                tables.include?(table)
             end
+            return { ledger_id: } unless key
+
+            { key => db[parent].where(ledger_id:).select(:id) }
         end
 
         attr_reader :ledger, :tables

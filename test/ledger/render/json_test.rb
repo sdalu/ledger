@@ -128,15 +128,16 @@ end
 # The document's shape: the keys in the note's order, the rows as
 # values, derived states from Derive.
 class JsonTest < JsonCase
-    TOP = %i[schema kind ledger goals criteria constraints facts decisions
-             links closed_questions pictures pieces questions refs noticed
-             inbox asked status fails].freeze
+    TOP = %i[schema kind ledger goals criteria constraints facts assumptions
+             decisions links closed_questions pictures pieces questions refs
+             noticed inbox asked status fails].freeze
     PIECE = %i[id status kept_reason until route route_text title detail
-               done_when evidence after for awaits scope problem risk plan
-               verified_by claim ready stalled settled brief criteria
-               returns pictures no_picture line].freeze
+               done_when evidence after for awaits scope rests_on_assumptions
+               problem risk plan verified_by claim ready stalled touched_at
+               settled brief criteria returns pictures no_picture line].freeze
     QUESTION = %i[id title detail problem risk recommend choices items by see
-                  pictures preparing preparing_status asked_since line].freeze
+                  pictures rests_on_assumptions preparing preparing_status
+                  asked_since line].freeze
 
     EMPTY = {
         schema: 1, kind: "ledger",
@@ -148,7 +149,8 @@ class JsonTest < JsonCase
                   date: "2026-11-19", revised: false, title: nil, short: nil,
                   context: nil, quote: "the user's words", done: false,
                   done_evidence: nil }],
-        criteria: [], constraints: [], facts: [], decisions: [], links: [],
+        criteria: [], constraints: [], facts: [], assumptions: [],
+        decisions: [], links: [],
         closed_questions: [], pictures: [], pieces: [], questions: [],
         refs: {}, noticed: [], inbox: [], asked: {},
         status: "Status — criteria 0/0 · pieces 0/0 verified",

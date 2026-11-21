@@ -56,7 +56,7 @@ module LedgerViewer
             end
 
             def case_of(question)
-                @kit.cases.block(question) +
+                @kit.cases.block(question) + @kit.raid.question(question) +
                     @kit.refs.fold(question["see"], @reading.refs)
             end
 

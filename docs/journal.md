@@ -46,7 +46,9 @@ decision's id is `X<n>` (Links and view): given by the counter, shown by
 Markdown. A Goal block's id is `G<n>`: given by the counter (`new`
 gives `G1`, each `goal` revision the next), printed in its label
 (`Goal G2 (2026-11-21, revised, verbatim):`) and taken by `goal PATH
-G<n> --done | --undone` and `show PATH G<n>`. An `Out of scope,
+G<n> --done | --undone` and `show PATH G<n>`. An assumption's id is
+`A<n>`: given by the counter, printed on its line under `Assumptions:`
+and taken by `assume PATH A<n> …` and `show PATH A<n>`. An `Out of scope,
 noticed` line has the id `Z<n>` of its row, printed nowhere in the
 Markdown.
 
@@ -366,6 +368,55 @@ Sequel.migration do
 end
 ```
 
+```ruby
+# frozen_string_literal: true
+
+# lib/ledger/migrations/007_assumptions.rb (sketch)
+Sequel.migration do
+    up do
+        create_table(:assumptions) do
+            primary_key :id
+            foreign_key :ledger_id, :ledgers, null: false
+            Integer :n, null: false      # A<n>
+            String :text, null: false    # P, what is taken as true
+            String :check, null: false   # P, how it will be checked
+            String :state, null: false   # open | confirmed | refuted
+            foreign_key :fact_id, :facts # the fact that settled it
+            unique %i[ledger_id n]
+        end
+        create_table(:assumption_sees) do  # — see: F2, C1
+            primary_key :id
+            foreign_key :assumption_id, :assumptions, null: false
+            Integer :position, null: false
+            # one of constraint_id, criterion_id, fact_id, piece_id
+        end
+        create_table(:assumption_links) do # — for: P3, O2
+            primary_key :id
+            foreign_key :assumption_id, :assumptions, null: false
+            foreign_key :piece_id, :pieces
+            foreign_key :question_id, :questions
+        end
+        # counters: A joins the kinds, each ledger's at 0
+    end
+end
+```
+
+**An assumption.** What the plan takes as true without having checked
+it, recorded so that it is checked before it bites: unlike a fact it is
+unverified, unlike a decision it is a belief, not a choice. `assume PATH
+'TEXT — CHECK'` opens `A<n>`, the text and how it will be checked split
+at the first ` — `; `--see F2,C1` writes an `assumption_sees` row per
+item it rests on (a constraint, criterion, fact or piece, as `question_sees`
+does), `--for P3,O2` an `assumption_links` row per piece or question
+resting on it, each in the order given. `assume PATH A<n> --confirmed-by
+F<n>` or `--refuted-by F<n>` settles it by a fact of the ledger, kept in
+`fact_id`; `--reopen` makes it open again and clears it; `--for IDS`
+replaces its links. The schema keeps an open one without a fact; that a
+settled one names its fact is the rule `assumptions-settled`'s, since
+only a hand or an old write can leave one without. Every one goes
+through the write path, so `undo` and `restore` take it back; `renumber`
+counts the assumptions' references to an item.
+
 **A piece's before/after.** A piece awaiting a word that changes
 something the user sees shows it: `mockup PATH FILE --piece P<n>
 --before|--after` stores one file as a `pictures` row and a
@@ -441,7 +492,10 @@ schema makes impossible (section 5):
 | question_sees, question_pictures | exactly one target column set |
 | pictures | `name <> ''`; `type` in the served list |
 | links | `kind` and its ends: answers X→O; replaces X→X or O→O; rests_on X→F or C; led_to X→P or O; `to_row` set |
-| counters | `kind IN ('P','O','D','C','F','N','X','G')` |
+| assumptions | `text`, `check` `<> ''`; `state IN ('open','confirmed','refuted')`; `fact_id` NULL while open; `n` unique per ledger |
+| assumption_sees | exactly one target column set |
+| assumption_links | exactly one of `piece_id`, `question_id` set |
+| counters | `kind IN ('P','O','D','C','F','N','X','G','A')` |
 
 A `pictures.name` is unique per ledger with its `path`; a mockup placed
 as a directory is one `name` with a row per file, `path` the file's
@@ -577,6 +631,9 @@ stored.
 | asked since (O<n>) | the later of the question's insert event and the event that last settled its preparer |
 | asked since (P<n>:word) | the event that inserted that `piece_awaits` row |
 | stuck (`unchanged ×N`) | the status line equals `beat_line`; `beat_count` is N |
+| touched at | the time of the last event row touching the piece (the stall's clock; the viewer says `stalled 2 h`) |
+| rests on | a piece's or a question's assumptions: the `assumption_links` naming it, in id order |
+| assuming | the assumptions in state `open`, by id |
 
 "Touching it" means an `event_rows` line on the piece's row or on one of
 its `piece_links`, `piece_awaits`, `piece_scopes`, `piece_briefs`,
@@ -588,13 +645,14 @@ a whole number above 0 is refused, exit 2, at the first command that
 derives (hard error over a silent default). A question with
 `closed_at` set is in no derived state.
 
-**The status line**, with `deferred:` (each piece with its condition)
-then `stalled:` (U14) after `blocked:`:
+**The status line**, with `deferred:` (each piece with its condition),
+`assuming:` (the open assumptions) then `stalled:` (U14) after
+`blocked:`:
 
 ```
 Status — criteria 3/4 · pieces 14/15 verified, 1 kept · out: P2 ·
-back: … · blocked: … · deferred: P6 (three closures) · stalled: P2 ·
-waiting on you: O3 · being
+back: … · blocked: … · deferred: P6 (three closures) · assuming:
+A2, A5 · stalled: P2 · waiting on you: O3 · being
 prepared: O9 (P36) · your word: P47 (commit, deploy) · from the
 viewer: N1 · done: propose close
 ```
@@ -619,7 +677,7 @@ command's refusal, exit 2, nothing written.
 | `goal PATH --quote --title --short [--context] [--date] [--dry-run]` | the new Goal block (its id the next `G<n>`), status line | title; empty short; quote under 4 words (a go-ahead); `--done` or `--undone` without a `G<n>`; checks |
 | `goal PATH G<n> (--done EVIDENCE \| --undone) [--dry-run]` | the Goal block, status line | not `G<n>`; no such block; neither or both of `--done`, `--undone`; empty evidence; `--done` on a block done, `--undone` on one active; with `--quote`, `--title`, `--short`, `--context` or `--date`; checks |
 | `check [--final] [--peek] [--fix-hints] [--json] PATH` | `ok  name` / `FAIL name -- detail` per rule, `  hint:` after a FAIL, status line (the beat, unless `--peek`); `--json` prints JSON v1 | exit 1 on any FAIL |
-| `show PATH [ID] [--json]` | PATH a live address or `L<id>`, live or closed; no ID: the whole ledger as Markdown, a closed one's followed by a blank line and `closed: TIME` or `abandoned: TIME` (ISO 8601, `closed_at`); an ID (`P`, `O`, `D`, `C`, `F`, `X`, `G`, `Z`): its fields as `key: value` lines, links as `answers: O3`, `rests-on: F2, C3` lines; or JSON v1 | unknown id |
+| `show PATH [ID] [--json]` | PATH a live address or `L<id>`, live or closed; no ID: the whole ledger as Markdown, a closed one's followed by a blank line and `closed: TIME` or `abandoned: TIME` (ISO 8601, `closed_at`); an ID (`P`, `O`, `D`, `C`, `F`, `A`, `X`, `G`, `Z`): its fields as `key: value` lines, links as `answers: O3`, `rests-on: F2, C3` lines; or JSON v1 | unknown id |
 | `status PATH [--json]` | the status line; JSON v1 | |
 | `survey [DIR] [--peer NAME] [--json]` | read-only, for a session with no goal: each live ledger at DIR (the current directory by default) or under it: its address, its status line as `check --peek` prints it, its pending entries as `inbox` prints them; with `--peer`, the pieces of any live ledger whose `peer` is exactly NAME, one `ADDRESS  piece line` each; nothing found says so; no beat, no event; JSON v1 | |
 | `stats [PATH] [--json]` | one row per route over every ledger, live and closed, or one (a live address, or `L<id>` live or closed): `route` (`MODEL, effort: E`, `peer: NAME` or `kept`, the route a piece has now), `pieces`, `first-pass` (of the pieces verified, those never back to planned from out or back), `blocked` (ever blocked, of all), `out, median` (each span from the event setting a piece out to the next that changes its status; a piece still out counts none), `returns` (by cause from `piece_returns`, a return in `event_rows` with no row as `unrecorded`); over every ledger (no PATH), a last line `closed ledgers: N finished, M abandoned` (an abandoned one: its `close` event's `argv` holds `--abandon`), in JSON `closed: {finished, abandoned}`; JSON v1. Only the events still in force count: no undo or restore, nor an event one of them reverted (unless a later restore reverted that revert). Reads `events`, `event_rows` and `piece_returns`, writes nothing (no event, no beat) | unknown address or `L<id>` |
@@ -634,6 +692,8 @@ command's refusal, exit 2, nothing written.
 | `mockup PATH FILE --piece P<n> --before\|--after [--replace]` | `placed FILE as P<n> ROLE`, status line; `--replace` takes the piece's earlier picture of that side away (its blob stays) | with `--question`; not P<n>; no such piece; not exactly one of `--before`, `--after`; more than one file, or a directory; that side already placed, without `--replace`; symlink; missing; a name `mockup:` cannot spell; a type not served; a name already placed |
 | `choice PATH O<n> (--add \| --drop) [--dry-run]` | the question line, the card (dry run), status line | not O<n>; not open; no choices; `--add` without ` = `; `--drop` unknown; option grammar; checks |
 | `fact PATH TEXT [--dry-run]` | the id, the line, status line | no ` — pointer` (text and pointer split at the first ` — `); checks |
+| `assume PATH 'TEXT — CHECK' [--see C/D/F/P ids] [--for P<n>,O<n>…] [--dry-run]` | the id (`A<n>`, open), the line `- A1 [open] TEXT — check: CHECK — see: F2, C1 — for: P3, O2`, status line; an id given twice is linked once | no ` — check` (text and check split at the first ` — `); a `--see` id not a C, D, F or P of the ledger; a `--for` id not a P or O of the ledger; an empty `--see` or `--for`; `--confirmed-by`, `--refuted-by` or `--reopen` without an `A<n>`; checks |
+| `assume PATH A<n> (--confirmed-by F<n> \| --refuted-by F<n> \| --for IDS \| --reopen) [--dry-run]` | the line (`— by: F4` once settled), status line; `--for` replaces what rests on it, `--reopen` clears the fact | no such assumption; not exactly one of the four; an empty value; a fact not `F<n>` or not this ledger's; settling one already confirmed or refuted (`--reopen` it first); reopening one open; `--see`; a `--for` id not a P or O of the ledger; checks |
 | `constraint PATH QUOTE --where W [--dry-run]` | the id, the line, status line | empty quote; empty where |
 | `decide PATH TEXT --by user\|me [--note] [--date] [--rests-on F<n>,C<n>…] [--led-to P<n>,O<n>…] [--replaces X<n>] [--dry-run]` | the id (`X<n>`), the line, status line | by; empty; a target not this ledger's or of another kind; checks |
 | `noticed PATH TEXT [--dry-run]` | the line, status line | empty |
@@ -691,11 +751,13 @@ per rule, its commands spelled for `bin/ledger`
 | pictures | a piece awaiting commit, deploy, push or merge has a `before` and an `after` placed (`mockup --piece`) or a `no_picture` reason; `start` and `other` are exempt, a word given leaves with its awaits row; the detail is `no before/after: P4 (awaits commit; has before)` | `checks/sides.rb` |
 | titles | pieces in flight and open questions: the title rule | `checks/pieces.rb`, `checks/open.rb` |
 | details | a detail not mostly ids | same |
-| codes | no code of one or two capitals and digits (W1, S4) standing alone whose letter is not a kind (P O D C F X N Z E L G), unless an open question's `— see:` names an item whose words hold it; read in the latest Goal block's title, short and context (its id `G<n>` in the detail), pieces in flight (title, detail, problem, plan), open questions (title, detail, problem, risk, recommend), decisions (body, note), facts (text, pointer), constraints' where and noticed lines; not in the Goal quote, a constraint's quote, double quotes, `` `code` `` or a URL; the detail is `ID: CODE, …`; a write is refused only for a code it adds (section 2) | `checks/codes.rb`, tokens in `text/codes.rb` |
+| codes | no code of one or two capitals and digits (W1, S4) standing alone whose letter is not a kind (P O D C F X N Z E L G A), unless an open question's `— see:` names an item whose words hold it; read in the latest Goal block's title, short and context (its id `G<n>` in the detail), pieces in flight (title, detail, problem, plan), open questions (title, detail, problem, risk, recommend), decisions (body, note), facts (text, pointer), constraints' where and noticed lines; not in the Goal quote, a constraint's quote, double quotes, `` `code` `` or a URL; the detail is `ID: CODE, …`; a write is refused only for a code it adds (section 2) | `checks/codes.rb`, tokens in `text/codes.rb` |
 | pieces-order | out, back or verified only once `after` is settled; none waits for a dropped piece | `checks/pieces.rb` |
 | criteria-pieces | no criterion met while a piece serving it is unfinished | `checks/criteria.rb` |
 | case-rated | a rated risk on every open question and on every piece awaiting a word, a problem on that piece, Title and In short on the latest Goal | `checks/open.rb`, `checks/pieces.rb`, `checks/goal.rb` |
 | verified-by | a verified piece is not verified by its own route | `checks/pieces.rb` |
+| assumptions-refuted | no piece in flight (planned, out, back, blocked, deferred) and no open question rests on a refuted assumption; the detail is `P3 rests on A2 (refuted)`; reported only, never compared by the write path (`Checks::REPORTED`): the write it would refuse (`assume A<n> --refuted-by F<n>`) is the one that records what was found | `checks/assumptions.rb` |
+| assumptions-settled | an assumption confirmed or refuted names the fact that settled it; the detail is `A2 confirmed without its fact` | `checks/assumptions.rb` |
 | final-pieces | `--final`: none planned, out or back | `checks/final.rb` |
 | final-deferred | `--final`: none deferred, each named with its condition, `deferred: P6 (three closures)` | `checks/final.rb` |
 | final-awaits | `--final`: no word owed | `checks/final.rb` |
@@ -745,12 +807,13 @@ other reader through `--json`; the hooks read the `Snapshot` and the
 | criteria | `[{id, mark, text, evidence, why, line}]` |
 | constraints | `[{id, text, quote, where, where_kind, line}]` (`where` is the line after `"QUOTE" — `; both null when the line has another shape) |
 | facts | `[{id, text, pointer, pointer_kind, line}]` |
+| assumptions | `[{id, text, check, state, fact, see: [ids], for: [P \| O], line}]` (`id` is `A<n>`, `state` open, confirmed or refuted, `fact` the `F<n>` that settled it or null, `see` what it rests on in position order, `for` what rests on it in link order) |
 | decisions | `[{id, date, body, by, note, subject, line}]` (`id` is `X<n>`) |
 | links | `[{kind, from, to}]`, visible ids at both ends |
 | closed_questions | the `questions` shape plus `closed_at`, the rows with `closed_at` set, oldest first (the graph page reads them) |
 | pictures | `[{name, files: [{path, type, size}]}]` |
-| pieces | `[{id, status, kept_reason, until, route: {model, effort, skills, peer} \| null, route_text, title, detail, done_when, evidence, after: [P], for: [D], awaits: [{word, what}], scope: [{word, text}], problem, risk: {rating, text}, plan, verified_by, claim: {session, since} \| null, ready, stalled, settled, brief: {version, at} \| null, criteria: [{text, mark, evidence}], returns: [{cause, from, at, actor}], pictures: [{role, name}], no_picture, line}]` (`returns` oldest first, `pictures` before first) |
-| questions | `[{id, title, detail, problem, risk: {rating, text}, recommend, choices: [{label, effect, cost, text}], items, by, see: [ids], pictures: [{name} \| {pending}], preparing: P \| null, preparing_status, asked_since, line}]` |
+| pieces | `[{id, status, kept_reason, until, route: {model, effort, skills, peer} \| null, route_text, title, detail, done_when, evidence, after: [P], for: [D], awaits: [{word, what}], scope: [{word, text}], rests_on_assumptions: [A], problem, risk: {rating, text}, plan, verified_by, claim: {session, since} \| null, ready, stalled, touched_at, settled, brief: {version, at} \| null, criteria: [{text, mark, evidence}], returns: [{cause, from, at, actor}], pictures: [{role, name}], no_picture, line}]` (`returns` oldest first, `pictures` before first) |
+| questions | `[{id, title, detail, problem, risk: {rating, text}, recommend, choices: [{label, effect, cost, text}], items, by, see: [ids], pictures: [{name} \| {pending}], rests_on_assumptions: [A], preparing: P \| null, preparing_status, asked_since, line}]` |
 | refs | `{id: {kind, line}}` for C, D, F, P and X |
 | noticed | `[line]` |
 | inbox | `[{id, at, ref, payload, malformed, taken, taken_at, taken_by}]` |
@@ -842,7 +905,8 @@ never cut). Per ledger, every line as `show` prints it:
 3. every Goal block, verbatim;
 4. Constraints, verbatim;
 5. Open: each question's line;
-6. In flight: each blocked, back, out, planned, deferred piece's line
+6. Assuming: each open assumption's line, its check on it;
+7. In flight: each blocked, back, out, planned, deferred piece's line
    (a deferred one ends `— until: CONDITION`), `(ready)` or `(stalled)`
    appended where derived.
 

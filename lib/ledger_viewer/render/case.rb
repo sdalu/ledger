@@ -1,19 +1,18 @@
 # frozen_string_literal: true
 
-require_relative "helpers"
 require_relative "reading"
 require_relative "recommend"
 require_relative "text"
 
 module LedgerViewer
     module Render
-        # A card's case: what is wrong, what is at stake, what will be
-        # done, and what each option of a question does.
+        # A card's case: what is wrong, what will be done, and what each
+        # option of a question does; what is at stake is the card's RAID
+        # line (Raid).
         class Case
             FACETS = [%w[problem Problem circle-alert],
-                      %w[risk Risk shield-alert],
                       %w[plan Plan route]].freeze
-            Facet = Data.define(:cls, :icon, :label, :lead, :text)
+            Facet = Data.define(:cls, :icon, :label, :text)
 
             def initialize(scope) = @scope = scope
 
@@ -25,9 +24,8 @@ module LedgerViewer
                   "recommend" => item["recommend"] }
             end
 
-            # What is wrong, at stake and to be done, as facets side by
-            # side; a rated risk shows a ten-step meter. `item` is a piece
-            # or a question.
+            # What is wrong and what is to be done, as facets side by
+            # side. `item` is a piece or a question.
             def facets(item)
                 case_of = Case.fields(item)
                 rows = FACETS.filter_map { facet(case_of, *it) }
@@ -36,8 +34,8 @@ module LedgerViewer
                 @scope.partial("ledger/facets", rows:)
             end
 
-            # A question's case under its title: the problem, the risk,
-            # what each option does, and the one recommended.
+            # A question's case under its title: the problem, what each
+            # option does, and the one recommended.
             def block(question)
                 fields = Case.fields(question)
                 rows = options(question, fields) + recommended(question, fields)
@@ -64,20 +62,7 @@ module LedgerViewer
                 text = Text.strip(case_of[key].to_s)
                 return if text.empty?
 
-                cls = "facet #{key}"
-                return Facet.new(cls, icon, label, "", text) unless
-                    key == "risk"
-
-                rated(cls, icon, label, text)
-            end
-
-            def rated(cls, icon, label, text)
-                rating, rest = Text.risk_rating(text)
-                return Facet.new(cls, icon, label, "", text) unless rating
-
-                band = Helpers.risk_band(rating)
-                Facet.new("#{cls} #{band}", icon, label,
-                          @scope.partial("ledger/rating", rating:), rest)
+                Facet.new("facet #{key}", icon, label, text)
             end
 
             def options(question, fields)

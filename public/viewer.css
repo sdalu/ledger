@@ -663,7 +663,7 @@
     }
   }
 
-  /* problem, risk, plan: facets side by side on a wide card, stacked on a
+  /* problem, plan: facets side by side on a wide card, stacked on a
      narrow one; each a coloured rule, an icon and a label over its text */
   .facets {
     display: grid;
@@ -691,18 +691,17 @@
     }
     & > dd { margin: 0; line-height: 1.45; }
     &.plan { --facet: var(--accent); }
-    &.risk.is-low { --facet: var(--ok); }
-    &.risk.is-mid { --facet: var(--ask); }
-    &.risk.is-high { --facet: var(--fail); }
-    /* the rating: ten steps filled to it, then the figure */
-    & .rating {
-      display: flex;
-      align-items: center;
-      gap: var(--space-xs);
-      margin-block-end: 0.2rem;
-      font: 600 0.75rem/1.5 var(--font-mono);
-      color: var(--facet);
-    }
+  }
+
+  /* a risk's rating: ten steps filled to it, then the figure, in the
+     colour of its band (set by the risk's own element) */
+  .rating {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-xs);
+    vertical-align: middle;
+    font: 600 0.75rem/1.5 var(--font-mono);
+    color: var(--risk, var(--muted));
     & .meter {
       display: inline-flex;
       gap: 2px;
@@ -710,13 +709,63 @@
         inline-size: 0.55rem;
         block-size: 0.7rem;
         border-radius: 2px;
-        background: color-mix(in oklab, var(--facet) 18%, transparent);
+        background: color-mix(in oklab, var(--risk, var(--muted)) 18%, transparent);
         @media (forced-colors: active) { border: 1px solid CanvasText; }
       }
       & > span.is-on {
-        background: var(--facet);
+        background: var(--risk, var(--muted));
         @media (forced-colors: active) { background: CanvasText; }
       }
+    }
+  }
+  :is(.raid-part.risk, .raid-list > li) {
+    &.is-low { --risk: var(--ok); }
+    &.is-mid { --risk: var(--ask); }
+    &.is-high { --risk: var(--fail); }
+  }
+
+  /* a card's RAID line: its risk, the assumptions it rests on, its issues
+     and what it depends on, side by side, wrapping part by part */
+  .raid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-xs) var(--space-m);
+    margin-block: var(--space-s) 0;
+    padding-block-start: var(--space-xs);
+    border-block-start: 1px dashed var(--rule);
+    font-size: 0.8125rem;
+    line-height: 1.6;
+    color: var(--muted);
+    & .raid-part { min-inline-size: 0; }
+    & .issues { font-weight: 600; color: var(--fail); }
+    & .risk.is-unrated { font-style: italic; }
+    & a.raid-a { text-decoration: none; }
+    & .tag { margin: 0; }
+  }
+  .raid-state {
+    &.is-confirmed { color: var(--ok); }
+    &.is-refuted { font-weight: 600; color: var(--fail); }
+  }
+
+  /* the RAID fold: four short lists under their own small headings */
+  .raid-fold {
+    margin-inline: var(--space-m);
+    & > h3 {
+      margin-block: var(--space-s) var(--space-xs);
+      font-size: 0.8125rem;
+      font-weight: 600;
+      color: var(--muted);
+    }
+    & > .entries { box-shadow: none; }
+    & li {
+      scroll-margin-block-start: var(--space-m);
+      & > .rating { margin-inline-end: var(--space-xs); }
+      &.is-open { border-inline-start-color: var(--ask); }
+      &.is-confirmed { border-inline-start-color: var(--ok); }
+      &.is-refuted { border-inline-start-color: var(--fail); }
+      &.is-low { border-inline-start-color: var(--ok); }
+      &.is-mid { border-inline-start-color: var(--ask); }
+      &.is-high { border-inline-start-color: var(--fail); }
     }
   }
 

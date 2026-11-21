@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "ledger/render/assumption_line"
 require "ledger/render/items"
 require "ledger/render/piece_line"
 require "ledger/render/question_line"
@@ -15,7 +16,7 @@ module Ledger
         #     Ledger::Render::Markdown.line(snapshot, "P3")  # one line
         class Markdown
             HEADER = "# Ledger (format 2)"
-            REF = /\A(?<kind>[PODCFX])(?<n>[1-9]\d*)\z/
+            REF = /\A(?<kind>[PODCFXA])(?<n>[1-9]\d*)\z/
             # The table and the line builder of the kinds Items renders.
             ITEMS = { "D" => %i[criteria criterion],
                       "C" => %i[constraints constraint],
@@ -24,11 +25,12 @@ module Ledger
             # The sections of Items' kinds, in file order, by label.
             SECTIONS = { "Done when" => "D",
                          "Constraints (verbatim, where said)" => "C",
-                         "Facts" => "F", "Decisions" => "X" }.freeze
+                         "Facts" => "F", "Assumptions" => "A",
+                         "Decisions" => "X" }.freeze
 
             def self.render(snapshot) = new(snapshot).render
 
-            # The line of the item REF names (P, O, D, C, F or X).
+            # The line of the item REF names (P, O, D, C, F, A or X).
             def self.line(snapshot, ref) = new(snapshot).line(ref)
 
             def initialize(snapshot)
@@ -36,6 +38,7 @@ module Ledger
                 refs = Refs.new(snapshot)
                 @piece = PieceLine.new(snapshot, refs)
                 @question = QuestionLine.new(snapshot, refs)
+                @assumption = AssumptionLine.new(snapshot, refs)
             end
 
             def render
@@ -72,6 +75,12 @@ module Ledger
             def labelled(label, lines) = ["#{label}:", *lines]
 
             def section(label, kind)
+                if kind == "A"
+                    return labelled(label, @snapshot.assumptions.map do |row|
+                        assumption(row)
+                    end)
+                end
+
                 table, builder = ITEMS.fetch(kind)
                 labelled(label, @snapshot[table].map do |row|
                     Items.public_send(builder, row)
@@ -85,6 +94,7 @@ module Ledger
             def rows(kind)
                 return @snapshot.pieces if kind == "P"
                 return @snapshot.questions if kind == "O"
+                return @snapshot.assumptions if kind == "A"
 
                 @snapshot[ITEMS.fetch(kind).first]
             end
@@ -92,9 +102,12 @@ module Ledger
             def render_row(kind, row)
                 return @piece.call(row) if kind == "P"
                 return @question.call(row) if kind == "O"
+                return assumption(row) if kind == "A"
 
                 Items.public_send(ITEMS.fetch(kind).last, row)
             end
+
+            def assumption(row) = @assumption.call(row)
         end
     end
 end

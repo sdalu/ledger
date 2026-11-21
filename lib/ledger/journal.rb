@@ -32,7 +32,7 @@ module Ledger
         BUSY_MS = 10_000
         MIGRATIONS = File.expand_path("migrations", __dir__)
         SCHEMA_TABLE = :ledger_schema
-        KINDS = %w[P O D C F N X G].freeze
+        KINDS = %w[P O D C F N X G A].freeze
 
         # LEDGER_JOURNAL names another file (tests, a sandbox).
         def self.path
