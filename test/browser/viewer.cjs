@@ -615,6 +615,33 @@ t('A2: the status pill\'s summary is at least 24 px', await p.evaluate(() => {
     document.getElementById('p-P4').classList.contains('is-receipt') && /drop asked/.test(document.getElementById('piece-P3').textContent)
     && !document.querySelector('.tray-line') && !document.querySelector('.stale-note')));
   rewind(sent);
+  // R1: an item added while a batch is out stays in the tray when the batch lands; only what was sent leaves it
+  await p.goto(base + page);
+  const heldBatch = {};
+  const arrived = new Promise(go => { heldBatch.arrived = go; });
+  await p.route('**/say-batch', route => { heldBatch.route = route; heldBatch.arrived(); });
+  await p.locator('#piece-P3 .drop-fold > summary').click();
+  await p.locator('#piece-P3 button.a-drop').click();
+  sent = mark();
+  await p.locator('.tray-bar .a-validate').click();
+  await arrived;
+  await p.locator('#q-O1 .ask-about > details > summary').click();
+  await p.fill('#say-O1-ask', 'added while sending');
+  await p.locator('#q-O1 .ask-about button[type="submit"]').click();
+  t('R1: an item added while the batch is out joins the tray, the bar still saying Sending', await p.evaluate(() =>
+    document.querySelector('.tray-bar h2').textContent === '2 in the tray'
+    && /^Sending/.test(document.querySelector('.tray-says').textContent)));
+  await heldBatch.route.continue();
+  await p.waitForFunction(() => document.querySelector('.tray-bar h2')?.textContent === '1 in the tray');
+  const kept = await trayed();
+  t('R1: when the batch lands only what was sent leaves: the added item is still in the tray and on its card',
+    JSON.stringify(kept.items) === JSON.stringify([['O1', 'comment', 'added while sending']])
+    && JSON.stringify(kept.cards) === JSON.stringify(['q-O1 Comment in the tray']) && since(sent) === 1
+    && /drop asked/.test(await p.textContent('#piece-P3')));
+  await p.unroute('**/say-batch');
+  await p.locator('.tray-bar .a-untray').click();
+  rewind(sent);
+  posts.length = 1; // the P25 checks after this block read the first Validate's post and what follows
   // an item whose card is gone is said, and blocks Validate until removed
   await p.evaluate(() => localStorage.setItem('tray:' + location.pathname.split('/')[2], JSON.stringify(
     [{id: 'x1', ref: 'O9', kind: 'comment', card: 'q-O9', form: 0, fields: {ref: 'O9', comment: '1', text: 'gone'}}])));
@@ -632,6 +659,52 @@ t('A2: the status pill\'s summary is at least 24 px', await p.evaluate(() => {
   t('P25: batch mode off sends a word at once, as before', JSON.stringify(posts.slice(1)) === JSON.stringify([page + '/say'])
     && await p.locator('.tray-bar').count() === 0);
   p.off('request', count);
+  rewind(sent);
+  // R2: a send with no answer is not posted again by itself: the card says Delivery unconfirmed and keeps the
+  // draft; Check finds a send that landed, or turns into Retry, which posts once
+  const sayPosts = [];
+  const countSay = r => { if (r.method() === 'POST' && /\/say$/.test(r.url())) sayPosts.push(r.url()); };
+  p.on('request', countSay);
+  const cardSays = () => p.evaluate(() => {
+    const n = document.querySelector('#p-P4 .send-unconfirmed');
+    return n ? {text: n.textContent, button: n.querySelector('button').textContent, collapsed: document.getElementById('p-P4').classList.contains('is-collapsed')} : null;
+  });
+  await p.goto(base + page);
+  sent = mark();
+  // the request goes out and the server files it; the page gets a network error instead of the answer
+  await p.evaluate(() => {
+    const real = window.fetch;
+    window.fetch = async (...args) => {
+      const answer = await real(...args);
+      if (/\/say$/.test(String(args[0]))) throw new TypeError('NetworkError: the answer was lost');
+      return answer;
+    };
+  });
+  await p.locator('#p-P4 button[name="word"][value="commit"]').click();
+  await p.waitForSelector('#p-P4 .send-unconfirmed');
+  await p.waitForTimeout(1500);
+  const lost = await cardSays();
+  t('R2: an answer lost after the server took the send is not posted again, the card says Delivery unconfirmed',
+    sayPosts.length === 1 && /^Delivery unconfirmed/.test(lost.text) && lost.button === 'Check' && !lost.collapsed && since(sent) === 1);
+  await p.locator('#p-P4 .send-unconfirmed button').click();
+  await p.waitForSelector('#p-P4.is-collapsed');
+  t('R2: Check finds the send landed and shows the card as sent, with no second post',
+    sayPosts.length === 1 && await p.evaluate(() => !document.querySelector('#p-P4 .send-unconfirmed') && document.getElementById('p-P4').classList.contains('is-receipt')));
+  rewind(sent);
+  sayPosts.length = 0;
+  await p.goto(base + page);
+  await p.route('**/say', route => route.abort());
+  await p.locator('#p-P4 button[name="word"][value="commit"]').click();
+  await p.waitForSelector('#p-P4 .send-unconfirmed');
+  await p.locator('#p-P4 .send-unconfirmed button').click();
+  await p.waitForFunction(() => document.querySelector('#p-P4 .send-unconfirmed button')?.textContent === 'Retry');
+  t('R2: a send that did not land is said so, the button becomes Retry, nothing is posted by Check',
+    sayPosts.length === 1 && /^Not delivered/.test((await cardSays()).text));
+  await p.unroute('**/say');
+  await p.locator('#p-P4 .send-unconfirmed button').click();
+  await p.waitForSelector('#p-P4.is-collapsed');
+  t('R2: Retry posts once and the send lands', sayPosts.length === 2 && since(sent) === 1);
+  p.off('request', countSay);
   rewind(sent);
   // P66: an id link carries its item's title in the viewer's tip, shown on hover and on focus; a link to an id
   // not in the ledger has none; a link that says more than the id has none

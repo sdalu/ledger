@@ -630,12 +630,61 @@
     const card = f.closest('li.is-card[id]');
     if (!card || !/^[qp]-/.test(card.id) || !/\/say$/.test(new URL(f.action).pathname)) return;
     e.preventDefault();
-    if (sending) return;
+    if (sending || f.dataset.unconfirmed) return;
     sending = true;
     const plain = () => {
       sending = false;
       f.dataset.plain = '1';
       f.requestSubmit(e.submitter);
+    };
+    // a send that got no answer may have landed: the form is not posted
+    // again by itself, the card says so and offers a Check against the
+    // page, which turns into Retry once the send is seen not to be there
+    const sentText = c => [...c.querySelectorAll('.sent, .sent-line, .asked-line')].map(x => x.textContent).join('|');
+    const partIn = c => {
+      const which = f.closest('.ask-about') ? '.ask-about' : f.closest('.picture-ask') ? '.picture-ask' : '';
+      return which ? c?.querySelector(which) : c;
+    };
+    const unconfirmed = () => {
+      sending = false;
+      f.dataset.unconfirmed = '1';
+      const note = document.createElement('p');
+      note.className = 'send-unconfirmed';
+      note.dataset.key = 'unconfirmed-' + card.id;
+      note.setAttribute('role', 'alert');
+      const says = document.createElement('span');
+      says.textContent = 'Delivery unconfirmed: the viewer did not answer, so the send may or may not have landed. Your draft is kept.';
+      const act = document.createElement('button');
+      act.type = 'button';
+      act.className = 'a-check';
+      act.textContent = 'Check';
+      note.append(says, ' ', act);
+      f.querySelector('.send-unconfirmed')?.remove();
+      f.append(note);
+      let retry = false;
+      act.addEventListener('click', async () => {
+        if (retry) { delete f.dataset.unconfirmed; note.remove(); f.requestSubmit(e.submitter); return; }
+        act.disabled = true;
+        says.textContent = 'Checking…';
+        let page = null;
+        try {
+          const g = await fetch(location.pathname + location.search, {credentials: 'same-origin', cache: 'no-store'});
+          if (g.ok) page = new DOMParser().parseFromString(await g.text(), 'text/html');
+        } catch (err) { page = null; }
+        act.disabled = false;
+        const fresh = page && partIn(page.getElementById(card.id));
+        if (!fresh) { says.textContent = 'Delivery unconfirmed: the page could not be read to check. Your draft is kept.'; return; }
+        if (sentText(fresh) !== sentText(partIn(card))) {
+          delete f.dataset.unconfirmed;
+          note.remove();
+          sending = true;
+          await land(page, location.href);
+          return;
+        }
+        retry = true;
+        act.textContent = 'Retry';
+        says.textContent = 'Not delivered: nothing of it is on the page. Your draft is kept.';
+      });
     };
     let doc = null, r = null;
     try {
@@ -647,68 +696,71 @@
       });
       if (r.ok && r.redirected) doc = new DOMParser().parseFromString(await r.text(), 'text/html');
     } catch (err) { doc = null; }
-    if (!doc) return plain();
-    // a question asked about a card, or a picture asked of it, leaves it
-    // answerable: only that part is drawn again, so an answer being
-    // written on the card stays
-    const ask = f.closest('.ask-about, .picture-ask');
-    if (ask) {
-      const which = ask.matches('.ask-about') ? '.ask-about' : '.picture-ask';
-      const part = doc.getElementById(card.id)?.querySelector(which);
-      sending = false;
-      if (!part) { location.assign(r.url + '#' + card.id); return; }
+    const land = async (doc, url) => {
+      // a question asked about a card, or a picture asked of it, leaves it
+      // answerable: only that part is drawn again, so an answer being
+      // written on the card stays
+      const ask = f.closest('.ask-about, .picture-ask');
+      if (ask) {
+        const which = ask.matches('.ask-about') ? '.ask-about' : '.picture-ask';
+        const part = doc.getElementById(card.id)?.querySelector(which);
+        sending = false;
+        if (!part) { location.assign(url + '#' + card.id); return; }
+        const now = waitingSig(doc);
+        const outside = [...known].some(([id, sig]) => now.get(id) !== sig)
+          || [...now.keys()].some(id => !known.has(id));
+        const mine = document.importNode(part, true);
+        ask.replaceWith(mine);
+        wire(mine);
+        // a picture asked folds nothing back: its line takes the focus
+        const into = mine.querySelector('summary') || mine;
+        if (into === mine) mine.tabIndex = -1;
+        into.focus();
+        known = now;
+        rebase(doc, []);
+        if (outside) stale(); else here = doc.body.dataset.stamp || here;
+        return;
+      }
+      const fresh = doc.getElementById(card.id);
+      if (!fresh || !fresh.querySelector('.sent, .sent-line')) {
+        sending = false;
+        location.assign(url + '#' + card.id);
+        return;
+      }
+      const mine = document.importNode(fresh, true);
+      mine.classList.add('is-collapsed');
+      const link = mine.querySelector('a.next-waiting[href^="#"]');
+      const next = link && document.getElementById(link.getAttribute('href').slice(1));
+      // each card is named, so the others slide into the room the collapse leaves
+      const cards = [...document.querySelectorAll('.entries > li[id]')];
+      for (const c of cards) c.style.viewTransitionName = 'card-' + c.id;
+      mine.style.viewTransitionName = 'card-' + card.id;
+      // anything but the answered card gone from what waits is somebody else's change
       const now = waitingSig(doc);
-      const outside = [...known].some(([id, sig]) => now.get(id) !== sig)
+      const outside = [...known].some(([id, sig]) => id !== card.id && now.get(id) !== sig)
         || [...now.keys()].some(id => !known.has(id));
-      const mine = document.importNode(part, true);
-      ask.replaceWith(mine);
-      wire(mine);
-      // a picture asked folds nothing back: its line takes the focus
-      const into = mine.querySelector('summary') || mine;
-      if (into === mine) mine.tabIndex = -1;
-      into.focus();
+      await settle(() => {
+        card.replaceWith(mine);
+        wire(mine);
+        markTray();
+        redraw(doc);
+      });
+      for (const c of document.querySelectorAll('.entries > li[id]')) c.style.viewTransitionName = '';
       known = now;
-      rebase(doc, []);
+      rebase(doc, [card.id, ...redrawn]);
       if (outside) stale(); else here = doc.body.dataset.stamp || here;
-      return;
-    }
-    const fresh = doc.getElementById(card.id);
-    if (!fresh || !fresh.querySelector('.sent, .sent-line')) {
       sending = false;
-      location.assign(r.url + '#' + card.id);
-      return;
-    }
-    const mine = document.importNode(fresh, true);
-    mine.classList.add('is-collapsed');
-    const link = mine.querySelector('a.next-waiting[href^="#"]');
-    const next = link && document.getElementById(link.getAttribute('href').slice(1));
-    // each card is named, so the others slide into the room the collapse leaves
-    const cards = [...document.querySelectorAll('.entries > li[id]')];
-    for (const c of cards) c.style.viewTransitionName = 'card-' + c.id;
-    mine.style.viewTransitionName = 'card-' + card.id;
-    // anything but the answered card gone from what waits is somebody else's change
-    const now = waitingSig(doc);
-    const outside = [...known].some(([id, sig]) => id !== card.id && now.get(id) !== sig)
-      || [...now.keys()].some(id => !known.has(id));
-    await settle(() => {
-      card.replaceWith(mine);
-      wire(mine);
-      markTray();
-      redraw(doc);
-    });
-    for (const c of document.querySelectorAll('.entries > li[id]')) c.style.viewTransitionName = '';
-    known = now;
-    rebase(doc, [card.id, ...redrawn]);
-    if (outside) stale(); else here = doc.body.dataset.stamp || here;
-    sending = false;
-    if (!next) return;
-    next.tabIndex = -1;
-    next.focus({preventScroll: true});
-    next.scrollIntoView({behavior: reduced() ? 'auto' : 'smooth', block: 'start'});
-    history.replaceState(null, '', '#' + next.id);
-    if (reduced()) return;
-    next.classList.add('is-pulse');
-    next.addEventListener('animationend', () => next.classList.remove('is-pulse'), {once: true});
+      if (!next) return;
+      next.tabIndex = -1;
+      next.focus({preventScroll: true});
+      next.scrollIntoView({behavior: reduced() ? 'auto' : 'smooth', block: 'start'});
+      history.replaceState(null, '', '#' + next.id);
+      if (reduced()) return;
+      next.classList.add('is-pulse');
+      next.addEventListener('animationend', () => next.classList.remove('is-pulse'), {once: true});
+    };
+    if (!doc) return r && r.status >= 400 && r.status < 500 ? plain() : unconfirmed();
+    return land(doc, r.url);
   });
   // Change on a collapsed receipt opens the card again, in place
   document.addEventListener('click', e => {
@@ -865,7 +917,7 @@
     f.reset();
     tray.push(i);
     keepTray();
-    says = '';
+    if (!sending) says = '';
     markTray();
     drawBar();
     const line = card.querySelector('.tray-line[data-item="' + i.id + '"] button');
@@ -907,6 +959,9 @@
   const validate = async () => {
     if (sending || !tray.length || tray.some(i => i.gone)) return;
     const token = document.querySelector('form.say input[name="token"]')?.value || '';
+    // what is sent is what the tray holds now: an item added while the send
+    // is out stays in the tray, and only these leave it
+    const snap = [...tray];
     sending = true;
     says = 'Sending…';
     drawBar();
@@ -916,22 +971,22 @@
         method: 'POST',
         credentials: 'same-origin',
         headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-        body: new URLSearchParams({token, items: JSON.stringify(tray.map(i => i.fields))}),
+        body: new URLSearchParams({token, items: JSON.stringify(snap.map(i => i.fields))}),
       });
       if (r.ok && r.redirected) doc = new DOMParser().parseFromString(await r.text(), 'text/html');
       else if ((r.headers.get('Content-Type') || '').startsWith('application/json')) refused = await r.json();
     } catch (err) { doc = null; }
     if (!doc) {
       sending = false;
-      for (const i of tray) delete i.refused;
-      for (const x of (refused && refused.items) || []) if (tray[x.item]) tray[x.item].refused = x.why;
+      for (const i of snap) delete i.refused;
+      for (const x of (refused && refused.items) || []) if (snap[x.item]) snap[x.item].refused = x.why;
       keepTray();
       says = refused ? refused.why : 'Not sent: the viewer did not answer' + (r ? ' (' + r.status + ')' : '') + '. The tray is kept.';
       drawBar();
       return;
     }
-    const cards = [...new Set(tray.map(i => i.card))];
-    tray = [];
+    const cards = [...new Set(snap.map(i => i.card))];
+    tray = tray.filter(i => !snap.includes(i));
     keepTray();
     says = '';
     const [now, outside] = outsideOf(doc, cards);
@@ -946,6 +1001,7 @@
         wire(mine);
       }
       redraw(doc);
+      markTray();
       drawBar();
     });
     known = now;
