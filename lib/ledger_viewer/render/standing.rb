@@ -19,12 +19,13 @@ module LedgerViewer
 
             def goals = @data.fetch("goals")
 
-            # The constraints, facts and decisions as the lines `show`
-            # prints them.
-            def constraints = lines("constraints")
+            # The constraints and facts as their objects: the line `show`
+            # prints, and the pointer with its kind.
+            def constraints = @data.fetch("constraints")
 
-            def facts = lines("facts")
+            def facts = @data.fetch("facts")
 
+            # The decisions as the lines `show` prints them.
             def decisions = lines("decisions")
 
             # {id => {"kind" => letter, "line" => the line}}.

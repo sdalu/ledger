@@ -70,7 +70,8 @@ address a live ledger holds. `goal` appends a revised Goal block the
 same way and refuses a quote of fewer than 4 words, a go-ahead that
 belongs under Decisions (`goal-revision`; `goal-titled` checks the
 title). `check` verifies what the schema cannot (the rules are listed in
-`docs/journal.md`, section 5): titles and details, links, awaited words,
+`docs/journal.md`, section 5): titles and details, codes from
+elsewhere (a W1 not named in words or pointed to), links, awaited words,
 the picker grammar, rated cases, a verified piece's `--verified-by`, the
 `--final` rules. The schema refuses the rest before a check could see
 it: a piece that is neither kept (with its reason) nor routed with model
@@ -298,7 +299,10 @@ queue and the "Answer O1: …" link show the title alone. `check` fails
 a longer title on a piece in flight or an open question (`titles`);
 settled pieces keep their lines. The detail fails the same check when
 ids outnumber words two to one (`details`); codes are named with
-`— see:`.
+`— see:`. A code whose letter is not one of the ledger's kinds (`W1`
+from another note) fails `codes` wherever it stands alone in item text,
+unless an open question's `— see:` names an item that holds it; the
+user's words in double quotes and `` `code` `` are not read.
 
 Ledger text is rendered as the small part of Markdown it uses, on the
 server, from text escaped first: `**bold**`, `*italic*`, `` `code` ``,

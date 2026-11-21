@@ -329,3 +329,17 @@ class JsonRowsTest < JsonCase
         assert_equal ["- a stray file"], document[:noticed]
     end
 end
+
+# A fact's pointer and a constraint's where carry their kind.
+class JsonPointerTest < JsonCase
+    def test_a_pointer_and_a_where_carry_their_kind
+        build
+        fact = document[:facts].first
+        constraint = document[:constraints].first
+
+        assert_equal %i[id text pointer pointer_kind line], fact.keys
+        assert_equal "path", fact[:pointer_kind]
+        assert_equal %i[id text quote where where_kind line], constraint.keys
+        assert_equal [nil, nil], constraint.values_at(:where, :where_kind)
+    end
+end
