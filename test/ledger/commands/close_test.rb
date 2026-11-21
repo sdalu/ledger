@@ -29,6 +29,34 @@ class CloseTest < CommandCase
         assert_nil db[:ledgers].where(id: @beta).get(:closed_at)
     end
 
+    # The viewer's Close, an entry with ref close: shown to the session
+    # with the command that files it, taken in the close's own event.
+    def test_the_close_asked_from_the_viewer_is_taken_by_the_close
+        finish
+        Ledger::Inbox.append(@journal, BETA, [{ "ref" => "close",
+                                                "text" => "" }],
+                             actor: "viewer:anna")
+        assert_includes ok("inbox", BETA), "the word to close the ledger"
+        out = ok("close", BETA, "--take", "N1")
+
+        assert_includes out, "closed: #{BETA}"
+        taken = db[:inbox_entries].where(ledger_id: @beta).get(:taken_id)
+        assert_equal db[:events].where(ledger_id: @beta).max(:id), taken
+    end
+
+    # A close refused leaves the entry pending: the take was in the
+    # write that did not happen.
+    def test_a_refused_close_takes_nothing
+        Ledger::Inbox.append(@journal, BETA, [{ "ref" => "close",
+                                                "text" => "" }],
+                             actor: "viewer:anna")
+        code, out, = cli("close", BETA, "--take", "N1")
+
+        assert_equal 1, code
+        assert_includes out, "FAIL final-criteria"
+        assert_nil db[:inbox_entries].where(ledger_id: @beta).get(:taken_id)
+    end
+
     def test_a_closed_ledger_frees_its_address_and_carries_its_noticed_lines
         ok("noticed", BETA, "side thing")
         finish

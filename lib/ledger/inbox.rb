@@ -18,8 +18,9 @@ module Ledger
     # call is one `inbox` event, however many entries it files.
     module Inbox
         STAMP = "%Y-%m-%d %H:%M:%S"
-        # What an entry is about: a question, a piece or the order.
-        REF = /\A(?:order|[OP][1-9]\d*)\z/
+        # What an entry is about: a question, a piece, the order, or the
+        # ledger itself (close).
+        REF = /\A(?:order|close|[OP][1-9]\d*)\z/
         # Fields the journal gives, never the caller.
         GIVEN = %w[id at].freeze
 
@@ -55,7 +56,8 @@ module Ledger
             ref = fields["ref"]
             return fields if ref.nil? || REF.match?(ref.to_s)
 
-            raise Refused, "ref is O<n>, P<n> or order, not #{ref.inspect}"
+            raise Refused,
+                  "ref is O<n>, P<n>, order or close, not #{ref.inspect}"
         end
 
         def self.insert(change, fields, now)

@@ -365,6 +365,16 @@ What the page takes, all as inbox entries, of the four kinds
   word `drop`. Questions have the same icon, to drop (ignore) one; so a
   question never offers drop or ignore among its choices (`check` fails
   it, save per item).
+- **The close of the ledger**, only while its status line ends with
+  `done: propose close`: the head reads *Ready to close.* and offers
+  *Close the ledger*, a fold that says what closing does, takes an
+  optional comment, and sends only with *Yes, close it* (*Cancel* folds
+  it back). The entry has `ref` `close`; the server refuses it, 409,
+  once the status no longer proposes the close, which it stops doing
+  as soon as any entry waits, the Close sent before among them. Sent,
+  the head shows *close asked* with its receipt until a session files
+  it with `ledger close PATH --take N<n>`, closing the ledger and
+  taking the entry in one event; a close refused takes nothing.
 - **A note** per ledger.
 
 Every box has a *Quote last selection* button, enabled once text on

@@ -291,7 +291,7 @@ Sequel.migration do
             foreign_key :ledger_id, :ledgers, null: false
             Integer :n, null: false      # N<n>, a malformed line's too
             String :at, null: false      # the viewer's "YYYY-MM-DD HH:MM:SS"
-            String :ref                  # O3, P4, "order", NULL: not a key
+            String :ref                  # O3, P4, "order", "close", NULL: not a key
             String :payload, null: false # V: the JSON object as written
             TrueClass :malformed, null: false, default: false
             foreign_key :taken_id, :events   # the take event
@@ -493,7 +493,7 @@ command's refusal, exit 2, nothing written.
 | `check [--final] [--peek] [--fix-hints] [--json] PATH` | `ok  name` / `FAIL name -- detail` per rule, `  hint:` after a FAIL, status line (the beat, unless `--peek`); `--json` prints JSON v1 | exit 1 on any FAIL |
 | `show PATH [ID] [--json]` | no ID: the whole ledger as Markdown; an ID (`P`, `O`, `D`, `C`, `F`, `X`, `Z`): its fields as `key: value` lines, links as `answers: O3`, `rests-on: F2, C3` lines; or JSON v1 | unknown id |
 | `status PATH [--json]` | the status line; JSON v1 | |
-| `close PATH` | `closed: ADDRESS (L<id>)`, then `noticed, to carry: N` and the lines | `--final` fails (FAIL lines, exit 1); inbox pending |
+| `close PATH [--take N<n>…]` | `closed: ADDRESS (L<id>)`, then `noticed, to carry: N` and the lines; `--take` takes the entries (the viewer's Close, `ref` `close`) in the close's event | `--final` fails (FAIL lines, exit 1), a refused close taking nothing; inbox pending besides the entries taken; an entry unknown or taken |
 | `inbox PATH [--wait [--timeout S] \| --follow [--quiet S]]` | the pending entries, or "inbox: nothing pending"; polls the ledger's newest event id each second | `--wait` timeout exit 1 |
 | `take PATH N<n>…` | `taken: …; pending: …`; one `take` event setting `taken_id` | unknown id; "already taken at TIME: another session filed it" |
 | `piece PATH new\|P<n> [--status --route --title --what --done-when --evidence --after --for --problem --risk --plan --scope --awaits --verified-by --session --by X<n> --dry-run]` | the new id (new), the piece line, status line | target shape; no such piece; title, detail; scope grammar or a word not awaited; new without title; awaiting without problem and rated risk; no route and not kept; out without a session, or out under another holder; verified without `--verified-by`; checks |

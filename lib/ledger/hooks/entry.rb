@@ -11,6 +11,8 @@ module Ledger
             KINDS = { "answer" => "answer to %s",
                       "comment" => "comment on piece %s",
                       "order" => "proposed order of the planned pieces",
+                      "close" => "the word to close the ledger: " \
+                                 "ledger close PATH --take N<n>",
                       "note" => "note" }.freeze
             # The line boundaries of a splitlines: CR LF, CR, LF and the
             # Unicode ones.
@@ -38,6 +40,7 @@ module Ledger
                 case ref
                 when nil then "note"
                 when "order" then "order"
+                when "close" then "close"
                 when /\AO\d+\z/ then "answer"
                 when /\AP\d+\z/ then "comment"
                 end

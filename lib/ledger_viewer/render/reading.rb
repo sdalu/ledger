@@ -29,6 +29,9 @@ module LedgerViewer
 
             def pieces = @data.fetch("pieces")
 
+            # The status line proposes the close, the Close offered.
+            def ready_to_close? = status.end_with?("done: propose close")
+
             # The decisions' ids (X<n>), in the order of their lines.
             def decision_ids = @data.fetch("decisions").map { it["id"] }
 

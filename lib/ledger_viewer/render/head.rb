@@ -13,23 +13,25 @@ module LedgerViewer
                 @scope = kit.scope
                 @reading = kit.reading
                 @lid = kit.lid
+                @word = kit.word
                 @entry = entry
             end
 
             def html
-                data = @reading
-                path = @entry.path
-                @scope.partial(
-                    "ledger/head",
-                    { lid: @lid, nxt: next_step, tiles:,
-                      path: Clock.short(path), status: data.status_text,
-                      name: Helpers.project_name(@entry.project, path),
-                      updated: Clock.updated(data.updated),
-                      changed: Helpers.when_text(data.updated) }
-                )
+                @scope.partial("ledger/head", locals)
             end
 
             private
+
+            def locals
+                data = @reading
+                path = @entry.path
+                { lid: @lid, nxt: next_step, tiles:, close: @word.close(data),
+                  path: Clock.short(path), status: data.status_text,
+                  name: Helpers.project_name(@entry.project, path),
+                  updated: Clock.updated(data.updated),
+                  changed: Helpers.when_text(data.updated) }
+            end
 
             # What to do first: the next question, the next word, or
             # that nothing waits.
@@ -41,6 +43,8 @@ module LedgerViewer
                 return word(piece) if piece
                 return fixed("a", "#waiting", "Review what waits on you") if
                     figures.asks.positive?
+                return fixed("span", nil, "Ready to close.") if
+                    @reading.ready_to_close?
 
                 fixed("span", nil, rest(figures))
             end

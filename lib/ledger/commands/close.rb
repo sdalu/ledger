@@ -1,12 +1,18 @@
 # frozen_string_literal: true
 
+require "ledger/commands/answer"
+
 module Ledger
     module Commands
-        # `close PATH`: a finished ledger leaves the live ones, its row
-        # kept with `closed_at`; refused while `--final` fails or an entry
-        # of the viewer is pending.
+        # `close PATH [--take N<n>...]`: a finished ledger leaves the live
+        # ones, its row kept with `closed_at`; refused while `--final`
+        # fails or an entry of the viewer is pending. `--take` files the
+        # entries that asked for it (the viewer's Close) in the same event.
         class Close < CLI::Command
+            include Taking
+
             USAGE = "PATH"
+            SYNOPSIS = "PATH [--take N<n>...]"
             SUMMARY = "close a finished ledger; refused while check --final " \
                       "fails or an entry is pending"
 
@@ -22,9 +28,10 @@ module Ledger
 
             private
 
+            def flags(parser) = take_flag(parser)
+
             def run(path)
-                result = write(path) { |change| close(change) }
-                id, noticed = result.value
+                id, noticed = closing(path)
                 @out.puts "closed: #{Address.parse(path)} (L#{id})"
                 carry(noticed)
                 0
@@ -32,6 +39,15 @@ module Ledger
                 e.lines.each { @out.puts it }
                 @err.puts "#{path}: #{e.message}"
                 1
+            end
+
+            # The one write: the entries --take names taken, then the close.
+            def closing(path)
+                ids = takes
+                write(path) do |change|
+                    take(change, ids)
+                    close(change)
+                end.value
             end
 
             # -> [ledger id, noticed lines]; Unfinished when a rule fails.

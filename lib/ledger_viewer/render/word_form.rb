@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require_relative "clock"
 require_relative "terms"
 require_relative "text"
 
@@ -9,6 +10,11 @@ module LedgerViewer
         # combined one first), and the fold that asks the session to
         # close an item.
         class WordForm
+            CLOSE = "The session closes it with ledger close: it leaves " \
+                    "the list of live ledgers, its history stays in the " \
+                    "journal, and its noticed lines are offered to carry. " \
+                    "Nothing closes if the ledger changed meanwhile."
+
             DROPS = {
                 "P" => "The session marks it dropped and does nothing more " \
                        "with it: no replacement, no commit or deploy of " \
@@ -51,6 +57,21 @@ module LedgerViewer
                     { lid: @lid, token: @token, ref:, label:, attrs:, box:,
                       says: DROPS.fetch(ref[0, 1], DROPS["O"]) }
                 )
+            end
+
+            # The ledger's Close when its status proposes it, or the
+            # close asked and not filed yet; nothing otherwise.
+            def close(reading)
+                asked = reading.unfiled_on("close").first
+                if asked
+                    return @scope.partial("ledger/flight_close",
+                                          id: asked["id"],
+                                          receipt: Clock.receipt(asked))
+                end
+                return "" unless reading.ready_to_close?
+
+                @scope.partial("ledger/close",
+                               { lid: @lid, token: @token, says: CLOSE })
             end
 
             private
