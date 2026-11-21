@@ -20,7 +20,7 @@ module Ledger
     class CLI
         WORDS = %w[new goal check show status close fact constraint decide
                    noticed criterion edit piece ask answer word choice
-                   renumber undo restore inbox take mockup].freeze
+                   renumber undo restore inbox take mockup stats].freeze
         # Words of other pieces of the build: refused as not built yet.
         NOT_BUILT = [].freeze
 
@@ -272,3 +272,4 @@ require "ledger/commands/restore"
 require "ledger/commands/inbox"
 require "ledger/commands/take"
 require "ledger/commands/mockup"
+require "ledger/commands/stats"
