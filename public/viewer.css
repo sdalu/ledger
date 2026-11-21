@@ -489,9 +489,9 @@
       }
       & > .meta { margin-block-start: var(--space-xs); }
       & > .say { margin-block-start: var(--space-m); }
-      /* a question about the question, under its answer form: what was
-         asked and not filed, then the fold */
-      & > .ask-about {
+      /* a question about the question, or a picture asked of the card,
+         under its form: what was asked and not filed, then the fold */
+      & > :is(.ask-about, .picture-ask) {
         margin-block-start: var(--space-s);
         & > .asked-line { margin: 0; font-size: 0.875rem; color: var(--muted); }
         & .say { margin-block-start: var(--space-xs); }

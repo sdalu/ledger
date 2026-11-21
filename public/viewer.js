@@ -362,11 +362,13 @@
       if (r.ok && r.redirected) doc = new DOMParser().parseFromString(await r.text(), 'text/html');
     } catch (err) { doc = null; }
     if (!doc) return plain();
-    // a question asked about a card leaves it answerable: only its ask part
-    // is drawn again, so an answer being written on the card stays
-    const ask = f.closest('.ask-about');
+    // a question asked about a card, or a picture asked of it, leaves it
+    // answerable: only that part is drawn again, so an answer being
+    // written on the card stays
+    const ask = f.closest('.ask-about, .picture-ask');
     if (ask) {
-      const part = doc.getElementById(card.id)?.querySelector('.ask-about');
+      const which = ask.matches('.ask-about') ? '.ask-about' : '.picture-ask';
+      const part = doc.getElementById(card.id)?.querySelector(which);
       sending = false;
       if (!part) { location.assign(r.url + '#' + card.id); return; }
       const now = waitingSig(doc);
@@ -375,7 +377,10 @@
       const mine = document.importNode(part, true);
       ask.replaceWith(mine);
       wire(mine);
-      mine.querySelector('summary').focus();
+      // a picture asked folds nothing back: its line takes the focus
+      const into = mine.querySelector('summary') || mine;
+      if (into === mine) mine.tabIndex = -1;
+      into.focus();
       known = now;
       if (outside) stale(); else here = doc.body.dataset.stamp || here;
       return;

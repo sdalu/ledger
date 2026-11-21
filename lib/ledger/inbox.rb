@@ -15,7 +15,8 @@ module Ledger
     #
     # Each entry's hash holds the viewer's fields (`ref`, `word`,
     # `choice`, `order`, `notes`, `picks`, `replaces`, `comment`: true on
-    # a comment on a question, no answer) and `text`. One
+    # a comment on a question, no answer, `picture`: the kind of picture
+    # asked on a question or a piece) and `text`. One
     # call is one `inbox` event, however many entries it files.
     module Inbox
         STAMP = "%Y-%m-%d %H:%M:%S"

@@ -15,6 +15,7 @@ module LedgerViewer
                       "comment" => "comment on piece %<ref>s",
                       "ask" => "comment on question %<ref>s, not an answer",
                       "word" => "word on %<ref>s",
+                      "picture" => "picture asked for %<ref>s (%<picture>s)",
                       "order" => "proposed order of the planned pieces",
                       "close" => "close asked",
                       "abandon" => "abandon asked",
@@ -77,9 +78,10 @@ module LedgerViewer
                     return "#{format(KINDS["word"], ref:)}: #{entry["word"]}"
                 end
 
-                kind = entry["malformed"] ? nil : Terms.kind(ref)
-                kind = "ask" if kind == "answer" && entry["comment"]
-                kind ? format(KINDS[kind], ref:) : "malformed line"
+                kind = entry["malformed"] ? nil : Terms.kind(ref, entry)
+                return "malformed line" unless kind
+
+                format(KINDS[kind], ref:, picture: entry["picture"])
             end
 
             def body(entry)

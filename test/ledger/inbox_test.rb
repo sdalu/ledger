@@ -92,6 +92,14 @@ class InboxApiTest < CommandCase
         assert_equal "N7 (?, malformed line):\n    not json\n    second",
                      Ledger::Inbox.show(row)
     end
+
+    def test_show_names_a_picture_asked_by_its_kind
+        append({ "ref" => "O3", "picture" => "svg", "text" => "the tree" },
+               now: Time.new(2026, 11, 21, 9, 6, 0))
+        assert_equal "N1 (2026-11-21 09:06:00, picture asked for O3 " \
+                     "(svg)):\n    the tree",
+                     Ledger::Inbox.show(db[:inbox_entries].first)
+    end
 end
 
 # `Ledger::Inbox::Watch` on a fake clock: the polling, the burst held

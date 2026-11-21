@@ -26,7 +26,7 @@ module LedgerViewer
                 needed = below(piece)
                 return receipt(piece, last, needed, form) if last
 
-                "#{card(piece)}#{needed}#{form}</li>"
+                "#{card(piece)}#{needed}#{form}#{picture(piece)}</li>"
             end
 
             private
@@ -42,6 +42,9 @@ module LedgerViewer
                       why: Why.icon(@kit.lid, piece["id"]) }
                 )
             end
+
+            # The fold that asks for a picture, on the word card.
+            def picture(piece) = @kit.picture.piece(piece, "p")
 
             def kase(piece) = @kit.cases.facets(piece) + @kit.raid.piece(piece)
 

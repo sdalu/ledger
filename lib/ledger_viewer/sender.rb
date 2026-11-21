@@ -64,9 +64,10 @@ module LedgerViewer
             first ? first[0] : body.anchor
         end
 
-        # A comment on a question leaves its card as it was.
+        # A comment on a question, or a picture asked, leaves its card as
+        # it was.
         def receipt?(body)
-            return false if body.fields["comment"]
+            return false if Render::Terms.aside?(body.fields)
 
             body.anchor.start_with?("q-") ||
                 (body.anchor.start_with?("p-") &&

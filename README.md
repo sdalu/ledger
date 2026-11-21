@@ -432,6 +432,24 @@ What the page takes, all as inbox entries, of the four kinds
   sent HH:MM · awaiting filing* until the session takes it, and only
   that line and the fold are redrawn when it is sent with `fetch`.
   `ledger inbox` shows it as *comment on question O<n>, not an answer*.
+- **A picture asked** of a card that has none: a question with no
+  mockup placed and none pending, or a piece (under Waiting on you or
+  Unfinished pieces) with neither its before nor its after placed,
+  offers a fold *Request a picture*: the kind (*any*, the session picks
+  the cheapest that settles it, first and selected; *text*, a text
+  figure; *svg*; *screenshot*; *page*, a working web page) and *What
+  should it show?*, sent by its own *Request picture*. The entry is on
+  the card's id and carries `picture` (the kind) and the text; the
+  server refuses it empty (400), of a kind not in that list (400), or
+  once the id is no longer a card on the page (409). It answers nothing
+  and gives no word: it replaces nothing, and an answer or a word sent
+  after it is taken as before. Until the session takes it the card
+  says *picture asked: N<n>, sent HH:MM · awaiting filing* and offers
+  no second fold; on a card under Waiting on you only that part is
+  redrawn when it is sent with `fetch`. The session files it by drawing the picture and
+  placing it with `mockup --question O<n>` or `mockup --piece P<n>
+  --before|--after`, then taking the entry. `ledger inbox`, the Stop
+  hook and *Your messages* show it as *picture asked for O3 (svg)*.
 - **A comment on a planned piece**, before it goes out, and with two or
   more planned, **a proposed order**, refused unless it names each
   planned piece once.

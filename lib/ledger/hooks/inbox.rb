@@ -26,7 +26,12 @@ module Ledger
                     "the user's word (sent without the word) answered in " \
                     "your reply and filed as a Decision by user, the word " \
                     "still awaited; a proposed order as the order you " \
-                    "dispatch in, recorded as a Decision by user; a word on " \
+                    "dispatch in, recorded as a Decision by user; a " \
+                    "picture asked for O<n> or P<n> filed by drawing one " \
+                    "of the kind asked (any: the cheapest that settles " \
+                    "it) and placing it with `bin/ledger mockup ADDRESS FILE " \
+                    "--question O<n>` or `--piece P<n> --before|--after`, " \
+                    "then taking the entry; a word on " \
                     "a piece (start, commit, deploy, push, merge, other, " \
                     "drop) as a Decision by user with the piece changed in " \
                     "the same write (`bin/ledger word ADDRESS P<n> --word W " \

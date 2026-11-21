@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative "helpers"
+
 module LedgerViewer
     module Render
         # The vocabulary the ledger page reads: what a picture is, which
@@ -25,15 +27,26 @@ module LedgerViewer
 
             module_function
 
-            # The kind of an inbox entry by its ref: note, order, close,
-            # abandon, answer, comment, or nil.
-            def kind(ref)
+            # The kind of an inbox entry by its ref and its fields: note,
+            # order, close, abandon, answer, ask (a comment on a
+            # question), comment, picture, or nil.
+            def kind(ref, entry = {})
                 case ref
                 when nil then "note"
                 when "order", "close", "abandon" then ref
-                when /\AO\d+\z/ then "answer"
-                when /\AP\d+\z/ then "comment"
+                when /\A[OP]\d+\z/ then card_kind(ref, entry)
                 end
+            end
+
+            # A comment on a question or a picture asked: an entry on a
+            # card that answers nothing and gives no word.
+            def aside?(entry) = [entry["comment"], entry["picture"]].any?
+
+            def card_kind(ref, entry)
+                return "picture" if Helpers.filled?(entry["picture"])
+                return "comment" if ref.start_with?("P")
+
+                entry["comment"] ? "ask" : "answer"
             end
 
             # 'A = keep as is' -> 'A'; an option without a meaning is its

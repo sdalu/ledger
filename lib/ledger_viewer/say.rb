@@ -6,6 +6,7 @@ require_relative "render/text"
 require_relative "say_all"
 require_relative "say_answer"
 require_relative "say_ledger"
+require_relative "say_picture"
 require_relative "say_word"
 
 module LedgerViewer
@@ -17,6 +18,7 @@ module LedgerViewer
         include SayAll
         include SayAnswer
         include SayLedger
+        include SayPicture
         include SayWord
 
         MAX_TEXT = 4000
@@ -54,15 +56,23 @@ module LedgerViewer
             case kind
             when :answer then answer(ref, fields)
             when :word then word(ref, fields)
-            when :comment then comment(ref)
+            when :comment, :picture then aside(kind, ref, fields)
             when :order then order(fields)
             when *SayLedger::WORDS then ledger_word(kind)
             when :unknown then refuse(400, "Unknown kind of entry.")
             end
         end
 
+        # What answers nothing on a card: a comment, a picture asked.
+        def aside(kind, ref, fields)
+            kind == :picture ? picture(ref, fields) : comment(ref)
+        end
+
         def kind_of(ref)
             kind = base_kind(ref)
+            return :picture if %i[answer comment].include?(kind) &&
+                               picture?(ref)
+
             kind == :comment && !@form["word"].empty? ? :word : kind
         end
 
@@ -124,7 +134,7 @@ module LedgerViewer
         def anchor(kind, ref)
             return "inbox" if %i[note order].include?(kind)
             return kind.to_s if ledger_word?(kind)
-            return "q-#{ref}" if kind == :answer
+            return "q-#{ref}" if ref.start_with?("O")
 
             words_of(piece(ref)).empty? ? "piece-#{ref}" : "p-#{ref}"
         end

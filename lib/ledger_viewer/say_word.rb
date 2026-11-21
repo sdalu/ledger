@@ -36,8 +36,11 @@ module LedgerViewer
         end
 
         # The entries of this ledger's inbox no session has taken, but
-        # the comments on a question: they answer nothing to replace.
-        def pending = @reading.inbox.reject { it["taken"] || it["comment"] }
+        # the comments on a question and the pictures asked: they answer
+        # nothing to replace.
+        def pending
+            @reading.inbox.reject { it["taken"] || Render::Terms.aside?(it) }
+        end
 
         def sent(ref, word: false)
             pending.select { it["ref"] == ref && (!word || word?(it)) }

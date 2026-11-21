@@ -10,6 +10,7 @@ require_relative "inbox"
 require_relative "kit"
 require_relative "mockups"
 require_relative "nav"
+require_relative "picture_fold"
 require_relative "next_waiting"
 require_relative "raid"
 require_relative "record"
@@ -97,11 +98,17 @@ module LedgerViewer
                 lid = entry.id
                 Kit.new(scope:, reading:, lid:, cases:,
                         raid: Raid.new(scope, reading),
-                        say: SayForm.new(scope, lid, token, cases),
-                        word: WordForm.new(scope, lid, token),
+                        **forms(scope, lid, token, reading, cases),
                         refs: Refs.new(scope), blocks: Blocks.new(scope),
                         mockups: Mockups.new(scope, lid, reading,
                                              bytes(entry)))
+            end
+
+            # The builders of the page's forms: answers, words, pictures.
+            def forms(scope, lid, token, reading, cases)
+                { say: SayForm.new(scope, lid, token, cases),
+                  word: WordForm.new(scope, lid, token),
+                  picture: PictureFold.new(scope, lid, token, reading) }
             end
 
             # The bytes of a picture of one file, by its name.

@@ -5,6 +5,7 @@ require "time"
 
 require_relative "helpers"
 require_relative "standing"
+require_relative "terms"
 require_relative "text"
 
 module LedgerViewer
@@ -72,12 +73,12 @@ module LedgerViewer
             end
 
             # {O<n> => the latest answer sent and no session took}; a
-            # comment on a question is no answer.
+            # comment on a question, or a picture asked, is no answer.
             def sent_answers
                 @sent_answers ||= unfiled.each_with_object({}) do |entry, out|
                     ref = entry["ref"]
                     out[ref] = entry if ref.to_s.match?(/\AO\d+\z/) &&
-                                        !entry["comment"]
+                                        !Terms.aside?(entry)
                 end
             end
 

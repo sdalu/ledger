@@ -6,6 +6,7 @@ require_relative "question_meta"
 require_relative "reading"
 require_relative "say_form"
 require_relative "recommend"
+require_relative "terms"
 require_relative "text"
 
 module LedgerViewer
@@ -50,9 +51,11 @@ module LedgerViewer
             private
 
             # What was sent on a question and not filed: the comments
-            # about it, then the answers.
+            # about it, then the answers; a picture asked is neither.
             def sent_on(id)
-                @reading.unfiled_on(id).partition { it["comment"] }
+                sent = @reading.unfiled_on(id)
+                [sent.select { it["comment"] },
+                 sent.reject { Terms.aside?(it) }]
             end
 
             def case_of(question)
@@ -100,7 +103,8 @@ module LedgerViewer
                 head = head(question, "is-ask is-card",
                             @kit.word.drop(question["id"]),
                             waiting_since(question))
-                "#{head}#{kase}#{form}</li>"
+                picture = @kit.picture.question(question)
+                "#{head}#{kase}#{form}#{picture}</li>"
             end
 
             def received(question, last, kase, form)

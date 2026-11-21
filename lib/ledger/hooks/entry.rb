@@ -11,6 +11,7 @@ module Ledger
             KINDS = { "answer" => "answer to %s",
                       "comment" => "comment on piece %s",
                       "ask" => "comment on question %s, not an answer",
+                      "picture" => "picture asked for %<ref>s (%<kind>s)",
                       "order" => "proposed order of the planned pieces",
                       "close" => "the word to close the ledger: " \
                                  "ledger close PATH --take N<n>",
@@ -31,11 +32,16 @@ module Ledger
                               .map { "    #{it}" }.join("\n")}"
             end
 
-            # An entry's ref names its kind; a word on a piece says it.
+            # An entry's ref names its kind; a word on a piece says it, a
+            # picture asked on a card its kind.
             def about(entry)
                 ref = entry["ref"]
                 word = given(entry["word"])
                 return "word on #{ref}: #{word}" if word
+
+                kind = given(entry["picture"])
+                return format(KINDS["picture"], ref:, kind:) if kind
+
                 format(KINDS.fetch(kind(ref, entry["comment"])), ref)
             end
 

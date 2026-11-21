@@ -79,7 +79,8 @@ module LedgerViewer
                 extra = dropped ? "" : @kit.word.drop(id)
                 head = @entry.html(**fields(piece), **card_head(piece),
                                    extra:).delete_suffix("</li>")
-                "#{head}#{comment(piece)}#{drop(dropped)}</li>"
+                picture = @kit.picture.piece(piece, "piece")
+                "#{head}#{comment(piece)}#{picture}#{drop(dropped)}</li>"
             end
 
             def card_head(piece)
