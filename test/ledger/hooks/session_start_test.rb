@@ -37,6 +37,24 @@ class SessionStartTest < HookTest
         assert_match(/^- P3 \[planned\] .* \(ready\)$/, text)
     end
 
+    def test_a_piece_ready_past_the_limit_is_listed_with_its_age
+        at = 1_700_000_000_000
+        write("import", [], at:) { piece(it) }
+        hour = 3_600_000
+
+        under = render_at(at + hour)
+        past = render_at(at + (3 * hour))
+
+        refute_includes under, "Ready, unsent:"
+        assert_match(/^Ready, unsent:\n- P1 \[planned\] .* \(3 h\)$/, past)
+        assert_match(/^In flight:\n- P1 \[planned\] .* \(ready\)$/, past)
+    end
+
+    def render_at(now)
+        found = Ledger::Hooks::Ledgers.read({ "cwd" => PLACE }, now:)
+        Ledger::Hooks::ResumeView.render(found)
+    end
+
     def test_in_flight_lists_a_deferred_piece_with_its_condition
         write("import") do |change|
             piece(change, status: "deferred", until: "three closures")

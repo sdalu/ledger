@@ -48,7 +48,7 @@ module LedgerViewer
             def receipt(entry)
                 at = (entry["at"] || "").to_s
                 time = clock(at)
-                wait = Text.waited(at)
+                wait = Ledger::Text.waited(at)
                 [(time.empty? ? "" : "sent #{time}"),
                  (wait.empty? ? "" : "unfiled for #{wait}")]
                     .reject(&:empty?).join(" · ")

@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "ledger/text/waited"
+
 module LedgerViewer
     module Render
         # HTML escaping, white-space stripping and the text helpers the
@@ -13,10 +15,6 @@ module LedgerViewer
             LINE_ENDS = /\r\n|[\n\r\v\f\x1c-\x1e\u0085\u2028\u2029]/
 
             RISK_RATING = %r{\A(\d+)/10(?: — |\z)}
-            # A local time as an inbox entry has it, or an ISO time with
-            # its offset as the journal gives one.
-            TIME = /\A(\d{4})-(\d\d)-(\d\d)[ T](\d\d):(\d\d):(\d\d)
-                    ([+-]\d\d:\d\d)?\z/x
 
             module_function
 
@@ -76,30 +74,11 @@ module LedgerViewer
                 rating ? " · risk #{rating}/10" : ""
             end
 
-            # '2026-11-19 10:38:45' (local) or an ISO time with its offset
-            # -> '25 min', '3 h', '2 days'; '' when it is not a time.
-            def waited(since, now: Time.now)
-                time = local_time(since) or return ""
-                minutes = [0, (now - time).to_i / 60].max
-                return "#{minutes} min" if minutes < 60
-                return "#{minutes / 60} h" if minutes < 48 * 60
-
-                "#{minutes / 1440} days"
-            end
-
-            def local_time(text)
-                found = TIME.match(text.to_s) or return
-                *parts, zone = found.captures
-                parts = parts.map(&:to_i)
-                zone ? Time.new(*parts, zone) : Time.new(*parts)
-            rescue ArgumentError
-                nil
-            end
-
             # A time as the page writes it: 'YYYY-MM-DD HH:MM', local; ''
             # when it is not a time.
             def minute(text)
-                local_time(text)&.localtime&.strftime("%Y-%m-%d %H:%M").to_s
+                time = Ledger::Text.local_time(text)
+                time&.localtime&.strftime("%Y-%m-%d %H:%M").to_s
             end
         end
     end

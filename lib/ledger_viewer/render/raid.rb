@@ -30,19 +30,28 @@ module LedgerViewer
                       depends(question_links(question))])
             end
 
-            # 'blocked', 'stalled 2 h', 'returned 2: depth, unrecorded'.
+            # 'blocked', 'stalled 2 h', 'ready, not sent for 3 h',
+            # 'returned 2: depth, unrecorded'.
             def self.issues(piece)
                 causes = piece["returns"].map { it["cause"] }
                 [("blocked" if piece["status"] == "blocked"),
                  (stalled(piece) if piece["stalled"]),
+                 (unsent(piece) if piece["unsent"]),
                  ("returned #{causes.size}: #{causes.join(", ")}" if
                      causes.any?)].compact
             end
 
             # 'stalled 2 h': how long since an event last touched it.
             def self.stalled(piece)
-                waited = Text.waited(piece["touched_at"].to_s)
+                waited = Ledger::Text.waited(piece["touched_at"].to_s)
                 waited.empty? ? "stalled" : "stalled #{waited}"
+            end
+
+            # 'ready, not sent for 2 days': how long it has been ready.
+            def self.unsent(piece)
+                waited = Ledger::Text.waited(piece["ready_since"].to_s)
+                said = "ready, not sent"
+                waited.empty? ? said : "#{said} for #{waited}"
             end
 
             private

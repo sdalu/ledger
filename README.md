@@ -119,7 +119,8 @@ decision `X<n>` with its links, or a noticed line `Z<n>`), one `key:
 value` per line, an unknown id exiting 2. `stats [PATH]` prints a track
 record per route (model and effort, each peer, kept) over every ledger,
 live and closed, or one (`L<id>` reaches a closed one): pieces, the
-share verified without a return, the share ever blocked, the median
+share verified without a return, the share ever blocked, the pieces
+ready and unsent now, the median
 time out, the returns by cause, and over every ledger a last line
 `closed ledgers: N finished, M abandoned`; it writes nothing. `--json` on `check`,
 `status`, `show` and `stats` prints JSON v1: one object whose first key
@@ -256,7 +257,13 @@ also what the waker needs, registered by the user (The waker, below).
   The count is kept on the ledger's row, not as an event, so an undo
   does not move it; `check --peek` reads without counting. A piece
   `out` with no event on it for 60 minutes (`LEDGER_STALL_MINUTES`
-  changes the budget) is named `stalled:`.
+  changes the budget) is named `stalled:`. A piece ready to send
+  (planned, awaiting no word, its `after:` pieces verified, kept or
+  dropped) that has stayed planned for more than 2 hours
+  (`LEDGER_READY_LIMIT`, in minutes, changes the limit) is named with
+  its age, `ready, unsent: P65 (2 days)`; the resume view lists it
+  under `Ready, unsent:`, the viewer's card says `ready, not sent for
+  2 days`, and `stats` counts the unsent pieces per route.
 - **brief-constraints** (PreToolUse, Agent): reads the Constraints of
   the session's ledgers, and a brief that names a path one of them names
   (`vendor/`, `units/time.py`) without carrying it verbatim is refused.

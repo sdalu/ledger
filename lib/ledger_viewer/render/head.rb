@@ -107,8 +107,8 @@ module LedgerViewer
             def longest(figures)
                 return unless figures.asks.positive? && !figures.waits.empty?
 
-                first = figures.waits.min_by { Text.local_time(it) }
-                "longest #{Text.waited(first)}"
+                first = figures.waits.min_by { Ledger::Text.local_time(it) }
+                "longest #{Ledger::Text.waited(first)}"
             end
 
             def preparing(count)

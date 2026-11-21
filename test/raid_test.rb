@@ -52,6 +52,16 @@ module RaidFixture
         end
     end
 
+    # A ready piece planned HOURS ago.
+    def planned_piece(hours)
+        at = Ledger::Write.now - (hours * 3_600_000)
+        Ledger::Write.run(@journal, @ledger, "piece", [], at:) do |change|
+            change.insert(:pieces, n: change.next_id("P"), status: "planned",
+                                   model: "sonnet", effort: "low", dash: false,
+                                   title: "draw the charts")
+        end
+    end
+
     def page
         @page ||= begin
             sign_in
@@ -119,6 +129,12 @@ class RaidLineTest < ViewerTest
         assert_includes raid(card("piece-P4")), "stalled 2 h"
         assert_match(/href="#piece-P4">.*?out · stalled 2 h · with sonnet/,
                      page)
+    end
+
+    def test_a_piece_ready_past_the_limit_says_how_long_on_its_card
+        planned_piece(3)
+        assert_includes raid(card("piece-P4")), "ready, not sent for 3 h"
+        refute_includes raid(card("piece-P1")), "not sent"
     end
 
     def test_a_returned_piece_names_its_causes

@@ -4,6 +4,7 @@ require "json"
 
 require "ledger/journal"
 require "ledger/raid"
+require "ledger/ready"
 require "ledger/snapshot"
 require "ledger/text/awaits"
 
@@ -20,6 +21,7 @@ module Ledger
     # proposes closing only when `--final` passes.
     class Derive
         include Raid
+        include Ready
 
         # The stall budget in minutes (S2); LEDGER_STALL_MINUTES overrides.
         STALL_MINUTES = 60
@@ -31,24 +33,29 @@ module Ledger
         STALL_ENV  = "LEDGER_STALL_MINUTES"
 
         # The budget, read once: a value that is not a whole number above
-        # 0 is refused rather than replaced by the default.
+        # 0 is refused rather than replaced by the default (the ready
+        # limit is read the same way, Ready.limit).
         def self.stall_minutes
             @stall_minutes ||= parse_stall(ENV.fetch(STALL_ENV, nil))
         end
 
-        def self.parse_stall(value)
-            return STALL_MINUTES if value.nil?
+        def self.parse_stall(value) = minutes(STALL_ENV, value, STALL_MINUTES)
+
+        # VALUE of the variable NAME as minutes, DEFAULT when unset.
+        def self.minutes(name, value, default)
+            return default if value.nil?
             minutes = value.to_i
             return minutes if /\A[0-9]+\z/.match?(value) && minutes.positive?
-            raise Refused, "#{STALL_ENV}=#{value}: a whole number of " \
-                           "minutes above 0"
+            raise Refused, "#{name}=#{value}: a whole number of minutes " \
+                           "above 0"
         end
 
         # A Derive with the ledger's activity read from the events.
         def self.read(db, snapshot, now: Write.now,
-                      stall_minutes: self.stall_minutes)
+                      stall_minutes: self.stall_minutes,
+                      ready_limit: Ready.limit)
             new(snapshot, activity: Activity.read(db, snapshot), now:,
-                          stall_minutes:)
+                          stall_minutes:, ready_limit:)
         end
 
         attr_reader :snapshot
@@ -56,11 +63,12 @@ module Ledger
         # ACTIVITY is needed by the states about time alone; a Derive made
         # without it answers every other state and refuses those.
         def initialize(snapshot, activity: nil, now: nil,
-                       stall_minutes: STALL_MINUTES)
+                       stall_minutes: STALL_MINUTES, ready_limit: Ready::LIMIT)
             @snapshot = snapshot
             @activity = activity
             @now = now
             @stall_ms = stall_minutes * 60_000
+            @ready_ms = ready_limit * 60_000
             @pieces = snapshot.pieces.to_h { [it[:id], it] }
             @criteria = snapshot.criteria.to_h { [it[:id], it] }
         end
@@ -85,11 +93,6 @@ module Ledger
         def in_flight
             pieces.select { in_flight?(it) }
                   .sort_by { [IN_FLIGHT.index(it[:status]), it[:id]] }
-        end
-
-        # A planned piece whose `after` pieces are all settled.
-        def ready?(piece)
-            piece[:status] == "planned" && after(piece).all? { settled?(it) }
         end
 
         # An out piece no event has touched for more than the budget.
@@ -192,6 +195,7 @@ module Ledger
                 @touched = {}
                 @inserted = {}
                 @settled = {}
+                @ended = {}
                 rows.each do |at, tbl, row_id, before, after|
                     note(at, tbl, row_id, parse(before), parse(after))
                 end
@@ -199,6 +203,7 @@ module Ledger
 
             def inserted(table, id) = @inserted[[table.to_s, id]]
             def settled_at(piece) = @settled[piece[:id]]
+            def ended_at(piece) = @ended[piece[:id]]
 
             # {"O3" => ms, "P4:commit" => ms} for DERIVE's ledger: the later
             # of a question's insert and its preparer settled, while it is
@@ -242,9 +247,13 @@ module Ledger
             end
 
             def settle(at, row_id, before, after)
-                now = SETTLED.include?(after&.fetch("status"))
-                was = SETTLED.include?(before&.fetch("status"))
-                @settled[row_id] = at if now && !was
+                @settled[row_id] = at if entered?(SETTLED, before, after)
+                @ended[row_id] = at if entered?(Ready::ENDED, before, after)
+            end
+
+            def entered?(statuses, before, after)
+                statuses.include?(after&.fetch("status")) &&
+                    !statuses.include?(before&.fetch("status"))
             end
         end
 
@@ -253,7 +262,8 @@ module Ledger
         # when none is set, so that two live ledgers in one session are
         # told apart. With `deferred:` (each
         # piece with its condition), `assuming:` (the open assumptions)
-        # then `stalled:` after blocked (U14).
+        # then `stalled:` after blocked (U14), then `ready, unsent:` (each
+        # piece with its age).
         # The beat's `unchanged ×N` is the check command's to append
         # (StatusLine.beat).
         class StatusLine
@@ -269,7 +279,8 @@ module Ledger
             end
 
             def to_s
-                parts = [criteria, pieces, *states, *waiting, *viewer]
+                parts = [criteria, pieces, *states, *unsent, *waiting,
+                         *viewer]
                 parts << "done: propose close" if done?
                 "Status (#{head}) — #{parts.join(" · ")}"
             end
@@ -305,6 +316,12 @@ module Ledger
                  named("blocked") { it[:status] == "blocked" },
                  deferred, assumed,
                  named("stalled") { @derive.stalled?(it) }].compact
+            end
+
+            # The ready pieces planned past the limit, with their age.
+            def unsent
+                labels = @derive.unsent.map { @derive.unsent_label(*it) }
+                [clause("ready, unsent", labels)].compact
             end
 
             # The assumptions waiting on their check.

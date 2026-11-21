@@ -2,6 +2,9 @@
 
 require "json"
 
+require "ledger/derive"
+require "ledger/snapshot"
+
 module Ledger
     # A track record per route (docs/journal.md, section 4, `stats`): the
     # pieces of the ledgers named, grouped by the route each has now, and
@@ -19,10 +22,12 @@ module Ledger
         UNRECORDED = "unrecorded"
 
         # One group: its route, its pieces, those verified and those
-        # verified without a return, those ever blocked, the median span
-        # out in ms (nil without one) and the returns {cause => count}.
+        # verified without a return, those ever blocked, those ready and
+        # unsent now (Derive#unsent), the median span out in ms (nil
+        # without one) and the returns {cause => count}.
         Group = Data.define(:route, :pieces, :verified, :first_pass,
-                            :blocked, :median_out_ms, :returns) do
+                            :blocked, :unsent, :median_out_ms,
+                            :returns) do
             # Of the pieces verified, the share never returned; nil when
             # none is verified.
             def first_pass_share
@@ -37,10 +42,12 @@ module Ledger
         # insert, TO nil for a delete.
         Change = Data.define(:piece_id, :event_id, :at, :from, :to)
 
-        def self.read(db, ledger_ids) = new(db, ledger_ids).groups
+        def self.read(db, ledger_ids, **) = new(db, ledger_ids, **).groups
 
-        def initialize(db, ledger_ids)
+        # NOW (ms) dates the pieces unsent.
+        def initialize(db, ledger_ids, now: Write.now)
             @db = db
+            @now = now
             @pieces = db[:pieces].where(ledger_id: ledger_ids).all
             @reverted = InForce.new(db, ledger_ids).reverted
             @changes = changes.group_by(&:piece_id)
@@ -86,6 +93,7 @@ module Ledger
                       verified: verified.size,
                       first_pass: verified.count(&:first_pass?),
                       blocked: tracks.count(&:blocked?),
+                      unsent: pieces.count { unsent.include?(it[:id]) },
                       median_out_ms: median(tracks.flat_map(&:spans)),
                       returns: tally(tracks.flat_map(&:causes)))
         end
@@ -93,6 +101,17 @@ module Ledger
         def track(piece)
             Track.new(piece, @changes.fetch(piece[:id], []),
                       @recorded.fetch(piece[:id], []))
+        end
+
+        # The ids of the pieces unsent, over the live ledgers of the
+        # pieces: a closed one has no piece planned.
+        def unsent
+            ledgers = @pieces.map { it[:ledger_id] }.uniq
+            @unsent ||= @db[:ledgers].where(id: ledgers, closed_at: nil)
+                                     .select_map(:id).flat_map do |id|
+                derive = Derive.read(@db, Snapshot.read(@db, id), now: @now)
+                derive.unsent.map { it.first[:id] }
+            end
         end
 
         def median(values)

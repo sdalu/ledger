@@ -25,7 +25,7 @@ module LedgerViewer
             def waiting_since(question)
                 since = @reading.asked[question["id"]]
                 by = question["by"].to_s
-                [since && "waiting #{Text.waited(since)}, " \
+                [since && "waiting #{Ledger::Text.waited(since)}, " \
                           "since #{Text.minute(since)}",
                  (by.empty? ? nil : "prepared by #{by}")].compact.join(" · ")
             end

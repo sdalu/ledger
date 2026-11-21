@@ -10,8 +10,20 @@ class DeriveCase < CheckCase
 
     def row(id) = derive.piece(id)
 
-    def read_derive(now)
-        Ledger::Derive.read(db, snapshot, now:, stall_minutes: 60)
+    def read_derive(now, ready_limit: 120)
+        Ledger::Derive.read(db, snapshot, now:, stall_minutes: 60,
+                                          ready_limit:)
+    end
+
+    def planned_at(at, after: nil)
+        write(at:) do |change|
+            id = piece_row(change)
+            if after
+                change.insert(:piece_links, piece_id: id, kind: "after",
+                                            position: 0, after_id: after)
+            end
+            id
+        end.value
     end
 
     def piece_row(change, **columns)
@@ -49,6 +61,16 @@ class DeriveTest < DeriveCase
 
         assert_equal([true, false],
                      [ready, blocked].map { derive.ready?(row(it)) })
+    end
+
+    def test_a_dropped_after_piece_counts_and_an_awaited_word_does_not
+        on_dropped = piece
+        after(on_dropped, piece(status: "dropped"))
+        awaiting = piece
+        awaits(awaiting, "start")
+
+        assert_equal([true, false],
+                     [on_dropped, awaiting].map { derive.ready?(row(it)) })
     end
 
     def test_in_flight_is_blocked_back_out_planned_deferred
@@ -114,7 +136,7 @@ class DeriveTest < DeriveCase
 end
 
 # The status line: its wording and order, `stalled:` after
-# blocked.
+# blocked, `ready, unsent:` after it.
 class StatusLineTest < DeriveCase
     def test_the_status_line_names_every_state
         pieces_fixture
@@ -128,6 +150,17 @@ class StatusLineTest < DeriveCase
                      "waiting on you: O1 · being prepared: O2 (P3) · your " \
                      "word: P4 (commit, other (look)) · from the viewer: N1",
                      line
+    end
+
+    def test_an_unsent_piece_comes_after_stalled_with_its_age
+        write(at: AT - (3 * 60 * MINUTE)) do |change|
+            piece_row(change, status: "out", claimed_by: "s")
+        end
+        planned_at(AT - (50 * 60 * MINUTE))
+
+        assert_equal "Status (Ledger in Ruby) — criteria 1/1 · " \
+                     "pieces 0/2 verified · out: P1 · stalled: P1 · " \
+                     "ready, unsent: P2 (2 days)", line
     end
 
     def test_a_finished_ledger_proposes_to_close
@@ -183,5 +216,98 @@ class StatusLineTest < DeriveCase
         awaits(id, "commit")
         @rows.insert(:piece_awaits, piece_id: id, position: 1, word: "other",
                                     what: "look")
+    end
+end
+
+# Ready and unsent: a ready piece planned past the limit, its age from
+# the later of its own last change and its after pieces' ending.
+class UnsentTest < DeriveCase
+    HOUR = 60 * MINUTE
+
+    def teardown
+        ENV.delete(Ledger::Ready::LIMIT_ENV)
+        Ledger::Ready.instance_variable_set(:@limit, nil)
+        super
+    end
+
+    def test_the_limit_is_two_hours_unless_overridden
+        assert_equal 120, Ledger::Ready.parse(nil)
+        assert_equal 30, Ledger::Ready.parse("30")
+    end
+
+    def test_a_limit_not_a_whole_number_above_zero_is_refused_by_name
+        %w[0 -5 1.5 soon].each do |value|
+            error = assert_raises(Ledger::Refused) do
+                Ledger::Ready.parse(value)
+            end
+            assert_includes error.message, "LEDGER_READY_LIMIT=#{value}"
+        end
+    end
+
+    def test_the_variable_sets_the_limit_and_a_bad_one_is_refused
+        ENV[Ledger::Ready::LIMIT_ENV] = "45"
+        assert_equal 45, Ledger::Ready.limit
+        Ledger::Ready.instance_variable_set(:@limit, nil)
+        ENV[Ledger::Ready::LIMIT_ENV] = "two hours"
+        assert_raises(Ledger::Refused) { Ledger::Ready.limit }
+    end
+
+    def test_a_ready_piece_past_the_limit_is_unsent_with_its_age
+        planned_at(AT)
+
+        assert_empty unsent(AT + (119 * MINUTE))
+        assert_equal [["P1", 3 * HOUR]], unsent(AT + (3 * HOUR))
+    end
+
+    def test_a_limit_given_is_honoured
+        planned_at(AT)
+
+        assert_equal [["P1", 45 * MINUTE]],
+                     unsent(AT + (45 * MINUTE), ready_limit: 30)
+    end
+
+    def test_the_age_runs_from_the_after_piece_ending
+        first = planned_at(AT)
+        planned_at(AT, after: first)
+        write(at: AT + HOUR) do |change|
+            change.update(:pieces, first, status: "dropped")
+        end
+
+        assert_empty unsent(AT + (150 * MINUTE))
+        assert_equal [["P2", 3 * HOUR]], unsent(AT + (4 * HOUR))
+    end
+
+    def test_waiting_on_an_after_piece_not_ended_is_not_unsent
+        first = write(at: AT) do |change|
+            piece_row(change, status: "out", claimed_by: "s")
+        end.value
+        planned_at(AT, after: first)
+
+        assert_equal [], unsent(AT + (5 * HOUR)).map(&:first)
+    end
+
+    def test_a_deferred_or_awaiting_piece_is_not_unsent
+        write(at: AT) { piece_row(it, status: "deferred", until: "a day") }
+        id = planned_at(AT)
+        write(at: AT) do |change|
+            change.insert(:piece_awaits, piece_id: id, position: 0,
+                                         word: "start")
+        end
+
+        assert_empty unsent(AT + (5 * HOUR))
+    end
+
+    def test_time_alone_never_makes_a_write_worse
+        planned_at(AT)
+
+        write { it.insert(:noticed, line: "- later") }
+        assert_equal ["P1"], unsent(Ledger::Write.now).map(&:first)
+    end
+
+    private
+
+    def unsent(now, ready_limit: 120)
+        derive = read_derive(now, ready_limit:)
+        derive.unsent.map { |piece, age| [derive.ref(piece), age] }
     end
 end
