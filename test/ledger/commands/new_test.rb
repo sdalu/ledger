@@ -28,6 +28,8 @@ class NewTest < CommandCase
         fork = "/work/beta/.claude/LEDGER-web.md"
         assert_refused("new", fork, *GOAL,
                        "a live ledger already sits here: /work/beta/LEDGER.md")
+        assert_refused("new", fork, *GOAL,
+                       "append it there (ledger goal /work/beta/LEDGER.md")
         ok("new", fork, *GOAL, "--confirmed", "yes, a second one for the web")
 
         id = db[:ledgers].where(name: "web").get(:id)

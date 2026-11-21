@@ -152,10 +152,14 @@ module Ledger
                 [dir, File.join(dir, ".claude")]
             end
 
+            # The other path first: a request that serves or extends the
+            # live goal is a Goal block there, not a second ledger.
             def refusal
-                "a live ledger already sits here: #{live.join(", ")}; a " \
-                    "second one is a fork: ask the user, then pass their " \
-                    "words with --confirmed \"…\""
+                "a live ledger already sits here: #{live.join(", ")}. If " \
+                    "the request serves or extends its goal, append it " \
+                    "there (ledger goal #{live.first} --quote …); a second " \
+                    "ledger is a fork: ask the user, then pass their words " \
+                    "with --confirmed \"…\""
             end
 
             def fail!(message) = raise(Refused, message)
