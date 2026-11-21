@@ -143,6 +143,30 @@ class PieceStatusTest < PieceCase
         assert_equal ["back", nil], row.values_at(:status, :claimed_by)
     end
 
+    # A session resuming another's work takes the claim over: the piece
+    # stays out, and no return is recorded.
+    def test_claim_moves_an_out_piece_to_this_session
+        add
+        ok("piece", BETA, "P1", "--status", "out", "--session", "s1")
+        out = ok("piece", BETA, "P1", "--claim", "--session", "s2")
+
+        assert_equal "claimed: P1 from s1", out.lines.first.chomp
+        assert_equal %w[out s2], row.values_at(:status, :claimed_by)
+        assert_equal 0, db[:piece_returns].count
+    end
+
+    def test_claim_is_refused_off_an_out_piece_and_with_a_status
+        add
+        refused("P1", "--claim", "--session", "s2",
+                "P1 is planned, not out: nothing to claim")
+        ok("piece", BETA, "P1", "--status", "out", "--session", "s1")
+        refused("P1", "--claim", "--status", "out", "--session", "s2",
+                "--claim keeps the status: drop --status")
+        refused("P1", "--claim", "--claim needs a session id")
+        refused("new", "--title", "Another", *ROUTE, "--claim",
+                "--session", "s2", "--claim takes over a piece out")
+    end
+
     def test_a_kept_piece_taken_out_gets_its_route
         add("--status", "kept: later")
         ok("piece", BETA, "P1", "--status", "out", *ROUTE, "--session", "s1")

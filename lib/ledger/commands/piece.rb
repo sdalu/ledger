@@ -49,6 +49,10 @@ module Ledger
                 FLAGS.each do |name, what|
                     parser.on("--#{name} VALUE", what) { @opts[name] = it }
                 end
+                parser.on("--claim", "take over an out piece's claim for " \
+                                     "this session; the status stays") do
+                    @opts["claim"] = true
+                end
                 dry_run(parser)
             end
 
@@ -57,16 +61,28 @@ module Ledger
                     target == "new" || ID.match?(target)
                 result = save(path, target, session)
                 lines = [Render::Markdown.line(result.after, result.value)]
-                emit(result, path, first: (result.value if target == "new"),
-                                   lines:)
+                emit(result, path, first: first(target, result), lines:)
                 0
             end
 
+            # What a write prints first: a new piece's id, or whom a claim
+            # was taken from.
+            def first(target, result)
+                return result.value if target == "new"
+                return unless @opts["claim"]
+
+                "claimed: #{target} from #{@previous || "no one"}"
+            end
+
             def save(path, target, holder)
-                write(path, own: (target unless target == "new")) do |change|
-                    PieceWriter.new(change, journal.db, @opts, holder)
-                               .call(target, Address.parse(path))
+                writer = nil
+                result = write(path,
+                               own: (target unless target == "new")) do |chg|
+                    writer = PieceWriter.new(chg, journal.db, @opts, holder)
+                    writer.call(target, Address.parse(path))
                 end
+                @previous = writer.previous
+                result
             end
 
             # U12: the session an `out` is claimed for; Change#status
@@ -96,7 +112,7 @@ module Ledger
 
             # -> the piece's visible id, once every row is written.
             def call(target, address)
-                old = target == "new" ? nil : find(target, address)
+                old = prior(target, address)
                 row = PieceRow.new(old, @opts, awaits: listed(old, :awaits),
                                                scopes: listed(old, :scopes))
                 id = save(old, row)
@@ -108,7 +124,19 @@ module Ledger
                 @change.own
             end
 
+            # The holder a `--claim` took the piece from.
+            def previous = @reclaim&.previous
+
             private
+
+            # The piece before the write (nil for a new one); a --claim is
+            # checked against it before anything is written.
+            def prior(target, address)
+                old = target == "new" ? nil : find(target, address)
+                @reclaim = PieceClaim.new(old, @opts, @session) if
+                    @opts["claim"]
+                old
+            end
 
             def find(target, address)
                 @change.resolve(target).last
@@ -188,6 +216,7 @@ module Ledger
 
             def claim(id, row)
                 @change.status(id, "out", session: @session) if row.claim?
+                @reclaim&.apply(@change, id)
             end
 
             # The return a `--status planned` from out or back records,
@@ -197,6 +226,41 @@ module Ledger
                 @change.insert(:piece_returns, piece_id: id, from_status: from,
                                                cause: row.cause)
             end
+        end
+
+        # `piece P<n> --claim`: an out piece's claim moves to this session,
+        # its status untouched, so no return is recorded and no transition
+        # reaches stats. A session that resumes another's work uses it;
+        # planned then out stays a return and needs its cause.
+        class PieceClaim
+            # The holder the claim was taken from.
+            attr_reader :previous
+
+            def initialize(old, opts, session)
+                refuse!(old, opts, session)
+                @previous = old[:claimed_by]
+                @session = session
+            end
+
+            def apply(change, id)
+                change.update(:pieces, id, claimed_by: @session)
+            end
+
+            private
+
+            def refuse!(old, opts, session)
+                fail!("--claim takes over a piece out, not a new one") unless
+                    old
+                fail!("--claim keeps the status: drop --status") if
+                    opts.key?("status")
+                fail!("--claim needs a session id") unless session
+                return if old[:status] == "out"
+
+                fail!("P#{old[:n]} is #{old[:status]}, not out: nothing " \
+                      "to claim")
+            end
+
+            def fail!(message) = raise(Refused, message)
         end
 
         # The awaited words of one piece and their scope lines, written as

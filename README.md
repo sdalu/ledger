@@ -178,7 +178,9 @@ planned` says why with `--cause brief|split|depth|contract|env` (the
 brief lacked something, the piece was cut wrong, the tier or effort was
 too low, the delegate broke the escalation contract, the environment
 failed), refused without one and on any other change; `show PATH P<n>`
-lists the returns, one a line. `undo PATH` puts back the last event that changed the
+lists the returns, one a line. A session that takes over a piece another
+left out runs `piece PATH P<n> --claim`: the claim moves to it, the
+status stays out, and no return is recorded. `undo PATH` puts back the last event that changed the
 ledger's items, in an event of its own, one level, refused once a row
 changed since; the inbox's takes are never undone. `restore PATH --to
 E<n>` puts back every item-changing event after `E<n>`; without `--to`
