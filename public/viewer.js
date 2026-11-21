@@ -361,6 +361,24 @@
       if (r.ok && r.redirected) doc = new DOMParser().parseFromString(await r.text(), 'text/html');
     } catch (err) { doc = null; }
     if (!doc) return plain();
+    // a question asked about a card leaves it answerable: only its ask part
+    // is drawn again, so an answer being written on the card stays
+    const ask = f.closest('.ask-about');
+    if (ask) {
+      const part = doc.getElementById(card.id)?.querySelector('.ask-about');
+      sending = false;
+      if (!part) { location.assign(r.url + '#' + card.id); return; }
+      const now = waitingSig(doc);
+      const outside = [...known].some(([id, sig]) => now.get(id) !== sig)
+        || [...now.keys()].some(id => !known.has(id));
+      const mine = document.importNode(part, true);
+      ask.replaceWith(mine);
+      wire(mine);
+      mine.querySelector('summary').focus();
+      known = now;
+      if (outside) stale(); else here = doc.body.dataset.stamp || here;
+      return;
+    }
     const fresh = doc.getElementById(card.id);
     if (!fresh || !fresh.querySelector('.sent, .sent-line')) {
       sending = false;

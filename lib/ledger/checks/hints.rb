@@ -54,6 +54,13 @@ module Ledger
                 "a detail says in words what ids stand for, or points to " \
                 "them with `— see:`; `bin/ledger piece PATH P<n> --what …`, " \
                 "a question's by `bin/ledger edit PATH O<n> --text …`",
+            "codes" =>
+                "say in words what a code that is not this ledger's " \
+                "(W1, S4) stands for, instead of the code, or point a " \
+                "question to where it is defined with `— see: F<n>`; " \
+                "quoted user words and `code` are not read; `bin/ledger " \
+                "piece PATH P<n> --what …`, `bin/ledger edit PATH F<n> " \
+                "--text …`",
             "pieces-order" =>
                 "a piece leaves planned only once what it waits for is " \
                 "verified or kept, and waits for none dropped; " \

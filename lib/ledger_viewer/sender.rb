@@ -64,7 +64,10 @@ module LedgerViewer
             first ? first[0] : body.anchor
         end
 
+        # A comment on a question leaves its card as it was.
         def receipt?(body)
+            return false if body.fields["comment"]
+
             body.anchor.start_with?("q-") ||
                 (body.anchor.start_with?("p-") &&
                     !body.fields.fetch("word", "").empty?)

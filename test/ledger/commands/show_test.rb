@@ -22,6 +22,7 @@ class ShowTest < CommandCase
             id: F1
             text: port 80 is open
             pointer: ss output
+            pointer_kind: text
             line: - F1: port 80 is open — ss output
         TEXT
     end

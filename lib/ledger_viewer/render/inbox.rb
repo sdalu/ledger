@@ -13,6 +13,7 @@ module LedgerViewer
         class Inbox
             KINDS = { "answer" => "answer to %<ref>s",
                       "comment" => "comment on piece %<ref>s",
+                      "ask" => "comment on question %<ref>s, not an answer",
                       "word" => "word on %<ref>s",
                       "order" => "proposed order of the planned pieces",
                       "note" => "note" }.freeze
@@ -75,6 +76,7 @@ module LedgerViewer
                 end
 
                 kind = entry["malformed"] ? nil : Terms.kind(ref)
+                kind = "ask" if kind == "answer" && entry["comment"]
                 kind ? format(KINDS[kind], ref:) : "malformed line"
             end
 

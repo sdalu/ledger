@@ -70,7 +70,8 @@ address a live ledger holds. `goal` appends a revised Goal block the
 same way and refuses a quote of fewer than 4 words, a go-ahead that
 belongs under Decisions (`goal-revision`; `goal-titled` checks the
 title). `check` verifies what the schema cannot (the rules are listed in
-`docs/journal.md`, section 5): titles and details, links, awaited words,
+`docs/journal.md`, section 5): titles and details, codes from
+elsewhere (a W1 not named in words or pointed to), links, awaited words,
 the picker grammar, rated cases, a verified piece's `--verified-by`, the
 `--final` rules. The schema refuses the rest before a check could see
 it: a piece that is neither kept (with its reason) nor routed with model
@@ -82,7 +83,11 @@ verified piece without evidence; an empty `done when:`.
 open questions (`waiting on you: O1, O2`); `check --final` refuses a
 finish with pieces still out or a criterion unmarked; `close` leaves
 the ledger's row in the journal marked closed, out of every hook's and
-the viewer's sight, and refuses while a viewer entry is pending. It
+the viewer's sight, and refuses while a viewer entry is pending; a
+close done first prints an after-action block, `after action:` with
+the returns and their causes, the pieces blocked or stalled out over an
+hour, the time each question took to answer and the decisions by me,
+read from the ledger's events with the numbers `stats` counts. It
 checks shape, not truth: a paraphrased goal in quote marks passes.
 
 `survey [DIR] [--peer NAME]` is the read for a session with no goal: the
@@ -300,7 +305,10 @@ queue and the "Answer O1: …" link show the title alone. `check` fails
 a longer title on a piece in flight or an open question (`titles`);
 settled pieces keep their lines. The detail fails the same check when
 ids outnumber words two to one (`details`); codes are named with
-`— see:`.
+`— see:`. A code whose letter is not one of the ledger's kinds (`W1`
+from another note) fails `codes` wherever it stands alone in item text,
+unless an open question's `— see:` names an item that holds it; the
+user's words in double quotes and `` `code` `` are not read.
 
 Ledger text is rendered as the small part of Markdown it uses, on the
 server, from text escaped first: `**bold**`, `*italic*`, `` `code` ``,
@@ -339,6 +347,15 @@ What the page takes, all as inbox entries, of the four kinds
   piece and its status, no form, and the server refuses an answer to
   it; the status line names it `being prepared: O9 (P36)`, and its wait
   starts only once it can be answered.
+- **A comment on a question**, not an answer (to ask for more before
+  answering): below an open question's answer form, a fold *Ask about
+  O<n>* with its own *Send question*; the entry carries `comment: true`
+  and the text, and the server refuses it empty or once the question is
+  no longer open. It replaces nothing, and an answer sent after it need
+  not name it; the card stays a question to answer, with *asked: N<n>,
+  sent HH:MM · awaiting filing* until the session takes it, and only
+  that line and the fold are redrawn when it is sent with `fetch`.
+  `ledger inbox` shows it as *comment on question O<n>, not an answer*.
 - **A comment on a planned piece**, before it goes out, and with two or
   more planned, **a proposed order**, refused unless it names each
   planned piece once.

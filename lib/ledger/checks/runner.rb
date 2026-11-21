@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "ledger/checks/codes"
 require "ledger/checks/criteria"
 require "ledger/checks/final"
 require "ledger/checks/goal"
@@ -42,6 +43,7 @@ module Ledger
             rule("pieces-awaits", Awaits.method(:problems)),
             rule("titles", ->(d) { Pieces.titles(d) + Open.titles(d) }),
             rule("details", ->(d) { Pieces.details(d) + Open.details(d) }),
+            rule("codes", Codes.method(:problems)),
             rule("pieces-order", Pieces.method(:order)),
             rule("criteria-pieces", Criteria.method(:pieces)),
             rule("case-rated", lambda do |d|
@@ -54,6 +56,10 @@ module Ledger
                  prefix: "the user's word still owed: ", final: true),
             rule("final-criteria", Final.method(:criteria), final: true)
         ].freeze
+
+        # The rules that answer [item, token] pairs: the write path
+        # refuses a write for them only by the pairs it adds.
+        FINDINGS = { "codes" => Codes.method(:findings) }.freeze
 
         module_function
 
@@ -68,14 +74,24 @@ module Ledger
             end
         end
 
-        # -> [[name, detail]] of the rules that fail: the shape the write
-        # path's step 6 compares before and after.
+        # -> [[name, detail]] of the rules that fail.
         def failures(snapshot, final: false)
             run(snapshot, final:).reject { it[1] }.map { [it[0], it[2]] }
         end
 
-        # The write path's callable (Write.run's `checks:`).
-        def call(snapshot) = failures(snapshot)
+        # The write path's callable (Write.run's `checks:`): [[name,
+        # detail, findings]] of the rules that fail, the shape step 6
+        # compares before and after; findings nil for a rule without.
+        def call(snapshot)
+            derive = Derive.new(snapshot)
+            RULES.reject(&:final).filter_map do |rule|
+                problems = rule.rule.call(derive)
+                next if problems.empty?
+
+                [rule.name, rule.detail(problems),
+                 FINDINGS[rule.name]&.call(derive)]
+            end
+        end
 
         def hint(name) = HINTS.fetch(name)
     end

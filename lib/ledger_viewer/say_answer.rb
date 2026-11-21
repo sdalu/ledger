@@ -1,11 +1,25 @@
 # frozen_string_literal: true
 
 module LedgerViewer
-    # The answer to a question, and what a send says it replaces.
+    # The answer to a question, a comment on it, and what a send says
+    # it replaces.
     module SayAnswer
         private
 
+        # A comment on a question still open, which answers nothing: it
+        # replaces nothing and no answer has to replace it.
+        def ask(ref, fields)
+            unless @data["questions"].any? { it["id"] == ref }
+                refuse(409, "#{ref} is no longer open in this ledger; " \
+                            "send it as a note.")
+            end
+            fields["comment"] = true
+        end
+
+        # An O<n> is answered, unless the form says `comment`.
         def answer(ref, fields)
+            return ask(ref, fields) unless @form["comment"].empty?
+
             asked = @data["questions"].reverse_each.find { it["id"] == ref } or
                 refuse(409, "#{ref} is no longer asked in this ledger; " \
                             "send it as a note.")

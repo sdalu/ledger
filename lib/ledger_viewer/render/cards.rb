@@ -22,15 +22,18 @@ module LedgerViewer
                 @waiting = waiting
             end
 
-            # A question the user can answer, or has answered and the
-            # session has not filed.
+            # A question the user can answer, with what they asked about
+            # it, or one they answered and the session has not filed.
             def ask(question)
                 id = question["id"]
-                said = @reading.unfiled_on(id)
+                asked, said = sent_on(id)
                 shown, inside = pictures(question)
                 form = @kit.say.html(spec(question, said, inside))
                 kase = case_of(question) + shown
-                return waiting_card(question, kase, form) if said.empty?
+                if said.empty?
+                    return waiting_card(question, kase,
+                                        form + @kit.word.ask(id, asked))
+                end
 
                 received(question, said.last, kase, form)
             end
@@ -45,6 +48,12 @@ module LedgerViewer
             end
 
             private
+
+            # What was sent on a question and not filed: the comments
+            # about it, then the answers.
+            def sent_on(id)
+                @reading.unfiled_on(id).partition { it["comment"] }
+            end
 
             def case_of(question)
                 @kit.cases.block(question) +

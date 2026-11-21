@@ -69,7 +69,7 @@ class CloseButtonTest < ViewerTest
         say([%w[ref close], %w[text thanks]])
         out = ledger("close", "--take", "N1")
 
-        assert_match(/\Aclosed: /, out)
+        assert_match(/\Aafter action:\n(?:.*\n)*closed: /, out)
         refute_nil @journal.db[:inbox_entries].get(:taken_id)
         https "/l/#{@lid}"
 

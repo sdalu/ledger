@@ -7,8 +7,8 @@ require_relative "text"
 module LedgerViewer
     module Render
         # The user's word on a piece (one button per word it awaits, the
-        # combined one first), and the fold that asks the session to
-        # close an item.
+        # combined one first), the fold that asks the session to close
+        # an item, and the one that asks about a question.
         class WordForm
             CLOSE = "The session closes it with ledger close: it leaves " \
                     "the list of live ledgers, its history stays in the " \
@@ -57,6 +57,19 @@ module LedgerViewer
                     { lid: @lid, token: @token, ref:, label:, attrs:, box:,
                       says: DROPS.fetch(ref[0, 1], DROPS["O"]) }
                 )
+            end
+
+            # The fold that asks about question `ref` without answering
+            # it, below its answer form, and a line per comment sent and
+            # not filed.
+            def ask(ref, asked)
+                lines = asked.map do |entry|
+                    at = Clock.clock((entry["at"] || "").to_s)
+                    sent = at.empty? ? "" : ", sent #{at}"
+                    "asked: #{entry["id"]}#{sent} · awaiting filing"
+                end
+                @scope.partial("ledger/ask",
+                               { lid: @lid, token: @token, ref:, lines: })
             end
 
             # The ledger's Close when its status proposes it, or the

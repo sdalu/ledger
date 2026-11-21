@@ -5,6 +5,7 @@ require_relative "entry"
 require_relative "links"
 require_relative "reading"
 require_relative "serving"
+require_relative "sourced"
 require_relative "status"
 require_relative "terms"
 require_relative "text"
@@ -16,8 +17,6 @@ module LedgerViewer
         # criteria marked, the pieces closed, the constraints, facts,
         # decisions and what was left out of scope.
         class Record
-            CONSTRAINT = /\A- (C\d+): "(.+?)" — (.+?)(?: \((.+)\))?\z/
-            FACT = /\A- (F\d+): (.+?) — (\S.*)\z/
             DASH = /\A- /
 
             def initialize(kit)
@@ -27,6 +26,7 @@ module LedgerViewer
                 @entry = Entry.new(@scope)
                 @serving = Serving.new(@scope, @reading)
                 @decisions = Decisions.new(@scope, @entry, @lid)
+                @sourced = Sourced.new(@scope, @entry)
             end
 
             def html
@@ -51,7 +51,7 @@ module LedgerViewer
             end
 
             def lines(key, title, list)
-                [[key, title, sourced(list), list.length]]
+                [[key, title, @sourced.html(list), list.length]]
             end
 
             def fold(key, title, rows, count = rows.length)
@@ -106,36 +106,6 @@ module LedgerViewer
                             anchor: "piece-#{piece["id"]}",
                             fold: Why.link(@lid, piece["id"]),
                             **Links.fields(piece, @reading.settled))
-            end
-
-            # Constraint and fact rows as their parts: the id chip, the
-            # words, then a muted line with where it was said or found; a
-            # line that does not parse is drawn as the plain text.
-            def sourced(lines)
-                lines.map do |line|
-                    if (found = CONSTRAINT.match(line))
-                        constraint(found)
-                    elsif (found = FACT.match(line))
-                        fact(found)
-                    else
-                        @entry.html(text: undashed(line))
-                    end
-                end
-            end
-
-            def constraint(found)
-                body = "<q>#{@scope.inline(found[2])}</q>"
-                source(found[1], body, found.values_at(3, 4))
-            end
-
-            def fact(found)
-                body = %(<span class="text">#{@scope.inline(found[2])}</span>)
-                source(found[1], body, [found[3]])
-            end
-
-            def source(id, body, parts)
-                src = parts.reject { it.to_s.empty? }.join(" · ")
-                @scope.partial("ledger/sourced", id:, body:, src:)
             end
         end
     end

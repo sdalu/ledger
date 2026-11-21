@@ -8,6 +8,9 @@ module Ledger
             # The statuses a return leaves for planned.
             RETURNED = %w[out back].freeze
 
+            # The pieces row read.
+            attr_reader :piece
+
             def initialize(piece, changes, recorded)
                 @piece = piece
                 @changes = changes

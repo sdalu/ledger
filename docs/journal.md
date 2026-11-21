@@ -292,7 +292,9 @@ Sequel.migration do
             Integer :n, null: false      # N<n>, a malformed line's too
             String :at, null: false      # the viewer's "YYYY-MM-DD HH:MM:SS"
             String :ref                  # O3, P4, "order", "close", NULL: not a key
-            String :payload, null: false # V: the JSON object as written
+            String :payload, null: false # V: the JSON object as written:
+                                         # ref, text, and choice, notes, picks,
+                                         # word, order, replaces or comment
             TrueClass :malformed, null: false, default: false
             foreign_key :taken_id, :events   # the take event
             unique %i[ledger_id n]
@@ -404,6 +406,10 @@ end
    The write is refused, and the transaction rolled back, when *after*
    fails a rule *before* passed or names `own` (the id written) in a
    failure: a write may not leave a ledger worse than it found it.
+   `codes` is compared finer, as (item, code) pairs: a write is refused
+   for it only when it adds a pair (`FAIL codes -- P3: W9`), so a status
+   change or a reword that keeps or removes a code on an item already
+   flagged passes; `check` and the status line still show every pair.
 7. `--dry-run`: print the unified diff of `show` before and after
    (`--- ADDRESS`, `+++ ADDRESS (after)`), "dry run: nothing written",
    roll back. Exit 0, or 2 with the refusal it would give.
@@ -524,7 +530,7 @@ command's refusal, exit 2, nothing written.
 | `status PATH [--json]` | the status line; JSON v1 | |
 | `survey [DIR] [--peer NAME] [--json]` | read-only, for a session with no goal: each live ledger at DIR (the current directory by default) or under it: its address, its status line as `check --peek` prints it, its pending entries as `inbox` prints them; with `--peer`, the pieces of any live ledger whose `peer` is exactly NAME, one `ADDRESS  piece line` each; nothing found says so; no beat, no event; JSON v1 | |
 | `stats [PATH] [--json]` | one row per route over every ledger, live and closed, or one (a live address, or `L<id>` live or closed): `route` (`MODEL, effort: E`, `peer: NAME` or `kept`, the route a piece has now), `pieces`, `first-pass` (of the pieces verified, those never back to planned from out or back), `blocked` (ever blocked, of all), `out, median` (each span from the event setting a piece out to the next that changes its status; a piece still out counts none), `returns` (by cause from `piece_returns`, a return in `event_rows` with no row as `unrecorded`); JSON v1. Only the events still in force count: no undo or restore, nor an event one of them reverted (unless a later restore reverted that revert). Reads `events`, `event_rows` and `piece_returns`, writes nothing (no event, no beat) | unknown address or `L<id>` |
-| `close PATH [--take N<n>…]` | `closed: ADDRESS (L<id>)`, then `noticed, to carry: N` and the lines; `--take` takes the entries (the viewer's Close, `ref` `close`) in the close's event | `--final` fails (FAIL lines, exit 1), a refused close taking nothing; inbox pending besides the entries taken; an entry unknown or taken |
+| `close PATH [--take N<n>…]` | the after-action block, read from the ledger's events once the close is written: `after action:`, then each of these lines that has an item: `returned: P2 (depth), P5 (unrecorded)` (every return, its cause from `piece_returns`, `unrecorded` without a row), `blocked: P4` (the pieces ever blocked), `stalled: P6 (2.5 h)` (the pieces with a span out over an hour, the longest), `answered: O1 12 min, O3 2.1 h` (each closed question, from the event inserting it to the event writing its `answers` edge; `O3 (no ask record)` or `O3 (no answer record)` when that event or edge is not found), `by me: X4` (the decisions by me); with none of these, the block is the one line `after action: nothing returned, blocked or stalled`; the returns, blocked pieces and spans are those `stats` counts, from the events still in force. Then `closed: ADDRESS (L<id>)`, then `noticed, to carry: N` and the lines; `--take` takes the entries (the viewer's Close, `ref` `close`) in the close's event | `--final` fails (FAIL lines, exit 1), a refused close taking nothing; inbox pending besides the entries taken; an entry unknown or taken |
 | `inbox PATH [--wait [--timeout S] \| --follow [--quiet S]]` | the pending entries, or "inbox: nothing pending"; polls the ledger's newest event id each second | `--wait` timeout exit 1 |
 | `take PATH N<n>…` | `taken: …; pending: …`; one `take` event setting `taken_id` | unknown id; "already taken at TIME: another session filed it" |
 | `piece PATH new\|P<n> [--status --route --title --what --done-when --evidence --after --for --problem --risk --plan --scope --awaits --verified-by --session --by X<n> --cause C --claim --dry-run]` | the new id (new), `claimed: P<n> from HOLDER` (`--claim`), the piece line, status line | target shape; no such piece; title, detail; scope grammar or a word not awaited; new without title; awaiting without problem and rated risk; no route and not kept; a return (`--status planned` from out or back) without `--cause` or with a cause not in `brief`, `split`, `depth`, `contract`, `env`; `--cause` on any other change; out without a session, or out under another holder; `--claim` on a new piece, with `--status`, without a session, or on a piece not out; verified without `--verified-by`; checks |
@@ -588,6 +594,7 @@ per rule, its commands spelled for `bin/ledger`
 | pieces-awaits | `start` only on a planned or kept piece, a finishing word on a settled one, a scope only for a word awaited | `checks/pieces.rb` |
 | titles | pieces in flight and open questions: the title rule | `checks/pieces.rb`, `checks/open.rb` |
 | details | a detail not mostly ids | same |
+| codes | no code of one or two capitals and digits (W1, S4) standing alone whose letter is not a kind (P O D C F X N Z E L), unless an open question's `— see:` names an item whose words hold it; read in the latest Goal block's title, short and context, pieces in flight (title, detail, problem, plan), open questions (title, detail, problem, risk, recommend), decisions (body, note), facts (text, pointer), constraints' where and noticed lines; not in the Goal quote, a constraint's quote, double quotes, `` `code` `` or a URL; the detail is `ID: CODE, …`; a write is refused only for a code it adds (section 2) | `checks/codes.rb`, tokens in `text/codes.rb` |
 | pieces-order | out, back or verified only once `after` is settled; none waits for a dropped piece | `checks/pieces.rb` |
 | criteria-pieces | no criterion met while a piece serving it is unfinished | `checks/criteria.rb` |
 | case-rated | a rated risk on every open question and on every piece awaiting a word, a problem on that piece, Title and In short on the latest Goal | `checks/open.rb`, `checks/pieces.rb`, `checks/goal.rb` |
@@ -637,8 +644,8 @@ other reader through `--json`; the hooks read the `Snapshot` and the
 | ledger | `{id, address, place, name, project, url_id, updated_at, closed_at}` (`updated_at` is the last event's time) |
 | goals | `[{stamp, date, revised, title, short, context, quote}]` |
 | criteria | `[{id, mark, text, evidence, why, line}]` |
-| constraints | `[{id, text, quote, line}]` |
-| facts | `[{id, text, pointer, line}]` |
+| constraints | `[{id, text, quote, where, where_kind, line}]` (`where` is the line after `"QUOTE" — `; both null when the line has another shape) |
+| facts | `[{id, text, pointer, pointer_kind, line}]` |
 | decisions | `[{id, date, body, by, note, subject, line}]` (`id` is `X<n>`) |
 | links | `[{kind, from, to}]`, visible ids at both ends |
 | closed_questions | the `questions` shape plus `closed_at`, the rows with `closed_at` set, oldest first (the graph page reads them) |
@@ -654,6 +661,16 @@ other reader through `--json`; the hooks read the `Snapshot` and the
 
 `line` is the item's line exactly as `show` prints it, so a reader never
 rebuilds one. Times are ISO 8601 in local time with the offset.
+
+**Pointer kinds.** A fact's `pointer` and a constraint's `where` carry
+their kind (`text/pointer.rb`), so a reader draws them without parsing:
+`url` (the whole pointer is an `http` or `https` URL), `path` (one word
+holding a `/` or ending with a file extension, optionally `:line` or
+`:line-line`), `turn` (`turn` followed by text: said in the
+conversation), `text` (anything else). The kinds are tried in that
+order. No pointer is refused for its form. The viewer draws a URL as a
+link opening a new tab, a path in monospace titled `file`, a turn as
+written titled `said in the conversation`, free text unchanged.
 
 **The index document.** `{schema, kind: "index", ledgers}`, one entry
 per ledger, live first, then by `updated_at`, newest first: `id`,

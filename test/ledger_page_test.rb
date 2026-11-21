@@ -71,6 +71,19 @@ class LedgerPageTest < ViewerTest
         refute_equal mine, tokens(last_response.body).first
     end
 
+    def test_a_url_pointer_is_a_link_and_a_path_is_not
+        ledger("fact", "the spec says so — https://example.org/spec")
+        ledger("fact", "the parser starts here — lib/parse.rb:12-20")
+        sign_in
+        https "/l/#{@lid}"
+        body = last_response.body
+
+        assert_includes body, %(<a href="https://example.org/spec" ) +
+                              %(rel="noopener" target="_blank">)
+        assert_includes body, %(<code title="file">lib/parse.rb:12-20</code>)
+        refute_match(%r{<a [^>]*>lib/parse\.rb}, body)
+    end
+
     def tokens(body)
         body.scan(/name="token" value="([^"]*)"/).flatten
     end
