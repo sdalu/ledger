@@ -232,6 +232,18 @@ class CloseAbandonTest < CommandCase
                      decision.values_at(:body, :by, :subject)
     end
 
+    # As `word --word drop` drops one: a dropped piece awaits nothing.
+    def test_a_dropped_piece_keeps_no_awaits_nor_scope
+        ok("piece", BETA, "P5", "--problem", "it waits", "--risk",
+           "4/10 — a bad push", "--awaits", "start, other (the shots)",
+           "--scope", "start = begin it | other = look at them")
+        refute_empty db[:piece_awaits].all
+        ok("close", BETA, "--abandon")
+
+        assert_empty db[:piece_awaits].all
+        assert_empty db[:piece_scopes].all
+    end
+
     def test_the_history_stays_and_nothing_undoes_it
         ok("close", BETA, "--abandon")
         before = state

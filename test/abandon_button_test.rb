@@ -64,6 +64,15 @@ class AbandonButtonTest < ViewerTest
         assert_includes last_response.body, "already asked"
     end
 
+    def test_your_messages_list_it_as_abandon_asked
+        sign_in
+        say([%w[ref abandon]])
+        body = page
+
+        assert_match(/<span class="meta">abandon asked · /, body)
+        refute_includes body, "malformed line"
+    end
+
     def test_the_session_abandons_it_taking_the_entry
         sign_in
         say([%w[ref abandon]])

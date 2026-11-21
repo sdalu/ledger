@@ -23,9 +23,19 @@ module Ledger
         def write(change, db, date: Time.now.strftime("%F"))
             id = change.ledger_id
             db[:pieces].where(ledger_id: id, status: OPEN).select_map(:id)
-                       .each { change.status(it, "dropped") }
+                       .each { drop(change, db, it) }
             db[:questions].where(ledger_id: id, closed_at: nil).order(:n).all
                           .each { close_question(change, it, date) }
+        end
+
+        # PIECE dropped as `word --word drop` drops one: it awaits
+        # nothing after, its awaits and scope rows deleted.
+        def drop(change, db, piece)
+            change.status(piece, "dropped")
+            %i[piece_awaits piece_scopes].each do |table|
+                db[table].where(piece_id: piece).select_map(:id)
+                         .each { change.delete(table, it) }
+            end
         end
 
         # QUESTION closed as `answer` closes one: a decision by user, the

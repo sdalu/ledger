@@ -90,8 +90,8 @@ hour, the time each question took to answer and the decisions by me,
 read from the ledger's events with the numbers `stats` counts.
 `close PATH --abandon` closes a ledger unfinished, `--final` not
 required: in the same event every piece planned, out, back or blocked
-is dropped and every open question closed by a decision by user
-`abandoned with the ledger`, the history kept; a pending entry still
+is dropped, awaiting no word after, and every open question closed by
+a decision by user `abandoned with the ledger`, the history kept; a pending entry still
 refuses it, and it ends `abandoned: ADDRESS (L<id>)`. Nothing undoes a
 close. It checks shape, not truth: a paraphrased goal in quote marks
 passes.

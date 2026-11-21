@@ -16,6 +16,8 @@ module LedgerViewer
                       "ask" => "comment on question %<ref>s, not an answer",
                       "word" => "word on %<ref>s",
                       "order" => "proposed order of the planned pieces",
+                      "close" => "close asked",
+                      "abandon" => "abandon asked",
                       "note" => "note" }.freeze
 
             def initialize(kit)
