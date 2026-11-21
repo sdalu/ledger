@@ -67,11 +67,21 @@ module Ledger
 
         # The live ledger at an address, as a row; Unknown when none.
         def ledger(address)
-            address = Address.parse(address) unless address.is_a?(Address)
+            address = parse_near(address) unless address.is_a?(Address)
             row = db[:ledgers].where(place: address.place, name: address.name,
                                      closed_at: nil).first
-            raise Unknown, "no live ledger at #{address}" unless row
-            row
+            return row if row
+
+            raise Unknown, near("no live ledger at #{address}", address.place)
+        end
+
+        # The live ledgers at DIR or under it, as addresses, sorted.
+        def live_under(dir)
+            under = Sequel.like(:place, "#{db.dataset.escape_like(dir)}/%")
+            db[:ledgers].where(closed_at: nil)
+                        .where(Sequel.|({ place: dir }, under))
+                        .order(:place, :name)
+                        .map { Address.new(place: it[:place], name: it[:name]) }
         end
 
         # A ledger row by its id (`L<id>`), live or closed.
@@ -93,7 +103,33 @@ module Ledger
             end
         end
 
+        # How many ledgers a refusal lists before it says how many more.
+        NEAR_SHOWN = 10
+        private_constant :NEAR_SHOWN
+
         private
+
+        # Address.parse, its refusal naming the form an address takes and
+        # the live ledgers at the path or under it: a directory given for
+        # an address is the usual slip.
+        def parse_near(path)
+            Address.parse(path)
+        rescue Unknown => e
+            form = "#{e.message} (an address ends in LEDGER.md or " \
+                   "LEDGER-NAME.md)"
+            raise Unknown, near(form, File.expand_path(path))
+        end
+
+        # MESSAGE, then the live ledgers at DIR or under it, one a line.
+        def near(message, dir)
+            found = live_under(dir)
+            return message if found.empty?
+
+            shown = found.first(NEAR_SHOWN).map { "  #{it}" }
+            more = found.size - shown.size
+            shown << "  ... and #{more} more" if more.positive?
+            [message, "live ledgers under #{dir}:", *shown].join("\n")
+        end
 
         # The directory is made 0700: the file holds password hashes.
         def make_directory

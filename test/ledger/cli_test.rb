@@ -49,6 +49,35 @@ class CliTest < CommandCase
                        "not a ledger address")
     end
 
+    # A directory given for an address: the refusal names the form and
+    # the live ledgers at that directory or under it.
+    def test_a_directory_is_refused_with_the_ledgers_under_it
+        ok("new", "/work/beta/sub/LEDGER-web.md", *GOAL)
+        _, _, err = cli("show", "/work")
+
+        assert_includes err, "not a ledger address: /work"
+        assert_includes err, "LEDGER.md or LEDGER-NAME.md"
+        assert_includes err, "live ledgers under /work:"
+        assert_includes err, "  /work/beta/LEDGER.md\n"
+        assert_includes err, "  /work/beta/sub/LEDGER-web.md\n"
+    end
+
+    # A wrong name in the right directory: the ones that are there.
+    def test_a_missing_ledger_names_its_neighbours
+        _, _, err = cli("show", "/work/beta/LEDGER-other.md")
+
+        assert_includes err, "no live ledger at /work/beta/LEDGER-other.md"
+        assert_includes err, "  /work/beta/LEDGER.md\n"
+    end
+
+    # Nothing near: the refusal is the one line it was.
+    def test_nothing_near_adds_nothing
+        _, _, err = cli("show", "/elsewhere")
+
+        assert_includes err, "not a ledger address: /elsewhere"
+        refute_includes err, "live ledgers"
+    end
+
     def test_the_launcher_runs_the_cli_under_the_bundle
         env = { "LEDGER_JOURNAL" => ENV.fetch("LEDGER_JOURNAL") }
         out, status = Open3.capture2e(env, BIN, "status", BETA)
