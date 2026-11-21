@@ -62,18 +62,18 @@ class StopTest < HookTest
         assert_equal Ledger::Hooks::Answer.pass, stop("finish")
     end
 
-    def test_deferred_pieces_with_another_failure_are_sent_back
+    def test_deferred_pieces_with_a_criterion_met_without_evidence_go_back
         write("import") do |change|
             goal(change)
-            criterion(change)
+            criterion(change, mark: "x")
             piece(change, status: "deferred", until: "three closures")
         end
         answer = stop("finish")
 
         assert_equal 2, answer.status
-        assert_match "#{ADDRESS}: FAIL final-criteria", answer.err
-        assert_match "#{ADDRESS}: FAIL final-deferred -- deferred: P1 " \
-                     "(three closures)", answer.err
+        assert_match(/FAIL final-criteria -- D1 met without evidence/,
+                     answer.err)
+        assert_match(/FAIL final-deferred -- deferred: P1/, answer.err)
     end
 
     def test_pending_entries_refuse_the_stop_verbatim

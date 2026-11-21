@@ -2,6 +2,7 @@
 
 require_relative "answered"
 require_relative "reading"
+require_relative "remains"
 require_relative "sectioned"
 require_relative "terms"
 require_relative "text"
@@ -13,10 +14,6 @@ module LedgerViewer
         # answered today; Sent, awaiting filing; Being prepared.
         class Waiting
             include Sectioned
-
-            REMAINS = '<h2 id="waiting">Remains</h2><p>Nothing: every ' \
-                      "criterion marked, no piece in flight, no question " \
-                      "open. Ready for <code>bin/ledger close</code>.</p>"
 
             NOTHING = "Nothing asked of you."
             BELOW = " Being prepared, below."
@@ -31,14 +28,14 @@ module LedgerViewer
             end
 
             # [Waiting on you, then Sent and Being prepared]; the first
-            # says nothing remains when nothing does.
+            # is Remains when nothing is asked or in flight.
             def sections
                 asks = ask_cards
                 sent = sent_cards
                 prepared = @reading.prepared_questions.map do |question|
                     @cards.preparing(question)
                 end
-                return [REMAINS, ""] if @reading.settled?
+                return [Remains.html(@reading), ""] if @reading.settled?
 
                 [waiting(asks, prepared), section("Sent, awaiting filing", sent,
                                                   "sent") +

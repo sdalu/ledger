@@ -95,7 +95,9 @@ module Ledger
             "final-deferred" =>
                 "no piece deferred: the ledger waits for its event; once " \
                 "it came, `bin/ledger piece PATH P<n> --status planned`, " \
-                "or `--status dropped` with a Decision",
+                "or `--status dropped` with a Decision; meanwhile the stop " \
+                "passes, criteria unmarked too if each waits on deferred " \
+                "pieces only or on no piece",
             "final-awaits" =>
                 "no piece waits for the user's word; `bin/ledger word PATH " \
                 "P<n> --word W` once given, or `--word drop`",

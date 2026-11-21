@@ -276,7 +276,12 @@ also what the waker needs, registered by the user (The waker, below).
   once with the FAIL lines and the finish steps. A turn that ends to
   wait is never refused: a ledger whose only failure is its deferred
   pieces waits on their event as it would on the user, and its stop
-  goes through. The retry is let through
+  goes through. So does one that fails besides only on criteria
+  unmarked, each served (`for:`) by deferred pieces among its
+  unfinished ones or by no piece at all: they wait on the same event.
+  A criterion met without evidence or not met without why, or any
+  other rule failing, still sends the stop back; `check --final` itself
+  still fails. The retry is let through
   whatever it did.
 - **inbox** (Stop): pending viewer entries refuse the stop once,
   verbatim, with the filing steps.
@@ -526,7 +531,12 @@ What the page takes, all as inbox entries, of the four kinds
   as soon as any entry waits, the Close sent before among them. Sent,
   the head shows *close asked* with its receipt until a session files
   it with `ledger close PATH --take N<n>`, closing the ledger and
-  taking the entry in one event; a close refused takes nothing.
+  taking the entry in one event; a close refused takes nothing. With
+  every criterion marked, no piece in flight and no question open, the
+  Remains section says *Ready for `bin/ledger close`* only when the
+  Close is offered; otherwise it says what the status line holds the
+  close on: *Not yet: an entry from you waits to be filed (N1).*, or
+  *`bin/ledger check --final` still fails* when the line names nothing.
 - **The abandon of the ledger**, on any live ledger, after the Close
   when the Close is offered: *Abandon the ledger*, a fold that says what
   abandoning does (the pieces not finished dropped, the open questions
