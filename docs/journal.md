@@ -523,6 +523,7 @@ command's refusal, exit 2, nothing written.
 | `show PATH [ID] [--json]` | no ID: the whole ledger as Markdown; an ID (`P`, `O`, `D`, `C`, `F`, `X`, `Z`): its fields as `key: value` lines, links as `answers: O3`, `rests-on: F2, C3` lines; or JSON v1 | unknown id |
 | `status PATH [--json]` | the status line; JSON v1 | |
 | `survey [DIR] [--peer NAME] [--json]` | read-only, for a session with no goal: each live ledger at DIR (the current directory by default) or under it: its address, its status line as `check --peek` prints it, its pending entries as `inbox` prints them; with `--peer`, the pieces of any live ledger whose `peer` is exactly NAME, one `ADDRESS  piece line` each; nothing found says so; no beat, no event; JSON v1 | |
+| `stats [PATH] [--json]` | one row per route over every ledger, live and closed, or one (a live address, or `L<id>` live or closed): `route` (`MODEL, effort: E`, `peer: NAME` or `kept`, the route a piece has now), `pieces`, `first-pass` (of the pieces verified, those never back to planned from out or back), `blocked` (ever blocked, of all), `out, median` (each span from the event setting a piece out to the next that changes its status; a piece still out counts none), `returns` (by cause from `piece_returns`, a return in `event_rows` with no row as `unrecorded`); JSON v1. Only the events still in force count: no undo or restore, nor an event one of them reverted (unless a later restore reverted that revert). Reads `events`, `event_rows` and `piece_returns`, writes nothing (no event, no beat) | unknown address or `L<id>` |
 | `close PATH [--take N<n>…]` | `closed: ADDRESS (L<id>)`, then `noticed, to carry: N` and the lines; `--take` takes the entries (the viewer's Close, `ref` `close`) in the close's event | `--final` fails (FAIL lines, exit 1), a refused close taking nothing; inbox pending besides the entries taken; an entry unknown or taken |
 | `inbox PATH [--wait [--timeout S] \| --follow [--quiet S]]` | the pending entries, or "inbox: nothing pending"; polls the ledger's newest event id each second | `--wait` timeout exit 1 |
 | `take PATH N<n>…` | `taken: …; pending: …`; one `take` event setting `taken_id` | unknown id; "already taken at TIME: another session filed it" |
@@ -621,6 +622,10 @@ other reader through `--json`; the hooks read the `Snapshot` and the
   propose_close}`.
 - `survey --json`: `{schema, kind: "survey", dir, ledgers: [{address, status,
   inbox: [{id, text}]}], peer: null \| {name, pieces: [{ledger, id, line}]}}`.
+- `stats --json`: `{schema, kind: "stats", groups: [{route, pieces,
+  first_pass_verified, blocked_share, median_out_minutes, returns:
+  {cause: count}}]}`, shares as fractions 0..1, `null` where there is
+  nothing to divide or no span out.
 - `show PATH ID --json`: `{schema, kind: "item", item}`, the item's
   object below; `show PATH ID` prints its scalar fields as `key: value`,
   lists joined by ` | `, and a piece's returns one a line, `return:

@@ -93,10 +93,14 @@ in any live ledger; it writes nothing and counts no heartbeat.
 `show PATH` prints the whole ledger as Markdown; `show PATH ID` prints
 one item's fields (a piece, question, criterion, fact, constraint,
 decision `X<n>` with its links, or a noticed line `Z<n>`), one `key:
-value` per line, an unknown id exiting 2. `--json` on `check`, `status`
-and `show` prints JSON v1: one object whose first key is `"schema": 1`,
-which the viewer and any other reader take and refuse in any other
-number. `check --fix-hints` prints, after each FAIL line, one indented
+value` per line, an unknown id exiting 2. `stats [PATH]` prints a track
+record per route (model and effort, each peer, kept) over every ledger,
+live and closed, or one (`L<id>` reaches a closed one): pieces, the
+share verified without a return, the share ever blocked, the median
+time out, the returns by cause; it writes nothing. `--json` on `check`,
+`status`, `show` and `stats` prints JSON v1: one object whose first key
+is `"schema": 1`, which the viewer and any other reader take and refuse
+in any other number. `check --fix-hints` prints, after each FAIL line, one indented
 `  hint: …` line naming the form expected and the command that fixes it.
 
 Links between items sit on the line they belong to: `— after: P3, P5`
