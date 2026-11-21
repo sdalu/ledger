@@ -41,6 +41,30 @@ class AbandonButtonTest < ViewerTest
                         body.index(%(<details class="abandon-fold"))
     end
 
+    # A close asked and an abandon asked exclude each other: once one is
+    # sent, the other is no longer offered.
+    def test_a_close_asked_withdraws_the_abandon
+        finish
+        sign_in
+        say([%w[ref close]])
+        body = page
+
+        assert_includes body, "close asked"
+        refute_match FOLD, body
+        say([%w[ref abandon]])
+
+        assert_equal [409, 1], [last_response.status, entries.length]
+        assert_includes last_response.body, "cannot be abandoned as well"
+    end
+
+    def test_an_abandon_asked_withdraws_the_close
+        finish
+        sign_in
+        say([%w[ref abandon]])
+
+        refute_includes page, %(<details class="close-fold")
+    end
+
     def test_the_abandon_is_filed_and_the_page_goes_back_to_it
         sign_in
         say([%w[ref abandon], %w[text enough]])

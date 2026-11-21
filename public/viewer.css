@@ -576,8 +576,18 @@
   /* the ledger's Close, under the next step when the status proposes it,
      and its Abandon, on any live ledger: the summary opens the request,
      the form's button alone sends it */
+  /* the two side by side; an opened one takes the whole row, its form
+     the page's width, and the other waits hidden until it is cancelled */
+  .ledger-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: start;
+    gap: var(--space-s);
+    &:empty { display: none; }
+    & > :is([open], .sent) { flex-basis: 100%; }
+    &:has(> details[open]) > details:not([open]) { display: none; }
+  }
   :is(.close-fold, .abandon-fold) {
-    justify-self: start;
     & > summary {
       display: inline-flex;
       align-items: center;
@@ -598,6 +608,19 @@
     & :is(.close-says, .abandon-says) { font-size: 0.875rem; }
     /* abandoning drops work: its button says so as a drop's does */
     & .say button.a-abandon { border-color: var(--fail); background: var(--fail); }
+  }
+  /* closing is what a ready ledger asks for: the filled button; abandoning
+     stays the quiet one beside it, its colour shown on hover */
+  .close-fold:not([open]) > summary {
+    border-color: var(--accent);
+    background: var(--accent);
+    color: var(--on-state);
+    &:hover { background: color-mix(in oklch, var(--accent) 85%, var(--ink)); }
+  }
+  .abandon-fold:not([open]) > summary {
+    font-weight: 500;
+    color: var(--muted);
+    &:hover { border-color: var(--fail); background: none; color: var(--fail); }
   }
 
   /* the waker: its state, what that means, the switch; its wakes folded */

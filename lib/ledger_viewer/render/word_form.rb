@@ -87,13 +87,15 @@ module LedgerViewer
                                           receipt: Clock.receipt(asked))
                 end
                 return "" unless reading.ready_to_close?
+                return "" if reading.unfiled_on("abandon").any?
 
                 @scope.partial("ledger/close",
                                { lid: @lid, token: @token, says: CLOSE })
             end
 
             # The ledger's Abandon, on any live ledger, or the abandon
-            # asked and not filed yet.
+            # asked and not filed yet; nothing once a close is asked, which
+            # the abandon would contradict.
             def abandon(reading)
                 asked = reading.unfiled_on("abandon").first
                 if asked
@@ -101,6 +103,7 @@ module LedgerViewer
                                           id: asked["id"],
                                           receipt: Clock.receipt(asked))
                 end
+                return "" if reading.unfiled_on("close").any?
 
                 @scope.partial("ledger/abandon",
                                { lid: @lid, token: @token, says: ABANDON })

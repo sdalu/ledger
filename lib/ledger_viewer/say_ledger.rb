@@ -23,8 +23,13 @@ module LedgerViewer
         end
 
         # The ledger abandoned on the user's word: offered on any live
-        # ledger, once; a second waits for the first to be filed.
+        # ledger, once; a second waits for the first to be filed, and a
+        # close asked excludes it until the session files the close.
         def abandon
+            unless @reading.unfiled_on("close").empty?
+                refuse(409, "Closing this ledger is already asked and not " \
+                            "filed yet: it cannot be abandoned as well.")
+            end
             return if @reading.unfiled_on("abandon").empty?
 
             refuse(409, "Abandoning this ledger is already asked and not " \
