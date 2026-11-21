@@ -244,12 +244,24 @@ class UnsentTest < DeriveCase
         end
     end
 
+    # The limit is read once per process: a test before this one may have
+    # read it unset, so the memo is cleared before and after.
     def test_the_variable_sets_the_limit_and_a_bad_one_is_refused
-        ENV[Ledger::Ready::LIMIT_ENV] = "45"
-        assert_equal 45, Ledger::Ready.limit
+        with_limit("45") { assert_equal 45, Ledger::Ready.limit }
+        with_limit("two hours") do
+            assert_raises(Ledger::Refused) { Ledger::Ready.limit }
+        end
+    end
+
+    def with_limit(value)
+        name = Ledger::Ready::LIMIT_ENV
+        before = ENV.fetch(name, nil)
         Ledger::Ready.instance_variable_set(:@limit, nil)
-        ENV[Ledger::Ready::LIMIT_ENV] = "two hours"
-        assert_raises(Ledger::Refused) { Ledger::Ready.limit }
+        ENV[name] = value
+        yield
+    ensure
+        ENV[name] = before
+        Ledger::Ready.instance_variable_set(:@limit, nil)
     end
 
     def test_a_ready_piece_past_the_limit_is_unsent_with_its_age
