@@ -8,12 +8,17 @@ module LedgerViewer
     module Render
         # The user's word on a piece (one button per word it awaits, the
         # combined one first), the fold that asks the session to close
-        # an item, and the one that asks about a question.
+        # an item, the one that asks about a question, and the ledger's
+        # Close and Abandon.
         class WordForm
             CLOSE = "The session closes it with ledger close: it leaves " \
                     "the list of live ledgers, its history stays in the " \
                     "journal, and its noticed lines are offered to carry. " \
                     "Nothing closes if the ledger changed meanwhile."
+            ABANDON = "The session closes it unfinished with ledger close " \
+                      "--abandon: the pieces not finished are dropped, the " \
+                      "open questions closed, and it leaves the list of " \
+                      "live ledgers. Its history stays in the journal."
 
             DROPS = {
                 "P" => "The session marks it dropped and does nothing more " \
@@ -85,6 +90,20 @@ module LedgerViewer
 
                 @scope.partial("ledger/close",
                                { lid: @lid, token: @token, says: CLOSE })
+            end
+
+            # The ledger's Abandon, on any live ledger, or the abandon
+            # asked and not filed yet.
+            def abandon(reading)
+                asked = reading.unfiled_on("abandon").first
+                if asked
+                    return @scope.partial("ledger/flight_abandon",
+                                          id: asked["id"],
+                                          receipt: Clock.receipt(asked))
+                end
+
+                @scope.partial("ledger/abandon",
+                               { lid: @lid, token: @token, says: ABANDON })
             end
 
             private

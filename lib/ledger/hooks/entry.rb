@@ -14,6 +14,8 @@ module Ledger
                       "order" => "proposed order of the planned pieces",
                       "close" => "the word to close the ledger: " \
                                  "ledger close PATH --take N<n>",
+                      "abandon" => "the word to abandon the ledger: " \
+                                   "ledger close PATH --abandon --take N<n>",
                       "note" => "note" }.freeze
             # The line boundaries of a splitlines: CR LF, CR, LF and the
             # Unicode ones.
@@ -43,7 +45,7 @@ module Ledger
                 case ref
                 when nil then "note"
                 when "order" then "order"
-                when "close" then "close"
+                when "close", "abandon" then ref
                 when /\AO\d+\z/ then given(comment) ? "ask" : "answer"
                 when /\AP\d+\z/ then "comment"
                 end

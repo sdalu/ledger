@@ -5,6 +5,7 @@ require_relative "render/reading"
 require_relative "render/text"
 require_relative "say_all"
 require_relative "say_answer"
+require_relative "say_ledger"
 require_relative "say_word"
 
 module LedgerViewer
@@ -15,6 +16,7 @@ module LedgerViewer
     class Say
         include SayAll
         include SayAnswer
+        include SayLedger
         include SayWord
 
         MAX_TEXT = 4000
@@ -41,7 +43,7 @@ module LedgerViewer
             fields = { "ref" => ref }
             kind = kind_of(ref)
             check(kind, ref, fields)
-            nothing! unless kind == :close || something?(fields)
+            nothing! unless ledger_word?(kind) || something?(fields)
             too_long!(fields)
             [Body.new(fields:, text: @text, anchor: anchor(kind, ref))]
         end
@@ -54,7 +56,7 @@ module LedgerViewer
             when :word then word(ref, fields)
             when :comment then comment(ref)
             when :order then order(fields)
-            when :close then close
+            when *SayLedger::WORDS then ledger_word(kind)
             when :unknown then refuse(400, "Unknown kind of entry.")
             end
         end
@@ -67,7 +69,7 @@ module LedgerViewer
         def base_kind(ref)
             return :note if ref.nil?
             return :order if ref == "order"
-            return :close if ref == "close"
+            return ref.to_sym if %w[close abandon].include?(ref)
 
             KINDS.find { |rx, _| rx.match?(ref) }&.last || :unknown
         end
@@ -89,16 +91,6 @@ module LedgerViewer
             end
             waits!(proposed)
             fields["order"] = proposed
-        end
-
-        # The ledger closed on the user's word: offered only when the
-        # status line proposes it, which it stops doing once any entry,
-        # a Close sent before among them, waits to be filed.
-        def close
-            return if @reading.ready_to_close?
-
-            refuse(409, "This ledger is not ready to close: its status " \
-                        "no longer proposes it; reload the page.")
         end
 
         def waits!(proposed)
@@ -131,7 +123,7 @@ module LedgerViewer
         # Where the page goes back to: the card acted on.
         def anchor(kind, ref)
             return "inbox" if %i[note order].include?(kind)
-            return "close" if kind == :close
+            return kind.to_s if ledger_word?(kind)
             return "q-#{ref}" if kind == :answer
 
             words_of(piece(ref)).empty? ? "piece-#{ref}" : "p-#{ref}"

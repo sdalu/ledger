@@ -87,22 +87,31 @@ the viewer's sight, and refuses while a viewer entry is pending; a
 close done first prints an after-action block, `after action:` with
 the returns and their causes, the pieces blocked or stalled out over an
 hour, the time each question took to answer and the decisions by me,
-read from the ledger's events with the numbers `stats` counts. It
-checks shape, not truth: a paraphrased goal in quote marks passes.
+read from the ledger's events with the numbers `stats` counts.
+`close PATH --abandon` closes a ledger unfinished, `--final` not
+required: in the same event every piece planned, out, back or blocked
+is dropped and every open question closed by a decision by user
+`abandoned with the ledger`, the history kept; a pending entry still
+refuses it, and it ends `abandoned: ADDRESS (L<id>)`. Nothing undoes a
+close. It checks shape, not truth: a paraphrased goal in quote marks
+passes.
 
 `survey [DIR] [--peer NAME]` is the read for a session with no goal: the
 live ledgers at DIR (the current directory) or under it with their status
 lines and pending entries, and with `--peer` the pieces routed `peer: NAME`
 in any live ledger; it writes nothing and counts no heartbeat.
 
-`show PATH` prints the whole ledger as Markdown; `show PATH ID` prints
+`show PATH` prints the whole ledger as Markdown (PATH an address or
+`L<id>`, which reaches a closed one, its last line `closed: TIME` or
+`abandoned: TIME`); `show PATH ID` prints
 one item's fields (a piece, question, criterion, fact, constraint,
 decision `X<n>` with its links, or a noticed line `Z<n>`), one `key:
 value` per line, an unknown id exiting 2. `stats [PATH]` prints a track
 record per route (model and effort, each peer, kept) over every ledger,
 live and closed, or one (`L<id>` reaches a closed one): pieces, the
 share verified without a return, the share ever blocked, the median
-time out, the returns by cause; it writes nothing. `--json` on `check`,
+time out, the returns by cause, and over every ledger a last line
+`closed ledgers: N finished, M abandoned`; it writes nothing. `--json` on `check`,
 `status`, `show` and `stats` prints JSON v1: one object whose first key
 is `"schema": 1`, which the viewer and any other reader take and refuse
 in any other number. `check --fix-hints` prints, after each FAIL line, one indented
@@ -410,6 +419,14 @@ What the page takes, all as inbox entries, of the four kinds
   the head shows *close asked* with its receipt until a session files
   it with `ledger close PATH --take N<n>`, closing the ledger and
   taking the entry in one event; a close refused takes nothing.
+- **The abandon of the ledger**, on any live ledger, after the Close
+  when the Close is offered: *Abandon the ledger*, a fold that says what
+  abandoning does (the pieces not finished dropped, the open questions
+  closed, the history kept), takes an optional comment, and sends only
+  with *Yes, abandon it*, the red button. The entry has `ref` `abandon`;
+  the server refuses a second, 409, while one waits to be filed. Sent,
+  the head shows *abandon asked* with its receipt until a session files
+  it with `ledger close PATH --abandon --take N<n>`.
 - **A note** per ledger.
 
 Every box has a *Quote last selection* button, enabled once text on
