@@ -180,3 +180,86 @@ class PieceStatusTest < PieceCase
         assert_equal "do it", row[:plan]
     end
 end
+
+# `piece --status planned --cause`: a piece out or back that goes back
+# to planned says why, in a piece_returns row of the write's event,
+# shown by `show` and reverted by undo and restore.
+class PieceReturnTest < PieceCase
+    CAUSES = "one of brief, split, depth, contract or env"
+    NO_RETURN = "--cause is for a return: --status planned on a piece " \
+                "out or back"
+
+    def setup
+        super
+        add
+        ok("piece", BETA, "P1", "--status", "out", "--session", "s1")
+    end
+
+    def back(cause = "env")
+        ok("piece", BETA, "P1", "--status", "planned", "--cause", cause)
+    end
+
+    def returns = db[:piece_returns].order(:id).all
+    def last_event = db[:events].order(:id).last
+
+    def test_a_return_from_out_or_back_records_its_cause
+        back("depth")
+        ok("piece", BETA, "P1", "--status", "back")
+        back("brief")
+        causes = returns.map { it.values_at(:from_status, :cause) }
+        assert_equal [%w[out depth], %w[back brief]], causes
+        assert_equal ["planned", nil], row.values_at(:status, :claimed_by)
+    end
+
+    def test_a_return_is_a_row_of_its_write_event
+        back
+        assert_equal [last_event[:id], @beta, row[:id]],
+                     returns.last.values_at(:event_id, :ledger_id, :piece_id)
+    end
+
+    def test_a_return_without_a_cause_is_refused
+        refused("P1", "--status", "planned",
+                "P1 goes back to planned from out: --cause says why, " \
+                "#{CAUSES}")
+        refused("P1", "--status", "planned", "--cause", "",
+                "--cause says why")
+        refused("P1", "--status", "planned", "--cause", "luck",
+                "--cause luck: #{CAUSES}")
+    end
+
+    def test_a_cause_on_any_other_change_is_refused
+        refused(*NEW, *ROUTE, "--cause", "env", NO_RETURN)
+        refused("P1", "--status", "back", "--cause", "env", NO_RETURN)
+        refused("P1", "--plan", "x", "--cause", "env", NO_RETURN)
+        back
+        refused("P1", "--status", "planned", "--cause", "env", NO_RETURN)
+    end
+
+    def test_show_lists_the_returns_and_the_line_stays
+        back("split")
+        at = Ledger::Render::Json.time(last_event[:at])
+        text = ok("show", BETA, "P1")
+        assert_includes text, "\nreturn: split, from out, #{at}\n"
+        assert_includes text, "line: - P1 [planned] sonnet, effort: medium " \
+                              "— Build the parser\n"
+        item = JSON.parse(ok("show", BETA, "P1", "--json"))["item"]
+        assert_equal [{ "cause" => "split", "from" => "out", "at" => at,
+                        "actor" => "cli" }], item["returns"]
+    end
+
+    def test_undo_of_the_return_removes_its_row
+        back
+        ok("undo", BETA)
+        assert_empty returns
+        assert_equal "out", row[:status]
+    end
+
+    def test_restore_to_before_the_return_removes_its_row
+        mark = last_event[:id]
+        back
+        ok("piece", BETA, "P1", "--plan", "again")
+        ok("restore", BETA, "--to", "E#{mark}")
+        assert_empty returns
+        assert_equal "out", row[:status]
+    end
+end

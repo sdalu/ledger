@@ -85,13 +85,22 @@ the ledger's row in the journal marked closed, out of every hook's and
 the viewer's sight, and refuses while a viewer entry is pending. It
 checks shape, not truth: a paraphrased goal in quote marks passes.
 
+`survey [DIR] [--peer NAME]` is the read for a session with no goal: the
+live ledgers at DIR (the current directory) or under it with their status
+lines and pending entries, and with `--peer` the pieces routed `peer: NAME`
+in any live ledger; it writes nothing and counts no heartbeat.
+
 `show PATH` prints the whole ledger as Markdown; `show PATH ID` prints
 one item's fields (a piece, question, criterion, fact, constraint,
 decision `X<n>` with its links, or a noticed line `Z<n>`), one `key:
-value` per line, an unknown id exiting 2. `--json` on `check`, `status`
-and `show` prints JSON v1: one object whose first key is `"schema": 1`,
-which the viewer and any other reader take and refuse in any other
-number. `check --fix-hints` prints, after each FAIL line, one indented
+value` per line, an unknown id exiting 2. `stats [PATH]` prints a track
+record per route (model and effort, each peer, kept) over every ledger,
+live and closed, or one (`L<id>` reaches a closed one): pieces, the
+share verified without a return, the share ever blocked, the median
+time out, the returns by cause; it writes nothing. `--json` on `check`,
+`status`, `show` and `stats` prints JSON v1: one object whose first key
+is `"schema": 1`, which the viewer and any other reader take and refuse
+in any other number. `check --fix-hints` prints, after each FAIL line, one indented
 `  hint: …` line naming the form expected and the command that fixes it.
 
 Links between items sit on the line they belong to: `— after: P3, P5`
@@ -113,8 +122,8 @@ user's words.
 Every item has a writer, and no ledger is edited by hand. `piece
 PATH new|P<n>` adds a piece with the next free id or changes one
 (`--title`, `--what` for the detail, `--status`, `--route`,
-`--done-when`, `--evidence`, `--after`, `--for`, `--by`, `--verified-by`;
-an empty value clears a link); `ask PATH --title TITLE "question"
+`--done-when`, `--evidence`, `--after`, `--for`, `--by`, `--verified-by`,
+`--cause`; an empty value clears a link); `ask PATH --title TITLE "question"
 [--choices "A = … | B = …"] [--recommend "A, why"] [--items "x | y"]
 [--by P<n>] [--see F2] (--mockup NAME | --pending P<n> | --no-picture
 WHY) [--replaces O<n>]` puts a question under Open (it refuses one
@@ -164,7 +173,12 @@ nothing (exit 2 with the refusal when it would refuse).
 another session's `--status out` on it is refused, naming the holder
 and the time, and any other status clears the claim. `--status
 verified` needs `--verified-by WHO` (`me`, the route that checked it, or
-`peer: SESSION`). `undo PATH` puts back the last event that changed the
+`peer: SESSION`). A piece out or back that goes back to `--status
+planned` says why with `--cause brief|split|depth|contract|env` (the
+brief lacked something, the piece was cut wrong, the tier or effort was
+too low, the delegate broke the escalation contract, the environment
+failed), refused without one and on any other change; `show PATH P<n>`
+lists the returns, one a line. `undo PATH` puts back the last event that changed the
 ledger's items, in an event of its own, one level, refused once a row
 changed since; the inbox's takes are never undone. `restore PATH --to
 E<n>` puts back every item-changing event after `E<n>`; without `--to`
