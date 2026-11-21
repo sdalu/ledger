@@ -1,0 +1,47 @@
+#!/bin/sh
+# ledger-waker -- the waker (docs/journal.md, section 8): resolve the
+# checkout, pick the interpreter as bin/ledger does, exec Ruby under the
+# checkout's bundle. A foreground loop the user runs, as the viewer:
+# nothing starts it as a service.
+set -u
+
+# $0 is the path this was invoked by, a symlink's own when linked from
+# ~/bin: follow the chain, readlink without -f being the portable one.
+self=$0
+while [ -L "$self" ]; do
+    link=$(readlink -- "$self") || exit 1
+    case $link in
+        /*) self=$link ;;
+        *)  self=$(dirname -- "$self")/$link ;;
+    esac
+done
+root=$(cd -- "$(dirname -- "$self")/.." && pwd) || exit 1
+
+# The checkout's own bundle, named in full: a BUNDLE_LOCKFILE inherited
+# from another project's bundle beats the one derived from
+# BUNDLE_GEMFILE, and that lockfile would be rewritten with this
+# checkout's gems. Frozen, a lockfile that does not match the Gemfile
+# stops the start instead of being rewritten.
+BUNDLE_GEMFILE=$root/Gemfile
+BUNDLE_LOCKFILE=$root/Gemfile.lock
+BUNDLE_FROZEN=true
+export BUNDLE_GEMFILE BUNDLE_LOCKFILE BUNDLE_FROZEN
+
+if [ -n "${LEDGER_RUBY:-}" ]; then
+    if [ ! -x "$LEDGER_RUBY" ]; then
+        printf '%s: LEDGER_RUBY=%s is not executable\n' \
+               "${0##*/}" "$LEDGER_RUBY" >&2
+        exit 1
+    fi
+    ruby=$LEDGER_RUBY
+elif [ -x /usr/local/bin/ruby ]; then
+    ruby=/usr/local/bin/ruby
+elif command -v ruby >/dev/null 2>&1; then
+    ruby=ruby
+else
+    printf '%s: no ruby: set LEDGER_RUBY\n' "${0##*/}" >&2
+    exit 1
+fi
+
+exec "$ruby" -r bundler/setup -I "$root/lib" -r ledger/waker/main \
+     -e 'exit Ledger::Waker::Main.run(ARGV)' -- "$@"

@@ -600,6 +600,35 @@
     & .say button.a-abandon { border-color: var(--fail); background: var(--fail); }
   }
 
+  /* the waker: its state, what that means, the switch; its wakes folded */
+  .waker {
+    display: grid;
+    gap: var(--space-xs);
+    font-size: 0.875rem;
+    & .waker-switch { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-xs) var(--space-s); }
+    & .waker-state { display: inline-flex; align-items: center; font-weight: 600; }
+    & .waker-state.is-on { color: var(--ok); }
+    & .waker-state.is-off { color: var(--muted); }
+    & .waker-says { color: var(--muted); }
+    & button.a-waker {
+      min-block-size: 2.75rem;
+      padding-inline: var(--space-s);
+      border: 1px solid var(--edge);
+      border-radius: var(--radius);
+      font: inherit;
+      font-weight: 600;
+      color: var(--ink);
+      background: var(--panel);
+      cursor: pointer;
+      &:hover { border-color: var(--accent); }
+    }
+    & .waker-wakes > summary { min-block-size: 1.5rem; color: var(--muted); cursor: pointer; }
+    & table { border-collapse: collapse; margin-block-start: var(--space-xs); }
+    & :is(th, td) { padding: 0.2em var(--space-s) 0.2em 0; text-align: start; vertical-align: top; }
+    & th { font-weight: 600; color: var(--muted); }
+    & td:first-child { font-family: var(--font-mono); white-space: nowrap; }
+  }
+
   /* a card's status is a disclosure inside its own pill: opened, the meaning
      follows the word in the same pill (the word is not repeated) */
   .status-fold {

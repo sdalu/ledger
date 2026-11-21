@@ -4,6 +4,7 @@ require "digest"
 
 require "ledger"
 require "ledger/read"
+require "ledger/waker"
 
 module LedgerViewer
     # The live ledgers of the journal, read afresh each time, and what a
@@ -59,6 +60,22 @@ module LedgerViewer
         def picture_names(entry)
             @journal.db[:pictures].where(ledger_id: entry.ledger_id)
                     .distinct.select_map(:name)
+        end
+
+        # The waker of a ledger: whether it is on, and its wakes, newest
+        # first.
+        Waking = Data.define(:on, :wakes)
+
+        def waker(entry)
+            db = @journal.db
+            on = db[:ledgers].where(id: entry.ledger_id).get(:waker)
+            Waking.new(on:, wakes: Ledger::Waker.wakes(db, entry.ledger_id))
+        end
+
+        # The waker of a ledger switched ON (true) or off, in one event
+        # of ACTOR.
+        def switch_waker(entry, on, actor:)
+            Ledger::Waker.switch(@journal, entry.path, on, actor:)
         end
 
         def self.url_id(address) = Digest::SHA1.hexdigest(address)[0, 10]
