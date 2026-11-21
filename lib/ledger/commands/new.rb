@@ -9,19 +9,25 @@ module Ledger
         # placeholder criterion D1 and the carried noticed lines.
         class New < CLI::Command
             USAGE = "PATH"
+            SYNOPSIS = "PATH --goal W --title T --short S"
+            SUMMARY = "open a live ledger: the goal verbatim, its title, its " \
+                      "one-sentence summary"
+            OPTIONS = {
+                goal: ["--goal WORDS", "the user's words, verbatim"],
+                title: ["--title TITLE", "a short name, at most 60 characters"],
+                short: ["--short SENTENCE",
+                        "the goal in one sentence, your own words"],
+                context: ["--context POINTERS",
+                          "the files and places it concerns"],
+                date: ["--date DATE", DATE],
+                carry: ["--carry CLOSED",
+                        "a closed ledger (address or L<id>) whose " \
+                        "noticed lines carry over"]
+            }.freeze
             PLACEHOLDER = "<a check something other than opinion can pass>"
             CLOSED = /\AL([1-9]\d*)\z/
 
             private
-
-            def flags(parser)
-                parser.on("--goal WORDS") { @opts[:goal] = it }
-                parser.on("--title TITLE") { @opts[:title] = it }
-                parser.on("--short SENTENCE") { @opts[:short] = it }
-                parser.on("--context POINTERS") { @opts[:context] = it }
-                parser.on("--date DATE") { @opts[:date] = it }
-                parser.on("--carry CLOSED") { @opts[:carry] = it }
-            end
 
             def run(path)
                 address = Address.parse(path)

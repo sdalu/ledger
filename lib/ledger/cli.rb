@@ -6,6 +6,7 @@ require "tmpdir"
 
 require "ledger"
 require "ledger/derive"
+require "ledger/help"
 require "ledger/read"
 require "ledger/render/markdown"
 
@@ -32,11 +33,14 @@ module Ledger
             @err = err
         end
 
+        # What asks for help in place of WORD.
+        HELP = %w[help --help -h].freeze
+
         def run(argv)
             word, *words = argv
-            return usage unless word
+            return help(words) if word.nil? || HELP.include?(word)
             return refuse(word, "not built yet") if NOT_BUILT.include?(word)
-            return refuse(word, "unknown command") unless WORDS.include?(word)
+            return unknown(word) unless WORDS.include?(word)
 
             dispatch(word, words)
         end
@@ -65,9 +69,21 @@ module Ledger
             2
         end
 
-        def usage
-            @err.puts "usage: ledger WORD ARGS... (#{WORDS.join(", ")})"
-            2
+        # ledger help [WORD]: the words listed, or WORD's own help, as an
+        # answer (exit 0) rather than a usage error; ledger alone too.
+        def help(words)
+            word, = words
+            unless word
+                @out.puts Help.overview
+                return 0
+            end
+            return unknown(word) unless WORDS.include?(word)
+
+            dispatch(word, ["--help"])
+        end
+
+        def unknown(word)
+            refuse(word, "unknown command (ledger help lists the words)")
         end
 
         # The write path as a command uses it: the one Write.run, what a write
@@ -133,8 +149,20 @@ module Ledger
             include Writing
 
             USAGE = ""
+            # The arguments as the help shows them, USAGE by default;
+            # USAGE alone counts the arguments.
+            SYNOPSIS = nil
+            # What the word does, one line, in the help's list and atop
+            # its own help.
+            SUMMARY = ""
+            # The options that keep their value as given: key => [switch,
+            # what the help says of it].
+            OPTIONS = {}.freeze
+            # What the help says of every --date.
+            DATE = "the date, YYYY-MM-DD (today by default)"
 
             def self.word = name.split("::").last.downcase
+            def self.synopsis = self::SYNOPSIS || self::USAGE
 
             def initialize(words, out:, err:)
                 @words = words
@@ -143,16 +171,39 @@ module Ledger
                 @opts = {}
             end
 
+            # The word run, or its help printed (exit 0) when -h or
+            # --help is among its words, whatever else they hold.
             def call
-                parser = OptionParser.new("usage: ledger #{self.class.word} " \
-                                          "#{self.class::USAGE}")
+                parser = OptionParser.new(banner)
+                values(parser)
                 flags(parser)
-                run(*arguments(parser.parse(@words)))
+                help(parser)
+                catch(:help) { run(*arguments(parser.parse(@words))) }
             ensure
                 @journal&.close
             end
 
             private
+
+            def banner
+                "usage: ledger #{self.class.word} #{self.class.synopsis}" \
+                    "\n\n#{Help.wrap(self.class::SUMMARY, 78)}\n\nOptions:"
+            end
+
+            # OptionParser's own --help prints and exits the process; this
+            # one prints to the command's output and returns 0.
+            def help(parser)
+                parser.on_tail("-h", "--help", "this help") do
+                    @out.puts parser.help
+                    throw :help, 0
+                end
+            end
+
+            def values(parser)
+                self.class::OPTIONS.each do |key, (switch, what)|
+                    parser.on(switch, what) { @opts[key] = it }
+                end
+            end
 
             def flags(_parser) = nil
 

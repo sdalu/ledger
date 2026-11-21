@@ -14,7 +14,8 @@ module Ledger
 
             # `--take N1,N2`, or the flag given again.
             def take_flag(parser)
-                parser.on("--take IDS") do |ids|
+                parser.on("--take IDS",
+                          "N<n>,... the viewer's entries it files") do |ids|
                     (@opts[:take] ||= []).concat(ids.split(/[,\s]+/))
                 end
             end
@@ -70,14 +71,23 @@ module Ledger
             include Taking
 
             USAGE = "PATH ID"
+            SYNOPSIS = "PATH O<n> --decision TEXT"
+            SUMMARY = "file the user's answer as a decision by user; the " \
+                      "question leaves Open"
+            OPTIONS = {
+                decision: ["--decision TEXT",
+                           "the option chosen and every comment, quoted"],
+                date: ["--date DATE", DATE]
+            }.freeze
             REPLACES = /\AX[1-9]\d*\z/
 
             private
 
             def flags(parser)
-                parser.on("--decision TEXT") { @opts[:decision] = it }
-                parser.on("--date DATE") { @opts[:date] = it }
-                parser.on("--replaces X") { @opts[:replaces] = it.strip }
+                parser.on("--replaces X",
+                          "X<n>, the decision it replaces") do |x|
+                    @opts[:replaces] = x.strip
+                end
                 take_flag(parser)
                 dry_run(parser)
             end

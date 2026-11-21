@@ -512,6 +512,12 @@ command's refusal, exit 2, nothing written.
 | `undo PATH [--dry-run]` | `undone: ADDRESS is back as it was before E<n>`, status line | nothing to undo; a row changed since |
 | `restore PATH [--to E<n>] [--dry-run]` | `restored: ADDRESS is back as at E<n>`, status line; without `--to` the ledger's last ten events (`E<n>  time  actor  command  summary`) | no `--to` (it lists them); E<n> not this ledger's; nothing after it; a row changed since |
 
+`help [WORD]`, `--help` and `-h` in place of WORD, or no word at all,
+print the words by section with each one's SUMMARY (`lib/ledger/help.rb`);
+`help WORD` and `-h` or `--help` among a word's arguments print its
+synopsis, summary and described options. Help is an answer: standard
+output, exit 0, nothing read. An unknown word stays a usage error.
+
 Beside the ledger's own words, the launcher takes `bin/ledger hook
 NAME` (section 7).
 

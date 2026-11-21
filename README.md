@@ -53,7 +53,10 @@ the addresses; `rake help` lists every task.
 
 `bin/ledger WORD …` is the one entry point (`lib/ledger/cli.rb`,
 one class per word in `lib/ledger/commands/`); `docs/journal.md`
-holds the contract word by word: flags, output, refusals. Exit status: 0
+holds the contract word by word: flags, output, refusals. `ledger help`
+(also `ledger`, `--help`, `-h`) lists the words by section with their
+summaries, and `ledger help WORD` (or `ledger WORD --help`) a word's
+options, each described; help exits 0. Exit status: 0
 done, 1 a check that fails or a wait that timed out, 2 a refusal or a
 usage error, with nothing written. PATH is a ledger's address, the path
 its file would have (`.claude/LEDGER.md`, `LEDGER-name.md`), resolved

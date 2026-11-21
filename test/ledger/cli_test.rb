@@ -9,14 +9,51 @@ require_relative "commands/helper"
 class CliTest < CommandCase
     BIN = File.expand_path("../../bin/ledger", __dir__)
 
-    def test_no_word_is_a_usage_error
-        code, _out, err = cli
-        assert_equal 2, code
-        assert_includes err, "usage: ledger WORD"
+    # Help is an answer, on standard output with 0: no word, help, --help
+    # and -h list every word under a section with its summary.
+    def test_help_is_an_answer_however_asked
+        [[], ["help"], ["--help"], ["-h"]].each do |argv|
+            code, out, err = cli(*argv)
+            assert_equal [0, ""], [code, err], argv.inspect
+            assert_includes out, "Usage: ledger WORD"
+        end
+    end
+
+    def test_help_lists_every_word_with_its_summary
+        _, out, = cli("help")
+        Ledger::CLI::WORDS.each do |word|
+            command = Ledger::Commands.const_get(word.capitalize)
+            refute_empty command::SUMMARY, word
+            assert_match(/^  #{word} /, out, word)
+        end
+        assert_equal Ledger::CLI::WORDS.sort,
+                     Ledger::Help::SECTIONS.values.flatten.sort
+    end
+
+    # A word's help, asked either way: its synopsis and summary, and
+    # nothing read or written whatever else the words hold.
+    def test_a_word_s_help_shows_its_synopsis_and_summary
+        [%w[help piece], %w[piece --help], %w[piece BETA new -h]].each do |argv|
+            code, out, = cli(*argv)
+            assert_equal 0, code, argv.inspect
+            assert_includes out, "usage: ledger piece PATH new|P<n>"
+            assert_includes out, "add a piece or change one"
+            assert_match(/--status VALUE +planned, out/, out)
+        end
+    end
+
+    def test_every_option_is_described
+        Ledger::CLI::WORDS.each do |word|
+            _, out, = cli(word, "--help")
+            out.lines.grep(/^ +--?\w/).each do |line|
+                assert_match(/\S {2,}\S/, line, "#{word}: #{line.strip}")
+            end
+        end
     end
 
     def test_an_unknown_word_is_refused
         assert_refused("frobnicate", "frobnicate: unknown command")
+        assert_refused("help", "frobnicate", "frobnicate: unknown command")
     end
 
     def test_every_word_has_its_command

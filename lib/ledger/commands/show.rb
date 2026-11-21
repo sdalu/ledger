@@ -8,6 +8,8 @@ module Ledger
         # item as `key: value` lines; either one as JSON v1.
         class Show < CLI::Command
             USAGE = "PATH [ID]"
+            SUMMARY = "the whole ledger as Markdown, or one item's fields " \
+                      "and links"
             # The lists of the JSON document an id's letter is looked up in.
             LISTS = { "P" => %i[pieces], "O" => %i[questions closed_questions],
                       "D" => %i[criteria], "C" => %i[constraints],
@@ -17,7 +19,9 @@ module Ledger
 
             private
 
-            def flags(parser) = parser.on("--json") { @opts[:json] = true }
+            def flags(parser)
+                parser.on("--json", "JSON v1") { @opts[:json] = true }
+            end
 
             def run(path, ref = nil)
                 snapshot = snapshot(path)

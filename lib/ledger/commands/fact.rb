@@ -6,6 +6,9 @@ module Ledger
         # first ` — `.
         class Fact < CLI::Command
             USAGE = "PATH TEXT"
+            SYNOPSIS = "PATH 'TEXT \u2014 POINTER'"
+            SUMMARY = "a fact and where it was found, split at the first ' " \
+                      "\u2014 '"
             SHAPE = /\A(?<text>.+?) — (?<pointer>\S.*)\z/
 
             private

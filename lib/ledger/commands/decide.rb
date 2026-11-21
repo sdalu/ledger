@@ -7,6 +7,15 @@ module Ledger
         # item it rests on, led to or replaces.
         class Decide < CLI::Command
             USAGE = "PATH TEXT"
+            SYNOPSIS = "PATH TEXT --by user|me"
+            SUMMARY = "a decision, who made it, and what it rests on, led to " \
+                      "or replaces"
+            OPTIONS = {
+                by: ["--by WHO", "user (it binds) or me (reviewable)"],
+                note: ["--note NOTE",
+                       "a note after who decided, no parentheses"],
+                date: ["--date DATE", DATE]
+            }.freeze
             # The decision line's shape, a note holding no parenthesis.
             LINE = Regexp.new('\A- (\d{4}-\d{2}-\d{2}) — (.+) — by (user|me)' \
                               '(?: \(([^()]*)\))?\z')
@@ -16,19 +25,20 @@ module Ledger
             EDGES = { "--rests-on" => %w[rests_on FC],
                       "--led-to" => %w[led_to PO],
                       "--replaces" => %w[replaces X] }.freeze
+            # What each edge flag names, as the help says it.
+            NAMES = { "--rests-on" => "F<n>,C<n>... it rests on",
+                      "--led-to" => "P<n>,O<n>... it led to",
+                      "--replaces" => "X<n>, the decision it replaces" }.freeze
 
             private
 
             def flags(parser)
-                parser.on("--by WHO") { @opts[:by] = it }
-                parser.on("--note NOTE") { @opts[:note] = it }
-                parser.on("--date DATE") { @opts[:date] = it }
                 EDGES.each_key { |flag| edge_flag(parser, flag) }
                 dry_run(parser)
             end
 
             def edge_flag(parser, flag)
-                parser.on("#{flag} IDS") { @opts[flag] = it }
+                parser.on("#{flag} IDS", NAMES.fetch(flag)) { @opts[flag] = it }
             end
 
             def run(path, text)

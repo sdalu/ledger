@@ -13,6 +13,8 @@ module Ledger
         # their blobs stay.
         class Mockup < CLI::Command
             USAGE = "PATH FILE..."
+            SYNOPSIS = "PATH FILE|DIR... --question O<n>"
+            SUMMARY = "read pictures into the journal for an open question"
 
             private
 

@@ -9,6 +9,9 @@ module Ledger
         # with 1 at its timeout; `--follow` runs until it is stopped.
         class Inbox < CLI::Command
             USAGE = "PATH"
+            SYNOPSIS = "PATH [--wait|--follow]"
+            SUMMARY = "the viewer's entries no session has taken, or a wait " \
+                      "for them"
             QUIET = 60.0
             STOPS = %w[TERM INT HUP].freeze
 

@@ -7,6 +7,7 @@ module Ledger
         # follows by key.
         class Renumber < CLI::Command
             USAGE = "PATH OLD NEW"
+            SUMMARY = "give an item an unused id; its references follow"
             ID = /\A[PODCF][1-9]\d*\z/
             # The rows that point at an item of each kind, as [table,
             # condition on its row id].

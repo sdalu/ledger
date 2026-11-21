@@ -14,13 +14,19 @@ module Ledger
             include Taking
 
             USAGE = "PATH ID"
+            SYNOPSIS = "PATH P<n> --word W"
+            SUMMARY = "file the user's word on a piece as a decision by user " \
+                      "and act on the piece"
+            OPTIONS = {
+                word: ["--word WORD",
+                       "the words given, among those it awaits, or drop"],
+                date: ["--date DATE", DATE]
+            }.freeze
             ID = /\AP[1-9]\d*\z/
 
             private
 
             def flags(parser)
-                parser.on("--word WORD") { @opts[:word] = it }
-                parser.on("--date DATE") { @opts[:date] = it }
                 take_flag(parser)
                 dry_run(parser)
             end

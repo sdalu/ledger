@@ -8,14 +8,23 @@ module Ledger
         # rule's verdict, then the status line, which beats unless --peek.
         class Check < CLI::Command
             USAGE = "PATH"
+            SYNOPSIS = "[--final] [--peek] PATH"
+            SUMMARY = "each rule's verdict, then the status line: a " \
+                      "heartbeat unless --peek"
 
             private
 
             def flags(parser)
-                parser.on("--final") { @opts[:final] = true }
-                parser.on("--peek") { @opts[:peek] = true }
-                parser.on("--fix-hints") { @opts[:hints] = true }
-                parser.on("--json") { @opts[:json] = true }
+                parser.on("--final", "judge the finish too") do
+                    @opts[:final] = true
+                end
+                parser.on("--peek", "a read, not counted as a heartbeat") do
+                    @opts[:peek] = true
+                end
+                parser.on("--fix-hints", "a hint after each FAIL") do
+                    @opts[:hints] = true
+                end
+                parser.on("--json", "JSON v1") { @opts[:json] = true }
             end
 
             def run(path)

@@ -11,6 +11,8 @@ module Ledger
             include Taking
 
             USAGE = "PATH ID..."
+            SYNOPSIS = "PATH N<n>..."
+            SUMMARY = "mark the viewer's entries filed, in one event"
 
             private
 

@@ -10,6 +10,7 @@ module Ledger
         # before it.
         class Undo < CLI::Command
             USAGE = "PATH"
+            SUMMARY = "revert the ledger's last event"
 
             private
 

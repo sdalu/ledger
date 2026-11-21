@@ -8,10 +8,13 @@ module Ledger
         # made of as JSON v1.
         class Status < CLI::Command
             USAGE = "PATH"
+            SUMMARY = "the status line alone"
 
             private
 
-            def flags(parser) = parser.on("--json") { @opts[:json] = true }
+            def flags(parser)
+                parser.on("--json", "JSON v1") { @opts[:json] = true }
+            end
 
             def run(path)
                 snapshot = snapshot(path)

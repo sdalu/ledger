@@ -11,6 +11,9 @@ module Ledger
         # Goal block's title (`goal`).
         class Edit < CLI::Command
             USAGE = "PATH ID"
+            SYNOPSIS = "PATH ID --text T"
+            SUMMARY = "reword a fact, constraint, decision, question's " \
+                      "detail, noticed line (Z<n>) or the goal's title (goal)"
             QUOTE = /["“](.+?)["”]/
             Z = /\AZ([1-9]\d*)\z/
             COLUMN = { "F" => %i[facts text],
@@ -23,7 +26,7 @@ module Ledger
             private
 
             def flags(parser)
-                parser.on("--text TEXT") { @opts[:text] = it }
+                parser.on("--text TEXT", "the new words") { @opts[:text] = it }
                 dry_run(parser)
             end
 

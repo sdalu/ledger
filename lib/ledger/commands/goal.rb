@@ -9,6 +9,18 @@ module Ledger
         # session's Title, In short and Context.
         class Goal < CLI::Command
             USAGE = "PATH"
+            SYNOPSIS = "PATH --quote W --title T --short S"
+            SUMMARY = "append a revised Goal block, the user's new words " \
+                      "verbatim"
+            OPTIONS = {
+                quote: ["--quote WORDS", "the user's new words, verbatim"],
+                title: ["--title TITLE", "a short name, at most 60 characters"],
+                short: ["--short SENTENCE",
+                        "the goal in one sentence, your own words"],
+                context: ["--context POINTERS",
+                          "the files and places it concerns"],
+                date: ["--date DATE", DATE]
+            }.freeze
             DATE = /\A\d{4}-\d{2}-\d{2}\z/
 
             # The goals row the options OPTS describe, refused when its
@@ -52,11 +64,6 @@ module Ledger
             private
 
             def flags(parser)
-                parser.on("--quote WORDS") { @opts[:quote] = it }
-                parser.on("--title TITLE") { @opts[:title] = it }
-                parser.on("--short SENTENCE") { @opts[:short] = it }
-                parser.on("--context POINTERS") { @opts[:context] = it }
-                parser.on("--date DATE") { @opts[:date] = it }
                 dry_run(parser)
             end
 

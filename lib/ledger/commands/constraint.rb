@@ -6,12 +6,18 @@ module Ledger
         # words and where they were said.
         class Constraint < CLI::Command
             USAGE = "PATH QUOTE"
+            SYNOPSIS = "PATH QUOTE --where W"
+            SUMMARY = "a constraint: the user's words verbatim and where " \
+                      "they were said"
             WHERE = "--where is empty; say where the user said it"
 
             private
 
             def flags(parser)
-                parser.on("--where WHERE") { @opts[:where] = it }
+                parser.on("--where WHERE",
+                          "where it was said: a turn, a file") do |value|
+                    @opts[:where] = value
+                end
                 dry_run(parser)
             end
 

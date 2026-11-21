@@ -5,6 +5,7 @@ module Ledger
         # `noticed PATH TEXT`: a line under `Out of scope, noticed`.
         class Noticed < CLI::Command
             USAGE = "PATH TEXT"
+            SUMMARY = "a line under Out of scope, noticed"
 
             private
 

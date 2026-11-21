@@ -13,16 +13,38 @@ module Ledger
         # claims it for the session (U12).
         class Piece < CLI::Command
             USAGE = "PATH TARGET"
+            SYNOPSIS = "PATH new|P<n> [--FIELD VALUE...]"
+            SUMMARY = "add a piece or change one: status, route, links, the " \
+                      "word it awaits"
             ID = /\AP[1-9]\d*\z/
-            FLAGS = %w[status route title what done-when evidence after for
-                       problem risk plan scope awaits verified-by session
-                       by].freeze
+            # Each flag and what its value is, as the help says it.
+            FLAGS = {
+                "status" => "planned, out, back, verified, blocked, dropped " \
+                            "or kept: REASON",
+                "route" => "who does it: MODEL, effort: E[, skills: S], " \
+                           "or peer: SESSION",
+                "title" => "a short name, at most 60 characters",
+                "what" => "the detail: what it covers",
+                "done-when" => "how its finish is checked",
+                "evidence" => "what showed it verified",
+                "after" => "P<n>,... it waits for",
+                "for" => "D<n>,... the criteria it serves",
+                "problem" => "what is wrong or missing, for an awaited word",
+                "risk" => "N/10 — what is at stake",
+                "plan" => "what will be done on the word",
+                "scope" => "commit = what it authorises | deploy = ...",
+                "awaits" => "start, commit, deploy, push, merge or " \
+                            "other (what)",
+                "verified-by" => "who checked it: me, a route, peer: SESSION",
+                "session" => "who claims an out ($CLAUDE_CODE_SESSION_ID)",
+                "by" => "X<n>, the decision that led to it"
+            }.freeze
 
             private
 
             def flags(parser)
-                FLAGS.each do |name|
-                    parser.on("--#{name} VALUE") { @opts[name] = it }
+                FLAGS.each do |name, what|
+                    parser.on("--#{name} VALUE", what) { @opts[name] = it }
                 end
                 dry_run(parser)
             end

@@ -31,8 +31,24 @@ module Ledger
             include Card
 
             USAGE = "PATH QUESTION"
-            FLAGS = %w[title choices by items see problem risk recommend
-                       mockup pending replaces].freeze
+            SYNOPSIS = "PATH QUESTION --title T --mockup N|--pending " \
+                       "P<n>|--no-picture WHY"
+            SUMMARY = "a question for the user under Open, with its case, " \
+                      "options and picture"
+            # Each flag and what its value is, as the help says it.
+            FLAGS = {
+                "title" => "a short name, at most 60 characters",
+                "choices" => "'label = effect; cost | ...', two to eight",
+                "by" => "P<n>, the piece that answers or draws it",
+                "items" => "'S4 | S5': one answer per item",
+                "see" => "F<n>,C<n>,... the items it points to",
+                "problem" => "what is wrong and where",
+                "risk" => "N/10 — what is lost if it misfires",
+                "recommend" => "'label, why'",
+                "mockup" => "NAME, a picture already in the journal",
+                "pending" => "P<n>, the piece drawing its picture",
+                "replaces" => "O<n>, an open question it closes"
+            }.freeze
             PICTURE = "say what picture the question has, one of --mockup " \
                       "NAME (a picture already in the journal), --pending " \
                       "P<n> (a piece draws it), --no-picture 'why' (it " \
@@ -41,12 +57,13 @@ module Ledger
             private
 
             def flags(parser)
-                FLAGS.each do |name|
-                    parser.on("--#{name} VALUE") { @opts[name] = it }
+                FLAGS.each do |name, what|
+                    parser.on("--#{name} VALUE", what) { @opts[name] = it }
                 end
                 # Spelled "--no-picture WHY", OptionParser would read the
                 # negation of a --picture switch and leave WHY behind.
-                parser.on("--no-picture", "=WHY", String) do |why|
+                parser.on("--no-picture", "=WHY", String,
+                          "why it needs no picture") do |why|
                     @opts["no-picture"] = why
                 end
                 dry_run(parser)

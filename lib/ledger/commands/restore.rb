@@ -10,6 +10,9 @@ module Ledger
         # command is refused.
         class Restore < CLI::Command
             USAGE = "PATH"
+            SYNOPSIS = "PATH [--to E<n>]"
+            SUMMARY = "go back to an event, reverting every one after it; " \
+                      "without --to, list the last ten"
             STAMP = "%Y-%m-%d %H:%M:%S"
 
             private

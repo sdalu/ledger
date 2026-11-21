@@ -13,13 +13,20 @@ module Ledger
             include Card
 
             USAGE = "PATH ID"
+            SYNOPSIS = "PATH O<n> --add OPTION|--drop LABEL"
+            SUMMARY = "add or drop one option of an open question"
             ID = /\AO[1-9]\d*\z/
 
             private
 
             def flags(parser)
-                parser.on("--add OPTION") { @opts[:add] = it }
-                parser.on("--drop LABEL") { @opts[:drop] = it }
+                parser.on("--add OPTION", "'label = effect; cost'") do |value|
+                    @opts[:add] = value
+                end
+                parser.on("--drop LABEL",
+                          "the label of the option to drop") do |value|
+                    @opts[:drop] = value
+                end
                 dry_run(parser)
             end
 

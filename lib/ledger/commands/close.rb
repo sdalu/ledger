@@ -7,6 +7,8 @@ module Ledger
         # of the viewer is pending.
         class Close < CLI::Command
             USAGE = "PATH"
+            SUMMARY = "close a finished ledger; refused while check --final " \
+                      "fails or an entry is pending"
 
             # The FAIL lines of a ledger not finished.
             class Unfinished < Error
