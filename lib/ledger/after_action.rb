@@ -14,6 +14,7 @@ module Ledger
     #     # => ["after action:", "returned: P2 (depth)", "by me: X4"]
     class AfterAction
         HEADING = "after action:"
+        EMPTY = "#{HEADING} nothing returned, blocked or stalled".freeze
         # A span out over an hour, no change of status, stalled.
         HOUR_MS = 3_600_000
 
@@ -26,10 +27,13 @@ module Ledger
                            .sort_by { it.piece[:n] }
         end
 
+        # The heading and the lines with an item; the one line EMPTY
+        # when none has.
         def lines
-            [HEADING, line("returned", returned), line("blocked", blocked),
-             line("stalled", stalled), line("answered", answered),
-             line("by me", by_me)].compact
+            body = [line("returned", returned), line("blocked", blocked),
+                    line("stalled", stalled), line("answered", answered),
+                    line("by me", by_me)].compact
+            body.empty? ? [EMPTY] : [HEADING, *body]
         end
 
         private
@@ -58,16 +62,19 @@ module Ledger
         end
 
         # Each closed question: from the event that asked it to the event
-        # of the decision that answers it.
+        # of the decision that answers it, or the record not found.
         def answered
             reverted = Stats::InForce.new(@db, [@ledger_id]).reverted.to_a
             @db[:questions].where(ledger_id: @ledger_id).exclude(closed_at: nil)
-                           .order(:n).all.filter_map do |question|
-                asked = asked_at(question, reverted)
-                answer = answered_at(question)
-                "O#{question[:n]} #{duration(answer - asked)}" if
-                    asked && answer
+                           .order(:n).all.map do |question|
+                "O#{question[:n]} #{wait(question, reverted)}"
             end
+        end
+
+        def wait(question, reverted)
+            asked = asked_at(question, reverted) or return "(no ask record)"
+            answer = answered_at(question) or return "(no answer record)"
+            duration(answer - asked)
         end
 
         # The time of the first event in force inserting QUESTION's row.
