@@ -224,6 +224,12 @@ end
 class RaidFoldTest < ViewerTest
     include RaidFixture
 
+    def test_the_fold_is_titled_in_words
+        assert_includes raid_fold,
+                        "Risks, assumptions, issues, dependencies (8)"
+        refute_includes raid_fold, ">RAID"
+    end
+
     def test_the_fold_lists_risks_highest_first
         fold = raid_fold
         assert_operator fold.index("7/10"), :<, fold.index("5/10")

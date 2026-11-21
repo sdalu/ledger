@@ -35,8 +35,8 @@ module LedgerViewer
                 return quiet(piece, status) if piece["awaits"].empty? && !sent
                 return [owing(piece, status), "is-ask"] unless sent
 
-                ["#{status} · your #{sent["word"]} sent, awaiting filing",
-                 "is-flight"]
+                ["#{status} · your #{sent["word"]} sent, " \
+                 "not read by the session yet", "is-flight"]
             end
 
             def owing(piece, status)

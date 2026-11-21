@@ -54,7 +54,8 @@ module LedgerViewer
             def line(entry)
                 at = Clock.clock((entry["at"] || "").to_s)
                 sent = at.empty? ? "" : ", sent #{at}"
-                "picture asked: #{entry["id"]}#{sent} · awaiting filing"
+                "picture asked: #{entry["id"]}#{sent} · " \
+                    "not read by the session yet"
             end
         end
     end

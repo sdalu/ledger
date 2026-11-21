@@ -80,12 +80,12 @@ module LedgerViewer
                 at = Clock.clock((last["at"] || "").to_s)
                 ["You asked: <strong>#{Text.escape(asked(last))}</strong>",
                  (at.empty? ? nil : "sent #{at}"),
-                 "awaiting filing"].compact.join(" · ")
+                 "not read by the session yet"].compact.join(" · ")
             end
 
             def asked(last)
                 given = last["word"].split(",", -1).map { Text.strip(it) }
-                return "Close without follow-up" if given == ["drop"]
+                return "Drop without follow-up" if given == ["drop"]
 
                 given.map { Terms::WORD_LABEL.fetch(it, it) }.join(" + ")
             end

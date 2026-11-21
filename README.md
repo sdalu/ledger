@@ -322,9 +322,10 @@ commit, deploy" (with " · risk N/10" when it is rated), the wait when a
 time is known, and a link that opens the card: *Answer*, *Review WORD*
 (*Open* for an `other` word), the id in its accessible name. A ledger
 named `LEDGER-SFX.md` shows as `project · SFX` wherever its name does.
-Then the sessions' turn (answers sent and awaiting filing, questions
-being prepared) and a table of the ledgers, each with its state in
-words (the words still owed, counted, then how many are sent; an
+Then the sessions' turn (answers sent and not read by the session yet,
+each named by its title, then ledger and id; questions being prepared)
+and a table of the ledgers, each with its state in words (*awaits*, then
+the words still owed, counted, then how many are sent; an
 `other` word's need on a line under its row), its changed time under
 its name, narrow enough for a phone. A ledger page has the questions as
 a list beside it when the page is wide enough for both (to answer,
@@ -340,7 +341,7 @@ evidence. On top of the page,
 the next step ("Answer O1: …", "Leave a note"), the path and the
 session's status line, without its title (the page names the ledger),
 folded under *Ledger details*, then what remains
-(questions to answer, answers sent and awaiting filing, questions being
+(questions to answer, answers sent and not read by the session yet, questions being
 prepared, unfinished pieces with a fold to propose their order,
 criteria not met, failing shape checks) with what is done folded below.
 Every piece card (in flight, waiting on a word, on record) and every
@@ -350,7 +351,8 @@ rated* for a piece in flight), the assumptions it rests on (`rests on
 A1 (open), A2 (refuted)`, each chip leading to its row), its issues
 (`blocked`, `stalled 2 h`, `returned 2: depth, unrecorded`) and what it
 depends on (`waits for P3`, `serves D2`, `answered by P5`, `see F2`).
-The record opens with a *RAID* fold of four lists: Risks (every rated
+The record opens with a fold titled *Risks, assumptions, issues,
+dependencies (n)*, four lists: Risks (every rated
 one, highest first), Assumptions (open first, then confirmed and
 refuted, each with its check, what it rests on, what rests on it and the
 fact that settled it; then the decisions by me, the session's
@@ -394,7 +396,7 @@ open; the page script keeps each fold's own state for a narrow page. A
 *Skip to waiting work* link comes first and shows on focus. A
 criterion's serving pieces are counted (`16 pieces: 15 verified, 1
 kept`), their links folded; the section of what was sent is *Sent,
-awaiting filing*, the filed ones *Filed (N)*.
+not read by the session yet*, the filed ones *Filed (N)*.
 
 A piece and a question open with a short title in words (at most 60
 characters, before the first `: `) and the detail after it: the card's
@@ -451,7 +453,7 @@ What the page takes, all as inbox entries, of the four kinds
   and the text, and the server refuses it empty or once the question is
   no longer open. It replaces nothing, and an answer sent after it need
   not name it; the card stays a question to answer, with *asked: N<n>,
-  sent HH:MM · awaiting filing* until the session takes it, and only
+  sent HH:MM · not read by the session yet* until the session takes it, and only
   that line and the fold are redrawn when it is sent with `fetch`.
   `ledger inbox` shows it as *comment on question O<n>, not an answer*.
 - **A picture asked** of a card that has none: a question with no
@@ -466,7 +468,7 @@ What the page takes, all as inbox entries, of the four kinds
   once the id is no longer a card on the page (409). It answers nothing
   and gives no word: it replaces nothing, and an answer or a word sent
   after it is taken as before. Until the session takes it the card
-  says *picture asked: N<n>, sent HH:MM · awaiting filing* and offers
+  says *picture asked: N<n>, sent HH:MM · not read by the session yet* and offers
   no second fold; on a card under Waiting on you only that part is
   redrawn when it is sent with `fetch`. The session files it by drawing the picture and
   placing it with `mockup --question O<n>` or `mockup --piece P<n>
@@ -501,16 +503,16 @@ What the page takes, all as inbox entries, of the four kinds
   (`#p-P<n>`, `#q-O<n>`), to the answered card when none waits; a
   comment, a note or an order goes back to its own card or `#inbox`. A
   piece whose word is sent shows a receipt, *You asked: Commit + Deploy
-  · sent HH:MM · awaiting filing*, then a link to the next card waiting
+  · sent HH:MM · not read by the session yet*, then a link to the next card waiting
   or *Nothing else waits on you*. When two or more pieces wait and all
   await the same words (none `other`), a bar under the Waiting heading
   gives them all in one request (`POST /l/ID/say-all`: token, Origin and
   Host as `/say`; refused with 409, sending nothing, if any no longer
   awaits exactly those words): one word entry per piece. Any piece in
   flight can also be dropped, as a request: a trash icon (a 44 px
-  target) in its title opens a fold *Ask the session to close P<n>
+  target) in its title opens a fold *Ask the session to drop P<n>
   without follow-up*, what it does, an optional reason, *Cancel* (back
-  to the trash) and *Ask to close P<n>*, the one red button, sending the
+  to the trash) and *Ask to drop P<n>*, the one red button, sending the
   word `drop`. Questions have the same icon, to drop (ignore) one; so a
   question never offers drop or ignore among its choices (`check` fails
   it, save per item).
@@ -555,7 +557,7 @@ What the page takes, all as inbox entries, of the four kinds
   close on: *Not yet: an entry from you waits to be filed (N1).*, or
   *`bin/ledger check --final` still fails* when the line names nothing.
 - **The abandon of the ledger**, on any live ledger, after the Close
-  when the Close is offered: *Abandon the ledger*, a fold that says what
+  when the Close is offered: *Abandon the ledger* (its own icon, not the trash), a fold that says what
   abandoning does (the pieces not finished dropped, the open questions
   closed, the history kept), takes an optional comment, and sends only
   with *Yes, abandon it*, the red button. The entry has `ref` `abandon`;
@@ -576,7 +578,7 @@ means after the word, in the same pill; an
 item id is drawn in two halves (the letter pale, the number on the
 chip's own colour, in gray when it has none) so the letter O differs
 from the digit 0 in any
-font; the trash says *Close* beside its icon where the card is narrow.
+font; the trash says *Drop* beside its icon where the card is narrow.
 The overall comment on a question folds until wanted, a recommended
 option carries its reason under its label, and Send names what it
 sends ("Send answer to O1"). A question answered and not filed yet

@@ -61,7 +61,8 @@ class QuestionCommentTest < ViewerTest
 
         assert_includes shown, "Send answer to O1"
         assert_includes shown, "Ask about O1"
-        assert_match(/asked: N1, sent \d\d:\d\d · awaiting filing/, shown)
+        assert_match(/asked: N1, sent \d\d:\d\d · not read by/,
+                     shown)
         refute_includes shown, "Change your answer"
     end
 end

@@ -38,7 +38,7 @@ module LedgerViewer
                 reading.questions.each do |q|
                     if q["preparing"] then prepared(lid, name, q)
                     elsif (sent = reading.sent_answers[q["id"]])
-                        filed(lid, name, q["id"], "q", sent)
+                        filed(lid, name, q, "q", sent)
                     else ask(lid, name, reading, q)
                     end
                 end
@@ -48,16 +48,19 @@ module LedgerViewer
                 @totals[:prepared] += 1
                 @theirs << @scope.partial(
                     "index/prepared",
-                    lid:, name:, id: q["id"], prep: q["preparing"],
+                    lid:, name:, id: q["id"], title: q["title"],
+                    prep: q["preparing"],
                     status: q["preparing_status"]
                 )
             end
 
-            def filed(lid, name, id, kind, entry)
+            def filed(lid, name, item, kind, entry)
                 @totals[:sent] += 1
                 summary = Helpers.answer_summary(entry)
+                id = item["id"]
                 @theirs << @scope.partial("index/sent",
                                           lid:, name:, id:, summary:,
+                                          title: item["title"],
                                           anchor: "#{kind}-#{id}")
             end
 
@@ -74,7 +77,7 @@ module LedgerViewer
             def owed(lid, name, reading)
                 reading.owed.each do |piece|
                     entry = reading.sent_words[piece["id"]]
-                    next filed(lid, name, piece["id"], "p", entry) if entry
+                    next filed(lid, name, piece, "p", entry) if entry
 
                     @totals[:words] += 1
                     ask_word(lid, name, reading, piece)

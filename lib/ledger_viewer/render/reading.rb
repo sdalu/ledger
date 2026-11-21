@@ -125,7 +125,7 @@ module LedgerViewer
                 sent = owed.count { sent_words.key?(it["id"]) }
                 parts = tally.map { |w, n| n == 1 ? w : "#{w} ×#{n}" }
                 parts[-1] += " · #{sent} sent" if sent.positive?
-                [parts.join(", "), needs.join("; ")]
+                ["awaits #{parts.join(", ")}", needs.join("; ")]
             end
 
             private

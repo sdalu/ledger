@@ -38,6 +38,8 @@ module LedgerViewer
                 head + folds.compact.filter_map { fold(*it) }.join
             end
 
+            RAID_TITLE = "Risks, assumptions, issues, dependencies"
+
             private
 
             def folds
@@ -56,7 +58,9 @@ module LedgerViewer
             # The RAID fold, or nil when it would be empty.
             def raid
                 body, count = @raid_fold.html
-                ["raid", "RAID", body, count] if body
+                return unless body
+
+                ["raid", RAID_TITLE, body, count]
             end
 
             def lines(key, title, list)

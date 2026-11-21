@@ -54,7 +54,7 @@ module LedgerViewer
             # A trash icon opening a reason, optional, and the button, so
             # one stray click drops nothing.
             def drop(ref)
-                label = "Ask the session to close #{Text.escape(ref)} " \
+                label = "Ask the session to drop #{Text.escape(ref)} " \
                         "without follow-up"
                 attrs, box = @scope.tip(label, hidden: true)
                 @scope.partial(
@@ -71,7 +71,7 @@ module LedgerViewer
                 lines = asked.map do |entry|
                     at = Clock.clock((entry["at"] || "").to_s)
                     sent = at.empty? ? "" : ", sent #{at}"
-                    "asked: #{entry["id"]}#{sent} · awaiting filing"
+                    "asked: #{entry["id"]}#{sent} · not read by the session yet"
                 end
                 @scope.partial("ledger/ask",
                                { lid: @lid, token: @token, ref:, lines: })

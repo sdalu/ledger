@@ -11,7 +11,7 @@ module LedgerViewer
     module Render
         # The sections of questions and words: Waiting on you, with the
         # one word for every piece that awaits the same, and what was
-        # answered today; Sent, awaiting filing; Being prepared.
+        # answered today; Sent, not read by the session yet; Being prepared.
         class Waiting
             include Sectioned
 
@@ -37,9 +37,10 @@ module LedgerViewer
                 end
                 return [Remains.html(@reading), ""] if @reading.settled?
 
-                [waiting(asks, prepared), section("Sent, awaiting filing", sent,
-                                                  "sent") +
-                    section("Being prepared", prepared, "preparing")]
+                unread = section("Sent, not read by the session yet", sent,
+                                 "sent")
+                [waiting(asks, prepared),
+                 unread + section("Being prepared", prepared, "preparing")]
             end
 
             private

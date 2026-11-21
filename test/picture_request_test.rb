@@ -102,7 +102,7 @@ class PictureRequestTest < ViewerTest
         request("O1", "text", "the flow")
         shown = card("q-O1")
 
-        assert_match(/picture asked: N1, sent \d\d:\d\d · awaiting filing/,
+        assert_match(/picture asked: N1, sent \d\d:\d\d · not read by/,
                      shown)
         refute_includes shown, "Request a picture"
         assert_includes shown, "Send answer to O1"

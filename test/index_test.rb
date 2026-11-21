@@ -29,6 +29,18 @@ class IndexTest < ViewerTest
         assert_includes last_response.headers["Content-Type"], "text/html"
     end
 
+    # Every letter a page draws on a chip has its line in the legend.
+    def test_the_legend_names_every_id_letter
+        sign_in
+        https "/"
+        legend = last_response.body[%r{<details class="legend".*?</details>}m]
+
+        %w[P O D C F N G A X].each do |letter|
+            assert_includes legend, %(<span class="l">#{letter}</span>),
+                            "legend lacks #{letter}"
+        end
+    end
+
     def test_a_ledger_name_is_escaped
         Fixture.ledger(@journal, File.join(@dir, "<b>x/LEDGER.md"),
                        project: "<b>x")

@@ -438,9 +438,9 @@ t('A2: the status pill\'s summary is at least 24 px', await p.evaluate(() => {
     return one && (beside || below) && h.getBoundingClientRect().right - last.right < 40;
   });
   t('phone: tags and trash together at the end, beside or below the title', await p.evaluate(together));
-  t('R11: the trash shows its word Close where the card is narrow, and not where it is wide', labelWide === 'none'
+  t('R11: the trash shows its word Drop where the card is narrow, and not where it is wide', labelWide === 'none'
     && await p.evaluate(() => { const l = document.querySelector('.drop-fold > summary > .drop-label');
-      return getComputedStyle(l).display !== 'none' && l.textContent === 'Close'; }));
+      return getComputedStyle(l).display !== 'none' && l.textContent === 'Drop'; }));
   await p.evaluate(() => { const h = document.querySelector('#flight + ul .card-head .text'); h.dataset.was = h.textContent;
     h.textContent = 'A title long enough to need the whole first line of the card on a phone screen'; });
   t('phone: a long title puts the tags below it, still together', await p.evaluate(together)
@@ -496,7 +496,7 @@ t('A2: the status pill\'s summary is at least 24 px', await p.evaluate(() => {
   t('P80: a word sent collapses the card in place into a one-row receipt with Change', await p.evaluate(() => {
     const c = document.getElementById('p-P4'), sum = c.querySelector(':scope > details.comment-fold > summary');
     const r = c.getBoundingClientRect(), s = sum.getBoundingClientRect();
-    return c.classList.contains('is-receipt') && /^You asked: Commit · sent \d\d:\d\d · awaiting filing$/.test(c.querySelector('.sent-line').textContent.trim())
+    return c.classList.contains('is-receipt') && /^You asked: Commit · sent \d\d:\d\d · not read by the session yet$/.test(c.querySelector('.sent-line').textContent.trim())
       && r.height < 130 && s.height > 0 && /Change/.test(sum.textContent) && !c.querySelector('details.comment-fold').open
       && getComputedStyle(c.querySelector('a.next-waiting')).display === 'none';
   }) && await idx() === at);

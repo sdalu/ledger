@@ -49,7 +49,7 @@ module LedgerViewer
                     :asks, :words, :sent, :prepared
                 )
                 [phrase(asks, "question"), phrase(words, "word", " to give"),
-                 phrase(sent, "answer", " sent, awaiting filing"),
+                 phrase(sent, "answer", " sent, not read by the session yet"),
                  ("#{prepared} being prepared" if prepared.positive?)].compact
             end
 

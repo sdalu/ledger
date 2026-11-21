@@ -20,6 +20,9 @@ module LedgerViewer
                 ["D", "a criterion: what \u201cdone\u201d is checked by"],
                 ["C", "a constraint you set"],
                 ["F", "a fact the session found"],
+                ["G", "a goal: what you asked for, as you said it"],
+                ["A", "an assumption the plan rests on"],
+                ["X", "a decision, by you or by the session"],
                 ["N", "something you sent from this viewer"]
             ].freeze
             LEGEND_COLOURS = [

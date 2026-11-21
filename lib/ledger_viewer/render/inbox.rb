@@ -67,7 +67,7 @@ module LedgerViewer
                 elsif replaced.key?(id)
                     "replaced by #{replaced[id]}"
                 else
-                    "awaiting filing"
+                    "not read by the session yet"
                 end
             end
 
