@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-# preflight.rake -- what `rake check` and `rake status` both need.
+# preflight.rake -- what `rake check` and `rake server:status` both need.
 #
 # Drop this and its two companions in rakelib/; rake loads
 # rakelib/*.rake by itself, so the Rakefile needs no edit. The module

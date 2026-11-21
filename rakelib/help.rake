@@ -38,8 +38,7 @@ module Help
     # The tasks the text below describes. Anything else carrying a
     # description is listed under "Also".
     DESCRIBED = %w[default test rubocop clean help
-                   server server:start server:stop server:restart
-                   server:status status
+                   server:start server:stop server:restart server:status
                    check check:pre-flight].freeze
 
     def self.extra
@@ -58,13 +57,14 @@ module Help
                 rake rubocop              the style check alone
 
               #{paint("Running", :bold)}
-                rake server               serve it (alias for server:start)
-                rake server DEBUG=1       to be edited: real errors, request
-                                          logging, templates reloaded
-                rake server PRODUCTION=1  to be used: templates cached, the
+                rake server:start         serve it, in the foreground
+                  DEBUG=1                 to be edited: real errors, request
+                                          logging, templates reloaded, and a
+                                          throwaway store
+                  PRODUCTION=1            to be used: templates cached, the
                                           environment named rather than left
                                           to an unset variable
-                rake server TMUX=name     detached, in a named tmux session
+                  TMUX=name               detached, in a named tmux session
                                           (SCREEN=name for screen); attach to
                                           watch it, stop as usual
                 rake server:stop          ask it to stop, and wait for it
@@ -75,8 +75,8 @@ module Help
               #{paint("Inspecting", :bold)}
                 rake check                every check:* there is
                 rake check:pre-flight     gems, config, tools, addresses
-                rake status               is it running, and with what
-                                          settings? (alias for server:status)
+                rake server:status        is it running, and with what
+                                          settings?
 
               #{paint("Housekeeping", :bold)}
                 rake clean                remove what a run wrote

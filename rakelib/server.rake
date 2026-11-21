@@ -3,11 +3,6 @@
 # server.rake -- start, stop, restart and status. Needs preflight.rake
 # beside it, for the pidfile and the launcher.
 #
-# `rake server` is an alias for `server:start`, because that is what
-# anyone types first and there is no reason to make them learn the
-# namespace before they can run the thing. `rake status` likewise
-# reaches server:status.
-#
 # start runs in the FOREGROUND, under whoever typed it: nothing here
 # daemonises and nothing supervises. stop and restart are for the
 # other terminal, which is why they need the pidfile -- guessing at a
@@ -262,9 +257,3 @@ namespace :server do
         puts
     end
 end
-
-desc "Alias for server:start"
-task server: "server:start"
-
-desc "Alias for server:status"
-task status: "server:status"

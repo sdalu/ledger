@@ -2,7 +2,7 @@
 # ledger-viewer -- serve the live ledgers: resolve the checkout, refuse
 # the two contradicting modes, exec puma at config.ru. Nothing to
 # source: every setting is in config/, which config/puma.rb and
-# config.ru read themselves. `rake server` execs this; it also works on
+# config.ru read themselves. `rake server:start` execs this; it also works on
 # its own.
 set -eu
 

@@ -216,7 +216,7 @@ the session's directory, its `.claude/` or its scratch directory.
 ## The viewer
 
 The status line reaches the user only when a session runs a check.
-`bin/ledger-viewer` (or `rake server`; `rake help` lists the rest)
+`bin/ledger-viewer` (or `rake server:start`; `rake help` lists the rest)
 serves every live ledger of the journal, a Sinatra app on Puma listening
 where `config/app.rb`'s `bind` says (`tcp://127.0.0.1:4590` by default).
 Callers sign in (sesam: a password, from an invitation that
