@@ -544,7 +544,7 @@ command's refusal, exit 2, nothing written.
 | `decide PATH TEXT --by user\|me [--note] [--date] [--rests-on F<n>,C<n>…] [--led-to P<n>,O<n>…] [--replaces X<n>] [--dry-run]` | the id (`X<n>`), the line, status line | by; empty; a target not this ledger's or of another kind; checks |
 | `noticed PATH TEXT [--dry-run]` | the line, status line | empty |
 | `criterion PATH new --text T`, `criterion PATH D<n> (--met E \| --unmet W \| --text T) [--dry-run]` | the id (new), the line, status line | not D<n>; empty value; no such criterion; `--text` with `--met` or `--unmet`; checks (`criteria-pieces`) |
-| `edit PATH ID --text T [--dry-run]` | the line, status line | unknown or other kind of id; a `P<n>` (its detail is `piece --what`'s); empty text; checks |
+| `edit PATH ID --text T [--dry-run]`, `edit PATH F<n> [--text T] [--pointer W]`, `edit PATH goal [--text T] [--short S] [--context C] [--dry-run]` | the line, or each goal field changed (`Title:`, `In short:`, `Context:`), status line | unknown or other kind of id; a `P<n>` (its detail is `piece --what`'s); empty text; `goal` with none of its three; a fact with neither `--text` nor `--pointer`; `--short` or `--context` on another id, `--pointer` on another than a fact; checks |
 | `renumber PATH OLD NEW [--dry-run]` | NEW, `renumbered OLD -> NEW: its heading and N reference(s)`, status line | shapes; kinds differ; same; OLD heads nothing; untaken entry about OLD; NEW given before (counter) or referenced; checks |
 | `undo PATH [--dry-run]` | `undone: ADDRESS is back as it was before E<n>`, status line | nothing to undo; a row changed since |
 | `restore PATH [--to E<n>] [--dry-run]` | `restored: ADDRESS is back as at E<n>`, status line; without `--to` the ledger's last ten events (`E<n>  time  actor  command  summary`) | no `--to` (it lists them); E<n> not this ledger's; nothing after it; a row changed since |
@@ -566,8 +566,9 @@ detail), a noticed line and the latest Goal's title. The Goal quote stays
 append-only through `goal`. `new` writes the placeholder criterion
 `D1: <a check something other than opinion can pass>`, which `criterion
 D1 --text` then replaces. Two targets have no id printed in the
-Markdown: `edit PATH goal --text` sets the latest Goal block's title
-alone, and an `Out of scope, noticed` line has a `Z<n>` row id, shown by
+Markdown: `edit PATH goal` sets the latest Goal block's title
+(`--text`), In short (`--short`) and Context (`--context`), one or
+more, its quote untouched; and an `Out of scope, noticed` line has a `Z<n>` row id, shown by
 `show --json` and `show PATH Z<n>`, which `edit Z<n> --text` takes. A
 piece's detail has one writer, `piece P<n> --what`: `edit` refuses a P
 id, one writer per column.

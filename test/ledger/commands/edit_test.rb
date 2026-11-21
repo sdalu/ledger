@@ -37,6 +37,40 @@ class EditTest < CommandCase
         assert_equal "- other\n", out.lines.first
     end
 
+    # The Goal block's In short and Context have a writer too; its quote
+    # stays the user's.
+    def test_the_goal_short_and_context_are_edited
+        quote = db[:goals].get(:quote)
+        out = ok("edit", BETA, "goal", "--short", "a newer sentence",
+                 "--context", "`lib/x.rb`, rules `S1`")
+
+        assert_equal ["In short: a newer sentence",
+                      "Context: `lib/x.rb`, rules `S1`"],
+                     out.lines(chomp: true)[0, 2]
+        assert_equal ["a newer sentence", "`lib/x.rb`, rules `S1`", quote],
+                     db[:goals].get(%i[short context quote])
+    end
+
+    # A fact's pointer has a writer: --pointer, with or without --text.
+    def test_a_fact_pointer_is_edited
+        ok("fact", BETA, "the parser lives here — survey note")
+        ok("edit", BETA, "F2", "--pointer", "survey note, items `W2`")
+
+        assert_equal ["the parser lives here", "survey note, items `W2`"],
+                     db[:facts].where(n: 2).get(%i[text pointer])
+        assert_refused("edit", BETA, "F2", "--pointer", "note, W2",
+                       "codes -- F2: W2")
+        assert_refused("edit", BETA, "goal", "--pointer", "x",
+                       "goal takes --text (its title), --short or --context")
+    end
+
+    def test_a_goal_edit_names_a_field_and_only_goal_takes_them
+        assert_refused("edit", BETA, "goal",
+                       "goal takes --text (its title), --short or --context")
+        assert_refused("edit", BETA, "F1", "--short", "x", "--text", "y",
+                       "--short and --context are the goal's")
+    end
+
     def test_the_goal_title_is_edited
         out = ok("edit", BETA, "goal", "--text", "A newer title")
         assert_equal "Title: A newer title", out.lines.first.chomp
@@ -70,7 +104,8 @@ class EditTest < CommandCase
 
     def test_an_empty_text_is_refused
         assert_refused("edit", BETA, "F1", "--text", " ", "--text is empty")
-        assert_refused("edit", BETA, "F1", "--text is empty")
+        assert_refused("edit", BETA, "F1",
+                       "a fact takes --text, --pointer or both")
     end
 
     def test_a_title_that_is_not_a_title_is_refused

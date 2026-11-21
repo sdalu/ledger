@@ -149,8 +149,10 @@ QUOTE). A command that gives a new id prints it alone on its first line.
 `criterion PATH D<n> (--met EVIDENCE | --unmet WHY | --text T)` marks a
 criterion `[x]` with evidence or `[-]` with why, or rewords it, and
 `criterion PATH new --text T` adds one; `edit PATH ID --text T` rewords
-a fact, constraint, decision, question detail or noticed line (`Z<n>`),
-or the latest Goal's title (`edit PATH goal`); a piece's detail is
+a fact (its pointer with `--pointer`), constraint, decision, question detail or noticed line (`Z<n>`),
+or the latest Goal's title, In short and Context (`edit PATH goal
+--text T --short S --context C`, any of them; the quote stays the
+user's); a piece's detail is
 `piece --what`'s. `choice PATH O<n> --add "LABEL = effect; cost"` or
 `--drop LABEL` changes the options of an open question under the grammar
 `ask` keeps (refused, nothing written, for a label too long or holding
