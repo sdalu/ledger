@@ -59,13 +59,38 @@ class MockupRouteTest < ViewerTest
         assert_includes last_response.headers["Content-Type"], "text/css"
     end
 
-    def test_a_directory_is_flagged_on_the_card_not_drawn
+    def test_a_directory_with_an_index_is_drawn_by_it
+        sign_in
+        https "/l/#{@lid}"
+        body = last_response.body
+
+        assert_includes body, %(data-src="/m/#{@lid}/deck/index.html")
+        assert_includes body, %(<iframe src="/m/#{@lid}/deck/index.html")
+        assert_includes body, %(data-src="/m/#{@lid}/pic.svg")
+        refute_includes body, "placed as a directory"
+    end
+
+    def test_a_directory_with_one_image_is_drawn_as_that_image
         sign_in
         https "/l/#{@lid}"
 
         assert_includes last_response.body,
-                        "mockup deck: placed as a directory"
-        assert_includes last_response.body, %(data-src="/m/#{@lid}/pic.svg")
+                        %(<img src="/m/#{@lid}/sub/b.png")
+    end
+
+    # A directory of two pages and no index: the command refuses to place
+    # one, so the second page is a row an older journal could hold.
+    def test_a_directory_of_two_pages_is_flagged_not_drawn
+        place("two/a.html" => "<p>a</p>")
+        pictures = @journal.db[:pictures]
+        pictures.insert(pictures.where(name: "two").first.except(:id)
+                                .merge(path: "b.html"))
+        sign_in
+        https "/l/#{@lid}"
+
+        assert_includes last_response.body,
+                        "mockup two: placed as a directory, not drawn here"
+        refute_includes last_response.body, "/m/#{@lid}/two/"
     end
 
     def test_nothing_but_a_picture_of_the_ledger_is_served

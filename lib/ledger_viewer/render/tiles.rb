@@ -8,8 +8,8 @@ module LedgerViewer
         # The tiles of a card's pictures: a thumbnail that opens in a
         # lightbox, a before/after pair as one, a short text figure
         # drawn in the card itself. Used by Mockups. A picture placed as a
-        # directory is flagged, not drawn: which of its files is the one
-        # to open is the picking rule's, not the viewer's.
+        # directory is drawn by the file Ledger::Pictures.pick names, its
+        # other files served under it; one that picks none is flagged.
         class Tiles
             TEXT_MAX = 64 * 1024
             TILE_LINES = 15
@@ -43,23 +43,26 @@ module LedgerViewer
 
             private
 
-            # The file a name is, or nil for a directory.
-            def single(name)
-                files = @files.fetch(name)
-                files.first if files.length == 1 && files.first["path"].empty?
-            end
+            # The file a name is drawn by, or nil for a directory that
+            # picks none.
+            def single(name) = Folder.drawn(@files.fetch(name))
+
+            # The path a name is served by: the name, or its picked file.
+            def target(name) = Folder.target(name, single(name))
+
+            def kind(name) = Folder.kind(target(name))
 
             def absent(name)
                 @scope.partial("ledger/mock_missing", name:)
             end
 
-            def url(name) = "/m/#{@lid}/#{Text.quote(name)}"
+            def url(name) = "/m/#{@lid}/#{Text.quote(target(name))}"
 
             def part(name)
                 return pair(name) if @pairs.key?(name)
-                return text(name) if Folder.kind(name) == "text"
+                kind = kind(name)
+                return text(name) if kind == "text"
 
-                kind = Folder.kind(name)
                 inner = thumb(url(name), kind, name)
                 tile(name, button(name, kind, inner), "")
             end
@@ -104,7 +107,7 @@ module LedgerViewer
             # NAME's thumbnail under WORD (Before or After).
             def side_button(label, name, word)
                 text = "#{label} (#{word.downcase})"
-                kind = Folder.kind(name)
+                kind = kind(name)
                 inner = thumb(url(name), kind, text) +
                         %(<span class="side-name">#{word}</span>)
                 button(name, kind, inner, text)

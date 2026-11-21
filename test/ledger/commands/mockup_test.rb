@@ -76,7 +76,7 @@ class MockupTest < MockupCase
         out = mockup(File.join(@src, "mock"))
         assert_equal ["placed mock/css/s.css", "placed mock/index.html"],
                      out.lines(chomp: true).first(2)
-        assert_match(%r{\(the mockup at /m/\w+/mock\)\n\z}, out)
+        assert_match(%r{\(the mockup at /m/\w+/mock/index.html\)\n\z}, out)
         assert_equal ["mock"], names
     end
 
@@ -87,17 +87,6 @@ class MockupTest < MockupCase
         assert_equal [["mock", "css/s.css", "text/css; charset=utf-8"],
                       ["mock", "index.html", "text/html; charset=utf-8"]],
                      db[:pictures].order(:path).select_map(%i[name path type])
-    end
-
-    def test_the_page_is_picked_among_many_files
-        mockup(file("a.png"), file("page.html", "<p>"), file("s.css", "p{}"))
-        assert_equal ["page.html"], names
-        assert_equal 3, db[:pictures].count
-    end
-
-    def test_name_says_which_file_is_shown
-        mockup(file("a.png"), file("b.png"), "--name", "b.png")
-        assert_equal ["b.png"], names
     end
 
     def test_a_second_picture_is_added_beside_the_first
@@ -124,6 +113,60 @@ class MockupTest < MockupCase
                      db[:question_pictures].where(question_id: 2)
                                            .select_map(%i[name pending_id])
         assert_empty db[:question_pictures].where(question_id: 1).all
+    end
+end
+
+# `mockup` with several FILEs or a DIR: every name shown, a DIR by its pick.
+class MockupSeveralTest < MockupCase
+    def test_every_file_of_a_call_is_named_on_the_question
+        mockup(file("a.png"), file("page.html", "<p>"), file("b.svg", "<svg/>"))
+        assert_equal %w[a.png page.html b.svg], names
+        assert_equal 3, db[:pictures].count
+        assert_includes line, "— mockup: a.png — mockup: page.html — " \
+                              "mockup: b.svg"
+    end
+
+    def test_the_viewer_line_names_each_file
+        out = mockup(file("a.png"), file("b.svg", "<svg/>")).lines.last
+        assert_includes out, "(the mockups at /m/"
+        assert_equal %w[a.png b.svg], out.scan(%r{/m/\w+/([^,)]+)}).flatten
+    end
+
+    def test_a_pending_picture_takes_the_first_of_several
+        ok("piece", BETA, "new", "--title", "Draw the mockup", "--route",
+           "haiku, effort: low")
+        ok("ask", BETA, "Which font?", "--title", "Font choice", "--problem",
+           "p", "--risk", "2/10 — r", "--pending", "P1")
+        ok("mockup", BETA, file("f.png"), file("g.png"), "--question", "O2")
+        assert_equal [["f.png", nil], ["g.png", nil]],
+                     db[:question_pictures].where(question_id: 2)
+                                           .order(:position)
+                                           .select_map(%i[name pending_id])
+    end
+
+    def test_replace_swaps_for_every_new_name
+        mockup(file("a.png"))
+        mockup(file("b.png"), file("c.png"), "--replace")
+        assert_equal %w[b.png c.png], names
+    end
+
+    def test_name_may_name_the_one_directory
+        file("d/index.html", "<p>")
+        mockup(File.join(@src, "d"), "--name", "d")
+        assert_equal ["d"], names
+    end
+
+    def test_a_directory_is_drawn_by_its_pick
+        file("d1/index.html", "<p>")
+        file("d1/other.html", "<p>")
+        file("d2/one.htm", "<p>")
+        file("d3/logo.svg", "<svg/>")
+        file("d3/s.css", "p{}")
+        out = mockup(File.join(@src, "d1"), File.join(@src, "d2"),
+                     File.join(@src, "d3"))
+        assert_equal %w[d1 d2 d3], names
+        assert_match(%r{/d1/index.html, /m/\w+/d2/one.htm, /m/\w+/d3/logo.svg},
+                     out)
     end
 end
 
@@ -163,15 +206,28 @@ class MockupRefusalTest < MockupCase
                 "--name b.png: not among the names placed (a.png)")
     end
 
-    def test_no_single_page_image_or_text_to_pick
-        refused(file("a.png"), file("b.png"),
-                "say which name the question shows, with --name (a.png, b.png)")
+    def test_name_is_refused_with_several_files
+        refused(file("a.png"), file("b.png"), "--name", "b.png",
+                "--name names one FILE or DIR, not several")
+    end
+
+    def test_no_page_or_image_to_pick
         file("m/one.html", "<p>")
         file("m/two.html", "<p>")
-        refused(File.join(@src, "m"), "--name", "m",
-                "no single page, image or text to pick in m")
-        refused(file("s.css", "p{}"), "--name", "s.css",
+        refused(File.join(@src, "m"),
+                "no index.html, single page or single image to pick in m")
+        file("t/note.txt", "x")
+        refused(File.join(@src, "t"),
+                "no index.html, single page or single image to pick in t")
+        refused(file("s.css", "p{}"),
                 "no single page, image or text to pick in s.css")
+    end
+
+    def test_a_directory_of_pages_and_an_image_is_several_pages
+        file("m/one.html", "<p>")
+        file("m/two.html", "<p>")
+        file("m/logo.png")
+        refused(File.join(@src, "m"), "to pick in m")
     end
 
     def test_a_name_already_in_the_journal_is_refused

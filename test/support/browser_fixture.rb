@@ -4,7 +4,8 @@ require_relative "ledger_commands"
 
 # The ledger test/browser/viewer.cjs expects, made by bin/ledger's
 # words in the caller's journal: the goal, D1, F1, the pieces P1 to P4,
-# the questions O1 to O3 with O1's two pictures and P4's before/after
+# the questions O1 to O3 with O1's two pictures, O3's directory deck
+# (index.html, its CSS and an image) and P4's before/after
 # (mockups/ beside this file), and the inbox the viewer sent, N1 about
 # O3 waiting and N2 taken.
 module BrowserFixture
@@ -83,6 +84,7 @@ module BrowserFixture
         %w[page.html flow.txt].each do |name|
             run.call("mockup", File.join(MOCKUPS, name), "--question", "O1")
         end
+        run.call("mockup", File.join(MOCKUPS, "deck"), "--question", "O3")
         %w[before after].each do |role|
             run.call("mockup", File.join(MOCKUPS, "reorder-#{role}.svg"),
                      "--piece", "P4", "--#{role}")

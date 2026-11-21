@@ -50,7 +50,8 @@ module Ledger
                 roles = @opts.fetch(:roles, []).uniq
                 refuse("--piece places one side: --before or --after") unless
                     roles.one?
-                refuse("--piece places one file") unless sources.one?
+                refuse("--piece places one file, not several") unless
+                    sources.one?
                 [piece, roles.first]
             end
 
@@ -68,7 +69,8 @@ module Ledger
 
         # `mockup PATH FILE|DIR... --question O<n> [--name NAME]
         # [--replace]`: the files are read into the journal as pictures,
-        # and the question shows one name of them. `mockup PATH FILE
+        # and the question shows every name of them (a DIR
+        # by the file it opens on, Pictures.pick). `mockup PATH FILE
         # --piece P<n> --before|--after [--replace]`: one file, placed as
         # that side of the piece's before/after. Nothing is written on a
         # disk. `--replace` takes the question's other pictures away, or
@@ -107,6 +109,8 @@ module Ledger
                 return piece_mockup(path, sources) if @opts.key?(:piece)
 
                 question = question_id
+                refuse("--name names one FILE or DIR, not several") if
+                    @opts.key?(:name) && sources.size > 1
                 items = Pictures::Sources.new(sources).items
                 result = write(path, own: question) do |change|
                     place(change, question, items, Address.parse(path))
@@ -125,16 +129,17 @@ module Ledger
                 end
             end
 
-            # -> the name the question shows.
+            # -> [[name, the file it opens on]] the question shows.
             def place(change, question, items, address)
                 row = open_question(change, question) or
                     refuse("#{question} is not asked under Open in #{address}")
-                name = shown(items)
+                shown = shown(items)
+                names = shown.map(&:first)
                 Pictures::Placement.new(change, journal.db)
-                                   .call(row, items, name,
+                                   .call(row, items, names,
                                          replace: @opts.fetch(:replace, false))
-                change.summary = "placed #{name}"
-                name
+                change.summary = "placed #{names.join(", ")}"
+                shown
             end
 
             def open_question(change, id)
@@ -145,23 +150,14 @@ module Ledger
                                              closed_at: nil).first
             end
 
-            # The name the question shows, and the file its name opens on.
+            # Every name placed is shown, a DIR by the file it opens on.
             def shown(items)
-                names = items.map(&:name).uniq
-                name = @opts[:name] || picked(items)
-                unless names.include?(name)
-                    refuse("--name #{name}: not among the names placed " \
-                           "(#{names.join(", ")})")
-                end
-                return name if Pictures.page(items.select { it.name == name })
+                shown = Pictures.shown(items)
+                name = @opts[:name] or return shown
+                return shown if shown.assoc(name)
 
-                refuse("no single page, image or text to pick in #{name}")
-            end
-
-            def picked(items)
-                found = Pictures.page(items) and return found.name
-                refuse("say which name the question shows, with --name " \
-                       "(#{items.map(&:name).uniq.join(", ")})")
+                refuse("--name #{name}: not among the names placed " \
+                       "(#{shown.map(&:first).join(", ")})")
             end
 
             def report(result, question, address, items)
@@ -169,8 +165,9 @@ module Ledger
                 line = Render::Markdown.line(result.after, question)
                 @out.puts line.delete_prefix("- ")
                 id = Digest::SHA1.hexdigest(address.to_s)[0, 10]
-                @out.puts "viewer: /l/#{id} (the mockup at " \
-                          "/m/#{id}/#{result.value})"
+                urls = result.value.map { "/m/#{id}/#{it.last}" }
+                word = urls.size > 1 ? "mockups" : "mockup"
+                @out.puts "viewer: /l/#{id} (the #{word} at #{urls.join(", ")})"
             end
         end
     end

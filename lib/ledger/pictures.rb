@@ -46,6 +46,41 @@ module Ledger
             items.select { kinds.include?(it.extension) }
         end
 
+        # The file a directory is drawn by, among PATHS (its files, under
+        # it): index.html at its top, else its single page, else its
+        # single image or SVG; nil when there is none or several. The
+        # first kind present decides, so two pages and an image are
+        # several, not the image. The command and the viewer both ask.
+        def self.pick(paths)
+            return "index.html" if paths.include?("index.html")
+
+            group = CLASSES.first(2).lazy.map do |kinds|
+                paths.select { kinds.include?(File.extname(it).downcase) }
+            end.find(&:any?)
+            group.first if group&.one?
+        end
+
+        # [[name, the file it opens on]] of every name among ITEMS, in
+        # their order; a name that opens on nothing is refused.
+        def self.shown(items)
+            items.group_by(&:name).map do |name, rows|
+                [name, opens(name, rows)]
+            end
+        end
+
+        def self.opens(name, rows)
+            if rows.one? && rows.first.path.empty?
+                return name if page(rows)
+
+                raise Refused, "no single page, image or text to pick in " \
+                               "#{name}"
+            end
+            path = pick(rows.map(&:path)) or
+                raise(Refused, "no index.html, single page or single " \
+                               "image to pick in #{name}")
+            "#{name}/#{path}"
+        end
+
         # The files at SOURCES (a file, or a directory with everything
         # under it) as items, refused before anything is stored.
         class Sources
@@ -113,10 +148,10 @@ module Ledger
                 @db = db
             end
 
-            # Stores ITEMS and shows NAME on QUESTION (a row): `replace`
+            # Stores ITEMS and shows NAMES on QUESTION (a row): `replace`
             # takes the question's other pictures away, a pending one gives
-            # way to it.
-            def call(question, items, name, replace:)
+            # way to the first.
+            def call(question, items, names, replace:)
                 taken = items.map(&:name).uniq.select { placed?(it) }
                 if taken.any?
                     refuse("#{taken.join(", ")}: already a picture of this " \
@@ -124,7 +159,7 @@ module Ledger
                 end
 
                 items.each { store(it) }
-                show(question[:id], name, replace)
+                show(question[:id], names, replace)
             end
 
             private
@@ -141,28 +176,37 @@ module Ledger
                                           bytes: Sequel.blob(item.bytes))
             end
 
-            def show(question_id, name, replace)
+            def show(question_id, names, replace)
+                rows = rows_of(question_id, replace)
+                first = rows.empty? ? 0 : rows.last[:position] + 1
+                rest = fill(rows.find { it[:pending_id] }, names)
+                rest.each_with_index do |name, at|
+                    add(question_id, name, first + at)
+                end
+            end
+
+            # The question's rows, none when `replace` took them away.
+            def rows_of(question_id, replace)
                 rows = @db[:question_pictures].where(question_id:)
                                               .order(:position, :id).all
-                return swap(question_id, name, rows) if replace
+                return rows unless replace
 
-                pending = rows.find { it[:pending_id] }
-                return append(question_id, name, rows) unless pending
-
-                columns = { name:, pending_id: nil }
-                @change.update(:question_pictures, pending[:id], **columns)
-            end
-
-            def swap(question_id, name, rows)
                 rows.each { @change.delete(:question_pictures, it[:id]) }
-                @change.insert(:question_pictures, question_id:, position: 0,
-                                                   name:)
+                []
             end
 
-            def append(question_id, name, rows)
-                position = rows.empty? ? 0 : rows.last[:position] + 1
-                @change.insert(:question_pictures, question_id:, position:,
-                                                   name:)
+            def add(question_id, name, position)
+                @change.insert(:question_pictures, question_id:, name:,
+                                                   position:)
+            end
+
+            # NAMES the pending row does not take: it takes the first.
+            def fill(pending, names)
+                return names unless pending
+
+                @change.update(:question_pictures, pending[:id],
+                               name: names.first, pending_id: nil)
+                names.drop(1)
             end
         end
 

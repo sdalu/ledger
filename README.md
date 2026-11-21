@@ -620,18 +620,29 @@ picture belongs to one ledger, and a
 ledger shows only the pictures its questions name.
 
 `bin/ledger mockup PATH FILE|DIR... --question O<n> [--name NAME]`
-places one. The files are read into the journal as `pictures` rows (the
+places them. The files are read into the journal as `pictures` rows (the
 bytes as they are, with the content type the viewer serves), whatever
 directory or worktree the command runs in, so a peer drawing in a
 worktree lands it in the ledger it names; nothing is written on disk. A
 FILE is stored by its name, a DIR as one name with a row per file, its
-CSS and images under it. Before anything is stored it refuses a kind the
+CSS and images under it. Every FILE or DIR of one call is named on the
+question, in the order given (`--name` is for a single FILE or DIR, and
+is refused with several). A DIR is drawn by one of its files, the same
+pick in the command and in the viewer: its `index.html` at the top, else
+its single page (`.html`, `.htm`), else its single image or SVG; the
+question's `mockup: NAME` keeps naming the directory, and the page's
+relative CSS, scripts and images are served from the directory's other
+files. A directory with several pages and no `index.html` (or none of
+these) is refused by the command and, if the journal holds one, flagged
+in the card instead of drawn. The first kind present decides: two pages
+and an image are several pages, not the image. A directory holding only
+a `.txt`, and a single FILE that is not a page, image or text (a
+stylesheet placed alone), are refused. Before anything is stored it refuses a kind the
 viewer would not serve (`Ledger::Pictures::TYPES`), a symlink, a name
 `mockup: NAME` cannot spell, a name the ledger already placed, a missing
-or unknown question, and an ambiguous pick. On the question,
-`mockup: pending (P<n>)` on the question becomes `mockup: NAME` (the
-page placed, or the image, or `--name`), else ` — mockup: NAME` is
-added. With `--replace` every picture of the question gives way to the
+or unknown question, and a name that opens on nothing. On the
+question, `mockup: pending (P<n>)` becomes `mockup: NAME` (the first
+name placed), else ` — mockup: NAME` is added for each name. With `--replace` every picture of the question gives way to the
 one new picture: a swapped picture, not a second one (the old files stay
 in the journal). The change is an event, checked like any write: `undo`
 puts the question's pictures back, the blobs staying. Besides a page or

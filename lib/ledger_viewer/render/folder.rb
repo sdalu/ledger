@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "ledger/pictures"
+
 require_relative "terms"
 
 module LedgerViewer
@@ -18,6 +20,24 @@ module LedgerViewer
                 elsif low.end_with?(".txt") then "text"
                 else "page"
                 end
+            end
+
+            # The row a name's files ({path, type, size}) are drawn by: its
+            # one file placed alone, a directory's pick; nil when it picks
+            # none.
+            def drawn(files)
+                if files.length == 1 && files.first["path"].empty?
+                    return files.first
+                end
+
+                path = Ledger::Pictures.pick(files.map { it["path"] })
+                files.find { it["path"] == path }
+            end
+
+            # The path a name is served by, its drawn row FILE included.
+            def target(name, file)
+                path = file&.fetch("path").to_s
+                path.empty? ? name : "#{name}/#{path}"
             end
 
             # {after name => before name}: `before-X.ext` pairs with the

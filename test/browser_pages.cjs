@@ -43,6 +43,31 @@ const [base, which] = process.argv.slice(2);
       t(url + ' is served', r.status() === 200, String(r.status()));
     }
   }
+  // a mockup placed as a directory is drawn by its index.html in a tile;
+  // its page and the image it loads are fetched by that tile's frame,
+  // asserted from outside (the frame is an opaque origin)
+  errors.length = 0;
+  const deckResponses = [];
+  p.on('response', r => {
+    if (r.url().includes('/deck/')) deckResponses.push({url: r.url(), status: r.status(), frame: r.frame()});
+  });
+  await p.setViewportSize({width: 1300, height: 900});
+  await p.goto(base + pages[0]);
+  const deck = p.locator('iframe[src$="/deck/index.html"]');
+  t('a directory mockup is drawn in a tile', await deck.count() === 1);
+  if (await deck.count() === 1) {
+    await deck.scrollIntoViewIfNeeded();
+    const frame = await (await deck.elementHandle()).contentFrame();
+    const fetched = (name) => deckResponses.find(r => r.url.endsWith('/deck/' + name) && r.frame === frame);
+    for (let i = 0; i < 50 && !(fetched('index.html') && fetched('logo.svg')); i++) {
+      await new Promise(r => setTimeout(r, 100));
+    }
+    const box = await deck.boundingBox();
+    t('the tile\'s frame loads the directory\'s index.html', fetched('index.html')?.status === 200, JSON.stringify(deckResponses.map(r => r.status + ' ' + r.url)));
+    t('the tile\'s frame loads the directory\'s image', fetched('logo.svg')?.status === 200, JSON.stringify(deckResponses.map(r => r.status + ' ' + r.url)));
+    t('the tile\'s frame has a size', !!box && box.width > 0 && box.height > 0, JSON.stringify(box));
+    t('no refused request for the directory', errors.length === 0, errors.join('; '));
+  }
   await b.close();
   process.exit(fails ? 1 : 0);
 })().catch(e => { console.error(e); process.exit(1); });
