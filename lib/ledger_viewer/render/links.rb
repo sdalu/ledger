@@ -32,7 +32,9 @@ module LedgerViewer
             end
 
             # 'decided in X2, X5': the decisions with a led_to link to ID,
-            # each to its row in the record; nil when none.
+            # each to its row in the record; nil when none. Only led_to
+            # edges name a piece or a question: rests_on ends at a fact or
+            # a constraint, and a piece's --by is a led_to edge.
             def decided(id, reading)
                 rows = reading.decision_ids
                 said = reading.links.filter_map do |link|
@@ -54,6 +56,15 @@ module LedgerViewer
                 "waiting #{Ledger::Text.waited(since)}"
             end
 
+            # 'answered by P5' while that piece is not settled and not
+            # stalled, which the issues part says instead; nil otherwise.
+            def answering(question, pieces)
+                by = pieces.find { it["id"] == question["by"] }
+                return if by.nil? || by["settled"] || by["stalled"]
+
+                "answered by #{ids([by["id"]], "piece")}"
+            end
+
             # The issues of an open question as one line: how long it has
             # waited, its answering piece stalled (the text STALLED says of
             # that piece); "" when it has none.
@@ -61,8 +72,8 @@ module LedgerViewer
                 by = pieces.find { it["id"] == question["by"] }
                 said = [waiting(question)]
                 if by&.dig("stalled")
-                    said << "answered by #{ids([by["id"]], "piece")} " \
-                            "(#{stalled.call(by)})"
+                    said << "answered by #{ids([by["id"]], "piece")}, " \
+                            "#{stalled.call(by)}"
                 end
                 said.compact.join(" · ")
             end

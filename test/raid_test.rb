@@ -214,7 +214,9 @@ class RaidForwardTest < ViewerTest
                "--by", "P4", "--no-picture", "a choice of words")
         assert_includes raid(card("q-O2")),
                         "answered by <a href=\"#piece-P4\""
-        assert_includes raid(card("q-O2")), "(stalled 2 h)"
+        line = raid(card("q-O2"))
+        assert_includes line, ", stalled 2 h"
+        assert_equal 1, line.scan("answered by").size
     end
 end
 

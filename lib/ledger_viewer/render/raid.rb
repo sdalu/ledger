@@ -131,11 +131,10 @@ module LedgerViewer
                 said ? part("decided", @scope.inline(said)) : ""
             end
 
-            # 'answered by P5' while that piece is not settled, 'see F2'.
+            # 'answered by P5' while that piece is not settled and not
+            # stalled (the issues part says it then), 'see F2'.
             def question_links(question)
-                by = question["by"]
-                by = nil if by && @reading.settled[by]
-                [("answered by #{Links.ids([by], "piece")}" if by),
+                [Links.answering(question, @reading.pieces),
                  ("see #{question["see"].join(", ")}" if
                      question["see"].any?)].compact
             end
