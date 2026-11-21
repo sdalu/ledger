@@ -31,6 +31,16 @@ if [ "${PRODUCTION:-}" = 1 ]; then
     export RACK_ENV
 fi
 
+# The checkout's own bundle, named in full: a BUNDLE_LOCKFILE inherited
+# from another project's bundle beats the one derived from
+# BUNDLE_GEMFILE, and that lockfile would be rewritten with this
+# checkout's gems. Frozen, a lockfile that does not match the Gemfile
+# stops the start instead of being rewritten.
+BUNDLE_GEMFILE=$root/Gemfile
+BUNDLE_LOCKFILE=$root/Gemfile.lock
+BUNDLE_FROZEN=true
+export BUNDLE_GEMFILE BUNDLE_LOCKFILE BUNDLE_FROZEN
+
 cd -- "$root"
 
 exec bundle exec puma -C config/puma.rb config.ru "$@"

@@ -625,8 +625,14 @@ checkout, picks the interpreter — `$LEDGER_RUBY` when set (refused,
 exit 1, when it is not executable), else `/usr/local/bin/ruby` when
 executable (the native port, where the Linux-compat side's own `ruby`
 is another build), else `ruby` on `PATH` — and execs it with
-`BUNDLE_GEMFILE` set to the checkout's Gemfile, `-rbundler/setup`,
-`-I lib`. For the two words that read no journal, `hook heartbeat` and
+`BUNDLE_GEMFILE`, `BUNDLE_LOCKFILE` and `BUNDLE_FROZEN=true` exported
+for the checkout, `-rbundler/setup`, `-I lib`. The lockfile is named
+because one inherited from another project's bundle beats the one
+Bundler derives from `BUNDLE_GEMFILE`, and that project's lockfile
+would be rewritten with this checkout's gems; frozen, a lockfile that
+does not match stops the command instead of being rewritten. The three
+are exported before every path, the no-bundler hooks included, since a
+leaked `RUBYOPT` can load bundler there too. For the two words that read no journal, `hook heartbeat` and
 `hook journal-write`, it passes `-I lib` alone: measured 2026-11-20 on
 `/usr/local/bin/ruby`, a bare start is 0.03–0.06 s, `-rbundler/setup`
 0.11–0.19 s, Sequel loaded and a database opened 0.20 s, and the

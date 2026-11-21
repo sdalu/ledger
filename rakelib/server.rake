@@ -33,6 +33,11 @@
 # would also be a local rule that nobody expects, and the surprise
 # costs more than the case it guards.
 
+# Bundler is loaded here even when rake runs without bundle exec: its
+# copy of the environment, taken at load, is what restores what a
+# leaking parent changed.
+require "bundler"
+
 # Starting the launcher inside a named screen or tmux session.
 module Detached
     module_function
@@ -108,9 +113,21 @@ module Detached
     # socket file named after the session, created in the project.
     DROP = %w[TMUX SCREEN STY].freeze
 
-    # The environment without bundler's variables, as it was before
-    # bundle exec ran rake.
-    def clean_env = defined?(Bundler) ? Bundler.unbundled_env : ENV.to_h
+    # The environment as it was before bundler loaded, plus what was
+    # set since, less bundler's own variables. rake turns DEBUG=1 into
+    # ENV["DEBUG"] after bundler took its copy, so the copy alone would
+    # start the session without it.
+    def clean_env
+        later = ENV.to_h.reject { |key, _| bundler_owned?(key) }
+        Bundler.unbundled_env.merge(later)
+    end
+
+    # What bundler sets or saves when it loads: BUNDLE_*, its BUNDLER_*
+    # copies, and the keys it preserves (PATH, RUBYOPT, GEM_HOME, ...).
+    def bundler_owned?(key)
+        key.start_with?("BUNDLE_", "BUNDLER_") ||
+            Bundler::EnvironmentPreserver::BUNDLER_KEYS.include?(key)
+    end
 
     def child_env = clean_env.except(*DROP)
 

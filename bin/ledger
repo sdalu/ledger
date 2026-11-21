@@ -26,6 +26,16 @@ while [ -L "$self" ]; do
 done
 root=$(cd -- "$(dirname -- "$self")/.." && pwd) || exit 1
 
+# The checkout's own bundle, named in full: a BUNDLE_LOCKFILE inherited
+# from another project's bundle beats the one derived from
+# BUNDLE_GEMFILE, and that lockfile would be rewritten with this
+# checkout's gems. Frozen, a lockfile that does not match the Gemfile
+# stops the start instead of being rewritten.
+BUNDLE_GEMFILE=$root/Gemfile
+BUNDLE_LOCKFILE=$root/Gemfile.lock
+BUNDLE_FROZEN=true
+export BUNDLE_GEMFILE BUNDLE_LOCKFILE BUNDLE_FROZEN
+
 if [ -n "${LEDGER_RUBY:-}" ]; then
     if [ ! -x "$LEDGER_RUBY" ]; then
         printf '%s: LEDGER_RUBY=%s is not executable\n' \
@@ -49,13 +59,9 @@ if [ "${1:-}" = hook ]; then
                  -e 'exit Ledger::Hooks.main(ARGV)' -- "$2"
             ;;
     esac
-    BUNDLE_GEMFILE=$root/Gemfile
-    export BUNDLE_GEMFILE
     exec "$ruby" -r bundler/setup -I "$root/lib" -r ledger/hooks/main \
          -e 'exit Ledger::Hooks.main(ARGV)' -- "${2:-}"
 fi
 
-BUNDLE_GEMFILE=$root/Gemfile
-export BUNDLE_GEMFILE
 exec "$ruby" -r bundler/setup -I "$root/lib" -r ledger/cli \
      -e 'exit Ledger::CLI.run(ARGV)' -- "$@"
