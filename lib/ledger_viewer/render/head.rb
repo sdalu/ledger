@@ -2,6 +2,7 @@
 
 require_relative "clock"
 require_relative "helpers"
+require_relative "reading"
 require_relative "text"
 
 module LedgerViewer
@@ -44,14 +45,13 @@ module LedgerViewer
             # The status line without its title.
             def untitled = @reading.status_text.sub(TITLE_HEAD, "Status — ")
 
-            # What to do first: the next question, the next word, or
-            # that nothing waits.
+            # What to do first: what has waited longest, a question or a
+            # word, or that nothing waits.
             def next_step
                 figures = @reading.figures
-                question = @reading.to_answer.first
-                piece = @reading.unsent_words.first
-                return answer(question) if question
-                return word(piece) if piece
+                first = @reading.waiting_on_you.first
+                return answer(first) if first && WaitingOrder.question?(first)
+                return word(first) if first
                 return fixed("a", "#waiting", "Review what waits on you") if
                     figures.asks.positive?
                 return fixed("span", nil, "Ready to close.") if

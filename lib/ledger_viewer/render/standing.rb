@@ -55,16 +55,6 @@ module LedgerViewer
             # {id => whether the piece is settled} of every piece.
             def settled = pieces.to_h { [it["id"], it["settled"]] }
 
-            # The questions the user can answer now, in the page's order.
-            def to_answer
-                questions.select do |q|
-                    !q["preparing"] && !sent_answers.key?(q["id"])
-                end
-            end
-
-            # The questions asked of the user and not answered.
-            def open_questions = to_answer
-
             # The questions answered and not filed yet.
             def sent_questions
                 questions.select do |q|
@@ -73,9 +63,6 @@ module LedgerViewer
             end
 
             def prepared_questions = questions.select { it["preparing"] }
-
-            # The pieces whose word the user has not sent.
-            def unsent_words = owed.reject { sent_words.key?(it["id"]) }
 
             # The unfinished pieces, the most urgent first.
             def flight
@@ -160,14 +147,6 @@ module LedgerViewer
             end
 
             def status_in(list) = pieces.count { list.include?(it["status"]) }
-
-            # When the questions and words still owed were first seen.
-            def waits
-                words = owed.reject { sent_words.key?(it["id"]) }
-                            .map { word_since(it) }
-                (to_answer.filter_map { asked[it["id"]] } + words)
-                    .reject(&:empty?)
-            end
         end
     end
 end

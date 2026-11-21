@@ -328,8 +328,12 @@ and a table of the ledgers, each with its state in words (*awaits*, then
 the words still owed, counted, then how many are sent; an
 `other` word's need on a line under its row), its changed time under
 its name, narrow enough for a phone. A ledger page has the questions as
-a list beside it when the page is wide enough for both (to answer,
+a list beside it when the page is wide enough for both (waiting on you,
 sent, being prepared, then the other sections), above it otherwise;
+what waits on the user (questions to answer and words owed) is in one
+order on the page, the index queue's, the oldest wait first: the head's
+next step names the first, Waiting on you and the side list list them
+in that order, and a receipt's next card follows it;
 each option of a question is a tile with what it does and costs, and
 each card after Send offers the next question. The note box sits under
 the Goal, folded; "Leave a note" opens it. The Goal section shows every

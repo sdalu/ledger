@@ -98,12 +98,9 @@ module LedgerViewer
             def queued(reading, since, **locals)
                 wait = Ledger::Text.waited(since)
                 html = @scope.partial("index/ask", wait:, **locals)
-                @queue << [since.empty? ? 1 : 0, moment(since), reading.updated,
+                @queue << [*WaitingOrder.key(since), reading.updated,
                            @queue.length, html]
             end
-
-            # An ISO time as a Time to sort by, the epoch when there is none.
-            def moment(since) = Ledger::Text.local_time(since) || Time.at(0)
         end
     end
 end

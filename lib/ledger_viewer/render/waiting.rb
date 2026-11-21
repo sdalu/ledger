@@ -46,8 +46,11 @@ module LedgerViewer
             private
 
             def ask_cards
-                @reading.open_questions.map { @cards.ask(it) } +
-                    @reading.unsent_words.map { @words.html(it) }
+                @reading.waiting_on_you.map do |item|
+                    next @cards.ask(item) if WaitingOrder.question?(item)
+
+                    @words.html(item)
+                end
             end
 
             def sent_cards

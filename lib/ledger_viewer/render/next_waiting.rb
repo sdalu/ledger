@@ -11,19 +11,11 @@ module LedgerViewer
                    "on you</p>"
 
             # [[anchor, title]]: the cards still waiting on the user, in
-            # the page's order: the questions to answer, then the pieces
-            # owed a word.
+            # the page's order, the oldest wait first.
             def self.cards(reading)
-                asked = reading.to_answer.map do |question|
-                    ["q-#{question["id"]}", question["title"]]
-                end
-                asked + owed(reading)
-            end
-
-            def self.owed(reading)
-                sent = reading.sent_words
-                reading.owed.reject { sent.key?(it["id"]) }.map do |piece|
-                    ["p-#{piece["id"]}", piece["title"]]
+                reading.waiting_on_you.map do |item|
+                    kind = WaitingOrder.question?(item) ? "q" : "p"
+                    ["#{kind}-#{item["id"]}", item["title"]]
                 end
             end
 

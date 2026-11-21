@@ -7,6 +7,7 @@ require_relative "helpers"
 require_relative "standing"
 require_relative "terms"
 require_relative "text"
+require_relative "waiting_order"
 
 module LedgerViewer
     module Render
@@ -22,6 +23,7 @@ module LedgerViewer
             Counts = Data.define(:crit_met, :crit, :verified, :pieces, :kept)
 
             include Standing
+            include WaitingOrder
 
             def initialize(data) = @data = data
 

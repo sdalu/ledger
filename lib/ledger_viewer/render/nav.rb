@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "nav_pieces"
+require_relative "reading"
 require_relative "terms"
 require_relative "text"
 
@@ -11,8 +12,7 @@ module LedgerViewer
         # other places on the page.
         class Nav
             SIDE = 60
-            ICONS = { "Your word" => "stamp", "To answer" => "circle-help",
-                      "Sent" => "send", "Being prepared" => "hourglass",
+            ICONS = { "Sent" => "send", "Being prepared" => "hourglass",
                       "Elsewhere" => "signpost" }.freeze
 
             def initialize(kit)
@@ -23,7 +23,7 @@ module LedgerViewer
             end
 
             def html
-                [words, questions, flight, elsewhere].join
+                [waiting, questions, flight, elsewhere].join
             end
 
             private
@@ -35,13 +35,19 @@ module LedgerViewer
                     %(<span class="count">#{count}</span></h2>)
             end
 
-            def words
-                owed = @reading.unsent_words
-                return "" if owed.empty?
+            # The questions to answer and the words owed, in the page's
+            # order: the oldest wait first.
+            def waiting
+                items = @reading.waiting_on_you
+                return "" if items.empty?
 
-                rows = owed.map { word(it) }.join
-                "#{heading(ICONS["Your word"], "Your word", owed.length)}" \
-                    "<ul>#{rows}</ul>"
+                rows = items.map do |item|
+                    asked = WaitingOrder.question?(item)
+                    asked ? question(item, "is-ask") : word(item)
+                end
+                icon = Terms::SECTION_ICON["waiting"]
+                "#{heading(icon, "Waiting on you", items.length)}" \
+                    "<ul>#{rows.join}</ul>"
             end
 
             def word(piece)
@@ -52,8 +58,7 @@ module LedgerViewer
             end
 
             def questions
-                [["To answer", "is-ask", @reading.to_answer],
-                 ["Sent", "is-flight", @reading.sent_questions],
+                [["Sent", "is-flight", @reading.sent_questions],
                  ["Being prepared", "is-flight",
                   @reading.prepared_questions]].map { group(*it) }.join
             end
