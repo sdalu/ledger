@@ -18,10 +18,20 @@ class StatusTest < CommandCase
                                    "propose_close")
         assert_equal({ "verified" => 0, "live" => 0, "kept" => 0 },
                      doc["pieces"])
-        assert_equal %w[out back blocked stalled waiting preparing words
-                        from_viewer],
-                     doc.keys & %w[out back blocked stalled waiting preparing
-                                   words from_viewer]
+        keys = %w[out back blocked deferred stalled waiting preparing words
+                  from_viewer]
+
+        assert_equal keys, doc.keys & keys
+    end
+
+    def test_json_names_each_deferred_piece_with_its_condition
+        ok("piece", BETA, "new", "--title", "Judge the practices", "--route",
+           "opus, effort: high", "--status", "deferred", "--until",
+           "three closures")
+        doc = JSON.parse(ok("status", "--json", BETA))
+
+        assert_equal [{ "piece" => "P1", "until" => "three closures" }],
+                     doc["deferred"]
     end
 
     def test_a_ledger_without_a_live_address_is_refused

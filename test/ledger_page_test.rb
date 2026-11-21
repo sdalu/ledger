@@ -84,6 +84,25 @@ class LedgerPageTest < ViewerTest
         refute_match(%r{<a [^>]*>lib/parse\.rb}, body)
     end
 
+    # The remains, the side list and the tile say a deferred piece and
+    # what it waits on.
+    DEFERRED = ["piece", "new", "--title", "Judge the practices", "--route",
+                "opus, effort: high", "--status", "deferred", "--until",
+                "three closures"].freeze
+
+    def test_a_deferred_piece_shows_its_condition
+        ledger(*DEFERRED)
+        sign_in
+        https "/l/#{@lid}"
+
+        ["<summary>deferred</summary>",
+         %(<div class="meta">until three closures · opus),
+         %(<span class="status">deferred · until three closures</span>),
+         "0 planned · 1 deferred</span>"].each do |html|
+            assert_includes last_response.body, html
+        end
+    end
+
     def tokens(body)
         body.scan(/name="token" value="([^"]*)"/).flatten
     end

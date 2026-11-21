@@ -10,10 +10,9 @@ module LedgerViewer
         module Standing
             # The numbers the tiles and the head show: a question already
             # answered is the session's turn, not the user's, until filed.
-            Figures = Data.define(
-                :asks, :sent, :preparing, :out, :blocked, :planned,
-                :flying, :crit_met, :crit, :verified, :pieces, :kept, :waits
-            )
+            Figures = Data.define(:asks, :sent, :preparing, :out, :blocked,
+                                  :planned, :deferred, :flying, :crit_met,
+                                  :crit, :verified, :pieces, :kept, :waits)
             WORD_LEAD = "your word: "
             ITEM_BREAK = /, (?=P\d+ \()/
 
@@ -156,6 +155,7 @@ module LedgerViewer
             def flight_counts
                 { out: status_in(%w[out back]), blocked: status_in(%w[blocked]),
                   planned: status_in(%w[planned]),
+                  deferred: status_in(%w[deferred]),
                   flying: status_in(Reading::IN_FLIGHT) }
             end
 

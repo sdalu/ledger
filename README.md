@@ -80,8 +80,10 @@ effort: medium, skills: c`, so a resumed session briefs it the same
 way) or else `peer: SESSION` for a piece another Claude session does; a
 verified piece without evidence; an empty `done when:`.
 `status` prints the heartbeat line, naming the
-open questions (`waiting on you: O1, O2`); `check --final` refuses a
-finish with pieces still out or a criterion unmarked; `close` leaves
+open questions (`waiting on you: O1, O2`) and each deferred piece
+with what it waits on (`deferred: P6 (three closures)`); `check
+--final` refuses a finish with pieces still out or deferred, or a
+criterion unmarked; `close` leaves
 the ledger's row in the journal marked closed, out of every hook's and
 the viewer's sight, and refuses while a viewer entry is pending; a
 close done first prints an after-action block, `after action:` with
@@ -115,9 +117,9 @@ are rows, not text, so a link to nothing cannot be written. `check`
 fails a loop through `after`, a piece `out`, `back` or `verified` before
 what it waits for is verified or kept, or one waiting for a dropped
 piece (`pieces-order`), and a criterion marked met while a piece serving
-it is planned, out, back or blocked (`criteria-pieces`). Decisions have
-ids `X<n>` and edges of their own: `answer` writes `X answers O<n>`,
-`ask --replaces` and `decide --replaces` the replaced item,
+it is planned, out, back, deferred or blocked (`criteria-pieces`).
+Decisions have ids `X<n>` and edges of their own: `answer` writes `X
+answers O<n>`, `ask --replaces` and `decide --replaces` the replaced item,
 `decide --rests-on F2,C3 --led-to P4,O5` the facts and constraints it
 rests on and what it led to, `piece --by X<n>` the decision that led to
 a piece. A question once answered keeps its row, so the edge has a
@@ -128,7 +130,11 @@ Every item has a writer, and no ledger is edited by hand. `piece
 PATH new|P<n>` adds a piece with the next free id or changes one
 (`--title`, `--what` for the detail, `--status`, `--route`,
 `--done-when`, `--evidence`, `--after`, `--for`, `--by`, `--verified-by`,
-`--cause`; an empty value clears a link); `ask PATH --title TITLE "question"
+`--cause`; an empty value clears a link); a piece not done that
+waits on an event to come, not on the user, is `--status deferred
+--until CONDITION`, the event kept on its line (`— until: three
+closures`) and in the viewer's remains until another status clears
+it; `ask PATH --title TITLE "question"
 [--choices "A = … | B = …"] [--recommend "A, why"] [--items "x | y"]
 [--by P<n>] [--see F2] (--mockup NAME | --pending P<n> | --no-picture
 WHY) [--replaces O<n>]` puts a question under Open (it refuses one
@@ -146,8 +152,10 @@ piece awaits and leaves its `awaits` once every awaited word is given);
 TEXT` add one line to Facts, Constraints, Decisions and Out of scope,
 noticed (`constraint` strips one pair of outer double quotes from
 QUOTE). A command that gives a new id prints it alone on its first line.
-`criterion PATH D<n> (--met EVIDENCE | --unmet WHY | --text T)` marks a
-criterion `[x]` with evidence or `[-]` with why, or rewords it, and
+`criterion PATH D<n> (--met EVIDENCE | --unmet WHY | --unmark | --text
+T)` marks a criterion `[x]` with evidence or `[-]` with why, takes the
+mark back to `[ ]` (`--unmark`, its evidence or why cleared), or
+rewords it, and
 `criterion PATH new --text T` adds one; `edit PATH ID --text T` rewords
 a fact (its pointer with `--pointer`), constraint, decision, question detail or noticed line (`Z<n>`),
 or the latest Goal's title, In short and Context (`edit PATH goal
@@ -224,11 +232,13 @@ orchestration skill registers five in its front matter and
   read passes, and the refusal names the `bin/ledger` commands to use.
   It reads the words of the command, quotes respected, so a quoted
   message that mentions a write passes.
-- **finish** (Stop): when a ledger has a piece, nothing is in flight (no
-  piece planned, out, back or blocked) and nothing waits on the user
-  (Open empty, no word owed), a stop whose ledger fails `check --final`
-  is sent back once with the FAIL lines and the finish steps. A turn
-  that ends to wait is never refused, and the retry is let through
+- **finish** (Stop): when a ledger has a piece, no piece is planned,
+  out, back or blocked, and nothing waits on the user (Open empty, no
+  word owed), a stop whose ledger fails `check --final` is sent back
+  once with the FAIL lines and the finish steps. A turn that ends to
+  wait is never refused: a ledger whose only failure is its deferred
+  pieces waits on their event as it would on the user, and its stop
+  goes through. The retry is let through
   whatever it did.
 - **inbox** (Stop): pending viewer entries refuse the stop once,
   verbatim, with the filing steps.

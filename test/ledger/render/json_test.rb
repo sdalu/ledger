@@ -131,8 +131,9 @@ class JsonTest < JsonCase
     TOP = %i[schema kind ledger goals criteria constraints facts decisions
              links closed_questions pictures pieces questions refs noticed
              inbox asked status fails].freeze
-    PIECE = %i[id status kept_reason route route_text title detail done_when
-               evidence after for awaits scope problem risk plan verified_by
+    PIECE = %i[id status kept_reason until route route_text title detail
+               done_when evidence after for awaits scope problem risk plan
+               verified_by
                claim ready stalled settled brief criteria returns
                line].freeze
     QUESTION = %i[id title detail problem risk recommend choices items by see
@@ -262,6 +263,13 @@ class JsonRowsTest < JsonCase
         assert_equal({ rating: 3, text: "3/10 — small" }, one[:risk])
         assert_equal({ model: nil, effort: nil, skills: nil,
                        peer: "Skills:x" }, three[:route])
+    end
+
+    def test_a_deferred_piece_carries_its_condition
+        write("import") { piece(it, status: "deferred", until: "later") }
+
+        assert_equal %w[deferred later],
+                     document[:pieces].first.values_at(:status, :until)
     end
 
     def test_a_piece_carries_its_links_brief_and_criteria

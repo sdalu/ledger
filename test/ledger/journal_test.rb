@@ -54,6 +54,36 @@ class JournalOpenTest < JournalTest
         end
     end
 
+    # 004 rebuilt pieces: 'deferred' and its `until` taken, the other
+    # CHECKs, the unique (ledger, n) and the tables naming pieces kept.
+    def deferred_piece
+        { ledger_id: @ledger[:id], status: "deferred", model: "opus",
+          effort: "low", dash: false, title: "t", until: "later" }
+    end
+
+    def test_pieces_take_deferred_and_keep_their_checks
+        db[:pieces].insert(n: 1, **deferred_piece)
+
+        assert_equal "later", db[:pieces].get(:until)
+        [{ n: 2, status: "gone" }, { n: 3, model: "gpt" },
+         { n: 4, status: "out" }].each do |change|
+            assert_raises(Sequel::CheckConstraintViolation) do
+                db[:pieces].insert(**deferred_piece, **change)
+            end
+        end
+    end
+
+    def test_pieces_keep_their_unique_and_the_keys_naming_them
+        db[:pieces].insert(n: 1, **deferred_piece)
+        assert_raises(Sequel::UniqueConstraintViolation) do
+            db[:pieces].insert(n: 1, **deferred_piece)
+        end
+        %i[piece_links piece_awaits piece_returns].each do |table|
+            assert_includes db.foreign_key_list(table).map { it[:table] },
+                            :pieces
+        end
+    end
+
     def test_the_schema_refuses_what_a_check_rule_used_to_catch
         assert_raises(Sequel::CheckConstraintViolation) do
             db[:facts].insert(ledger_id: @ledger[:id], n: 1, text: "t",

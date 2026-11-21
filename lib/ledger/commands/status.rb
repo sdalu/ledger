@@ -43,7 +43,14 @@ module Ledger
             def states(derive)
                 %w[out back blocked].to_h do |status|
                     [status.to_sym, refs(derive) { it[:status] == status }]
-                end.merge(stalled: refs(derive) { derive.stalled?(it) })
+                end.merge(deferred: deferred(derive),
+                          stalled: refs(derive) { derive.stalled?(it) })
+            end
+
+            def deferred(derive)
+                derive.deferred.map do |piece|
+                    { piece: derive.ref(piece), until: piece[:until] }
+                end
             end
 
             def refs(derive, &) = derive.pieces.select(&).map { derive.ref(it) }

@@ -294,7 +294,8 @@ module Ledger
 
                 def head(piece)
                     { status: piece[:status], kept_reason: piece[:kept_reason],
-                      route: route(piece), route_text: route_text(piece),
+                      until: piece[:until], route: route(piece),
+                      route_text: route_text(piece),
                       title: piece[:title], detail: piece[:detail],
                       done_when: piece[:done_when], evidence: piece[:evidence] }
                 end

@@ -48,6 +48,34 @@ class StopTest < HookTest
         assert_equal Ledger::Hooks::Answer.pass, stop("finish")
     end
 
+    # Deferred pieces alone failing --final: the session waits on their
+    # event, as on the user.
+    def test_a_ledger_failing_only_on_deferred_pieces_is_let_through
+        write("import") do |change|
+            goal(change, title: "Ledger in Ruby", short: "one journal")
+            criterion(change, mark: "x", evidence: "ran it")
+            piece(change, status: "verified", evidence: "ran it")
+            piece(change, status: "deferred", until: "three closures",
+                          title: "Judge the practices")
+        end
+
+        assert_equal Ledger::Hooks::Answer.pass, stop("finish")
+    end
+
+    def test_deferred_pieces_with_another_failure_are_sent_back
+        write("import") do |change|
+            goal(change)
+            criterion(change)
+            piece(change, status: "deferred", until: "three closures")
+        end
+        answer = stop("finish")
+
+        assert_equal 2, answer.status
+        assert_match "#{ADDRESS}: FAIL final-criteria", answer.err
+        assert_match "#{ADDRESS}: FAIL final-deferred -- deferred: P1 " \
+                     "(three closures)", answer.err
+    end
+
     def test_pending_entries_refuse_the_stop_verbatim
         write("import") do |change|
             entry(change, ref: "O2", choice: "B", text: "line one\nline two",

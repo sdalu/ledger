@@ -14,6 +14,16 @@ class FinalChecksTest < CheckCase
         assert_nil report("final-pieces")
     end
 
+    def test_a_deferred_piece_fails_final_deferred_with_its_condition
+        piece(status: "deferred", until: "three closures")
+        piece(status: "deferred", until: "the next release")
+
+        assert_fails "final-deferred", "deferred: P1 (three closures), " \
+                                       "P2 (the next release)", final: true
+        assert_passes "final-pieces", final: true
+        assert_nil report("final-deferred")
+    end
+
     def test_an_owed_word_fails_final_awaits
         id = piece(status: "verified", evidence: "ok", problem: "p",
                    risk: "1/10 — x", risk_rating: 1)

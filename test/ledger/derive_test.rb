@@ -51,13 +51,14 @@ class DeriveTest < DeriveCase
                      [ready, blocked].map { derive.ready?(row(it)) })
     end
 
-    def test_in_flight_is_blocked_back_out_planned
+    def test_in_flight_is_blocked_back_out_planned_deferred
+        piece(status: "deferred", until: "three closures")
         piece
         piece(status: "out", claimed_by: "s")
         piece(status: "blocked")
         piece(status: "back")
 
-        assert_equal(%w[P3 P4 P2 P1],
+        assert_equal(%w[P4 P5 P3 P2 P1],
                      derive.in_flight.map { derive.ref(it) })
     end
 
@@ -119,8 +120,10 @@ class StatusLineTest < DeriveCase
         pieces_fixture
         open_fixture
 
-        assert_equal "Status — criteria 1/2 · pieces 1/4 verified, 1 kept · " \
-                     "out: P1 · back: P2 · blocked: P3 · stalled: P1 · " \
+        assert_equal "Status — criteria 1/2 · pieces 1/6 verified, 1 kept · " \
+                     "out: P1 · back: P2 · blocked: P3 · deferred: P7 " \
+                     "(three closures), P8 (the next release) · " \
+                     "stalled: P1 · " \
                      "waiting on you: O1 · being prepared: O2 (P3) · your " \
                      "word: P4 (commit, other (look)) · from the viewer: N1",
                      line
@@ -162,6 +165,8 @@ class StatusLineTest < DeriveCase
         awaits_other(piece(status: "verified", evidence: "ok"))
         piece(status: "kept", model: nil, effort: nil, kept_reason: "mine")
         piece(status: "dropped")
+        piece(status: "deferred", until: "three closures")
+        piece(status: "deferred", until: "the next release")
     end
 
     # O1 answerable, O2 prepared by the blocked P3, N1 pending, N2 taken.

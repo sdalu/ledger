@@ -14,7 +14,9 @@ module LedgerViewer
                               "evidence on the line",
                 "blocked" => "stopped on a question, named under Open or " \
                              "on the line",
-                "dropped" => "abandoned, the reason in a Decision"
+                "dropped" => "abandoned, the reason in a Decision",
+                "deferred" => "not done, waiting on an event to come, not " \
+                              "on you: the event after until"
             }.freeze
 
             module_function

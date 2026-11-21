@@ -20,9 +20,10 @@ module Ledger
         # The stall budget in minutes (S2); LEDGER_STALL_MINUTES overrides.
         STALL_MINUTES = 60
         SETTLED    = %w[verified kept].freeze
-        UNFINISHED = %w[planned out back].freeze
-        # What is in flight, most urgent first.
-        IN_FLIGHT  = %w[blocked back out planned].freeze
+        UNFINISHED = %w[planned out back deferred].freeze
+        # What is in flight, most urgent first: a deferred piece waits on
+        # an event to come, so it comes last.
+        IN_FLIGHT  = %w[blocked back out planned deferred].freeze
         STALL_ENV  = "LEDGER_STALL_MINUTES"
 
         # The budget, read once: a value that is not a whole number above
@@ -70,6 +71,10 @@ module Ledger
         def settled?(piece) = SETTLED.include?(piece[:status])
         def unfinished?(piece) = UNFINISHED.include?(piece[:status])
         def in_flight?(piece) = IN_FLIGHT.include?(piece[:status])
+
+        # The deferred pieces, and one as `P6 (CONDITION)`.
+        def deferred = pieces.select { it[:status] == "deferred" }
+        def deferral(piece) = "#{ref(piece)} (#{piece[:until]})"
 
         # The pieces in flight, most urgent first, in row order within one
         # status.
@@ -238,9 +243,10 @@ module Ledger
             end
         end
 
-        # The status line `ledger status` prints, with
-        # `stalled:` after blocked (U14). The beat's `unchanged ×N` is
-        # the check command's to append (StatusLine.beat).
+        # The status line `ledger status` prints, with `deferred:` (each
+        # piece with its condition) then `stalled:` after blocked (U14).
+        # The beat's `unchanged ×N` is the check command's to append
+        # (StatusLine.beat).
         class StatusLine
             # -> [count, line] for a check that beats: the count goes back
             # to 0 when the line moved since BEAT_LINE.
@@ -278,7 +284,13 @@ module Ledger
                 [named("out") { it[:status] == "out" },
                  named("back") { it[:status] == "back" },
                  named("blocked") { it[:status] == "blocked" },
+                 deferred,
                  named("stalled") { @derive.stalled?(it) }].compact
+            end
+
+            def deferred
+                clause("deferred",
+                       @derive.deferred.map { @derive.deferral(it) })
             end
 
             def named(label, &)
