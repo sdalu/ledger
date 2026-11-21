@@ -32,24 +32,33 @@ end
 # The house rules live outside the repository, so their path is resolved
 # here at run time; this project's deltas (.rubocop.local.yml) are
 # layered on top, house first, so a delta can only relax a rule in force.
-desc "Style check: the house Ruby rules plus this project's deltas"
-task :rubocop do
-    house = File.expand_path("~/.claude/skills/ruby/scripts/rubocop.yml")
-    unless File.exist?(house)
-        warn "rubocop: house rules not found at #{house} -- skipped"
-        next
+RUBOCOP_HOUSE = File.expand_path("~/.claude/skills/ruby/scripts/rubocop.yml")
+
+# Rubocop on PATHS under the house rules and this project's deltas.
+def rubocop_run(paths)
+    unless File.exist?(RUBOCOP_HOUSE)
+        warn "rubocop: house rules not found at #{RUBOCOP_HOUSE} -- skipped"
+        return
     end
     require "tmpdir"
     Dir.mktmpdir do |dir|
         merged = File.join(dir, "rubocop.yml")
-        File.write(merged, <<~YAML)
-            inherit_from:
-              - #{house}
-              - #{File.expand_path(".rubocop.local.yml", __dir__)}
-        YAML
-        sh "rubocop -c #{merged} lib test rakelib config Rakefile config.ru",
-           verbose: false
+        File.write(merged, rubocop_config)
+        sh("rubocop", "-c", merged, *paths, verbose: false)
     end
+end
+
+def rubocop_config
+    <<~YAML
+        inherit_from:
+          - #{RUBOCOP_HOUSE}
+          - #{File.expand_path(".rubocop.local.yml", __dir__)}
+    YAML
+end
+
+desc "Style check: the house Ruby rules plus this project's deltas"
+task :rubocop do
+    rubocop_run(%w[lib test rakelib config Rakefile config.ru])
 end
 
 task default: %i[test rubocop]

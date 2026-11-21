@@ -8,7 +8,8 @@ Run in order, from the checkout. A red gate is answered before anything
 else.
 
 - [ ] `/opt/bin/low-priority bundle exec rake` -- the suite, then
-      rubocop; both must pass.
+      rubocop; both must pass. `rake gate:partial` while editing is no
+      substitute: it runs only the tests that name the changed files.
 - [ ] `bundle exec ruby test/browser_run.rb`, once with `ONLY=chrome`
       and once with `ONLY=firefox` -- every line `ok`, whenever the
       round touched `lib/ledger_viewer/`, `views/` or `public/`. They

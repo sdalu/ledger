@@ -829,6 +829,23 @@ The gate is `bundle exec rake`: the minitest suite under `test/`, then
 the house rubocop rules with this project's deltas in
 `.rubocop.local.yml`; `rake test` and `rake rubocop` run either alone.
 
+`rake gate:partial` is the edit loop's gate, over what changed since
+`HEAD` and the untracked files (`BASE=ref` for another commit, or
+`FILES="a b"` instead of the diff). It runs:
+
+- **Tests**: each changed test, and the tests named after a changed
+  file (`derive.rb` → `derive_test.rb`) or requiring it. A viewer file
+  no test names (`lib/ledger_viewer/`, `views/`, `public/`) gets every
+  test that loads `test_helper`, since those load the whole app.
+- **Rubocop**: on the changed Ruby files, under the same rules.
+- **A browser check**: when a page file changed, Chrome by default
+  (`BROWSER=firefox|both|none`).
+
+It names the changed `lib/ledger` files no test names rather than
+passing them over. It is not the gate: a test can depend on a file
+without naming it, so `rake` and both browser checks decide before a
+commit.
+
 ```text
 test/
 ├── test_helper.rb       a viewer over a sandbox: LEDGER_JOURNAL, the local
