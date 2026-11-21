@@ -8,7 +8,7 @@ class FactTest < CommandCase
         out = ok("fact", BETA, "port 80 — is open — ss output")
         assert_equal ["F1", "- F1: port 80 — is open — ss output"],
                      out.lines(chomp: true)[0..1]
-        assert_match(/\AStatus — /, out.lines.last)
+        assert_match(/\AStatus \(Build the thing\) — /, out.lines.last)
         assert_equal ["port 80", "is open — ss output"],
                      db[:facts].select_map(%i[text pointer]).first
     end

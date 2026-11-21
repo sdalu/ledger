@@ -119,7 +119,7 @@ class CliTest < CommandCase
         env = { "LEDGER_JOURNAL" => ENV.fetch("LEDGER_JOURNAL") }
         out, status = Open3.capture2e(env, BIN, "status", BETA)
         assert status.success?, out
-        assert_match(%r{\AStatus — criteria 0/1}, out)
+        assert_match(%r{\AStatus \(Build the thing\) — criteria 0/1}, out)
     end
 
     def test_the_launcher_refuses_an_interpreter_that_is_not_executable

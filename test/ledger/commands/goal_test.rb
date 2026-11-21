@@ -16,7 +16,7 @@ class GoalTest < CommandCase
                       "Title: The other thing", "In short: instead",
                       "> do the other thing instead"],
                      out.lines(chomp: true)[0..3]
-        assert_match(/\AStatus — /, out.lines.last)
+        assert_match(/\AStatus \(The other thing\) — /, out.lines.last)
         assert_equal 2, snapshot.goals.size
         assert snapshot.goals.last[:revised]
     end
@@ -80,7 +80,7 @@ class GoalMarkTest < CommandCase
                       "Title: Build the thing", "In short: build it",
                       "Done: shipped in v2", "> build the thing now"],
                      out.lines(chomp: true)[0..4]
-        assert_match(/\AStatus — /, out.lines.last)
+        assert_match(/\AStatus \(Build the thing\) — /, out.lines.last)
     end
 
     def test_done_stores_the_evidence_and_the_events_time

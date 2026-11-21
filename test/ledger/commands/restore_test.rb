@@ -23,7 +23,7 @@ class RestoreTest < RestoreCase
         out = ok("restore", BETA, "--to", "E#{@mark}")
         assert_equal "restored: #{BETA} is back as at E#{@mark}",
                      out.lines.first.chomp
-        assert_match(/\AStatus — /, out.lines.last)
+        assert_match(/\AStatus \(Build the thing\) — /, out.lines.last)
         assert_equal [1], db[:facts].select_map(:n)
     end
 

@@ -71,7 +71,8 @@ end
 class LedgerIndexTest < JsonCase
     GAMMA = "/work/gamma/LEDGER.md"
     BETA = "/work/beta/LEDGER.md"
-    ALPHA_STATUS = "Status — criteria 1/1 · pieces 1/3 verified · out: P3 · " \
+    ALPHA_STATUS = "Status (Ledger in Ruby) — criteria 1/1 · " \
+                   "pieces 1/3 verified · out: P3 · " \
                    "stalled: P3 · being prepared: O1 (P3) · your word: " \
                    "P2 (commit)"
 
@@ -119,7 +120,8 @@ class LedgerIndexTest < JsonCase
     def gamma_entry
         entry([2, GAMMA, "gamma"], %w[Gamma second],
               { updated_at: "2023-11-14T23:13:20+01:00", closed_at: nil },
-              status: "Status — criteria 0/0 · pieces 0/0 verified · " \
+              status: "Status (Gamma) — criteria 0/0 · " \
+                      "pieces 0/0 verified · " \
                       "waiting on you: O1 · from the viewer: N1",
               waiting: %w[O1], words: [], pending: %w[N1])
     end
@@ -128,7 +130,8 @@ class LedgerIndexTest < JsonCase
         entry([3, BETA, "beta"], [nil, nil],
               { updated_at: "2023-11-14T23:23:20+01:00",
                 closed_at: "2023-11-14T23:13:20+01:00" },
-              status: "Status — criteria 0/0 · pieces 0/0 verified",
+              status: "Status (/work/beta/LEDGER.md) — criteria 0/0 · " \
+                      "pieces 0/0 verified",
               waiting: [], words: [], pending: [])
     end
 

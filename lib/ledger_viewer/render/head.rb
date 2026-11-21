@@ -10,6 +10,10 @@ module LedgerViewer
         # changed, its details folded, the waker's switch and wakes
         # (WAKER, drawn by Render::Waker), and the four tiles.
         class Head
+            # The status line's `Status (TITLE) — `, cut where the counts
+            # begin: the page already names its ledger.
+            TITLE_HEAD = /\AStatus \(.*?\) — (?=criteria \d)/
+
             def initialize(kit, entry, waker)
                 @scope = kit.scope
                 @reading = kit.reading
@@ -31,11 +35,14 @@ module LedgerViewer
                 { lid: @lid, nxt: next_step, tiles:, close: @word.close(data),
                   abandon: @word.abandon(data),
                   waker: @waker,
-                  path: Clock.short(path), status: data.status_text,
+                  path: Clock.short(path), status: untitled,
                   name: Helpers.project_name(@entry.project, path),
                   updated: Clock.updated(data.updated),
                   changed: Helpers.when_text(data.updated) }
             end
+
+            # The status line without its title.
+            def untitled = @reading.status_text.sub(TITLE_HEAD, "Status — ")
 
             # What to do first: the next question, the next word, or
             # that nothing waits.

@@ -153,7 +153,8 @@ class JsonTest < JsonCase
         decisions: [], links: [],
         closed_questions: [], pictures: [], pieces: [], questions: [],
         refs: {}, noticed: [], inbox: [], asked: {},
-        status: "Status — criteria 0/0 · pieces 0/0 verified",
+        status: "Status (/work/alpha/LEDGER.md) — criteria 0/0 · " \
+                "pieces 0/0 verified",
         fails: []
     }.freeze
 

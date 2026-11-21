@@ -120,7 +120,8 @@ class StatusLineTest < DeriveCase
         pieces_fixture
         open_fixture
 
-        assert_equal "Status — criteria 1/2 · pieces 1/6 verified, 1 kept · " \
+        assert_equal "Status (Ledger in Ruby) — criteria 1/2 · " \
+                     "pieces 1/6 verified, 1 kept · " \
                      "out: P1 · back: P2 · blocked: P3 · deferred: P7 " \
                      "(three closures), P8 (the next release) · " \
                      "stalled: P1 · " \
@@ -130,15 +131,15 @@ class StatusLineTest < DeriveCase
     end
 
     def test_a_finished_ledger_proposes_to_close
-        assert_equal "Status — criteria 1/1 · pieces 0/0 verified · " \
-                     "done: propose close", line
+        assert_equal "Status (Ledger in Ruby) — criteria 1/1 · " \
+                     "pieces 0/0 verified · done: propose close", line
     end
 
     def test_a_malformed_entry_is_named_and_holds_back_the_close
         entry(n: 4, malformed: true)
 
-        assert_equal "Status — criteria 1/1 · pieces 0/0 verified " \
-                     "· from the viewer: N4", line
+        assert_equal "Status (Ledger in Ruby) — criteria 1/1 · " \
+                     "pieces 0/0 verified · from the viewer: N4", line
     end
 
     def test_the_beat_counts_an_unchanged_line

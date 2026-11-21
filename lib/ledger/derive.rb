@@ -2,6 +2,7 @@
 
 require "json"
 
+require "ledger/journal"
 require "ledger/raid"
 require "ledger/snapshot"
 require "ledger/text/awaits"
@@ -247,7 +248,10 @@ module Ledger
             end
         end
 
-        # The status line `ledger status` prints, with `deferred:` (each
+        # The status line `ledger status` prints, `Status (TITLE) — …`:
+        # TITLE is the latest Goal block's title, or the ledger's address
+        # when none is set, so that two live ledgers in one session are
+        # told apart. With `deferred:` (each
         # piece with its condition), `assuming:` (the open assumptions)
         # then `stalled:` after blocked (U14).
         # The beat's `unchanged ×N` is the check command's to append
@@ -267,10 +271,20 @@ module Ledger
             def to_s
                 parts = [criteria, pieces, *states, *waiting, *viewer]
                 parts << "done: propose close" if done?
-                "Status — #{parts.join(" · ")}"
+                "Status (#{head}) — #{parts.join(" · ")}"
             end
 
             private
+
+            # The latest Goal block's title as stored; the address when no
+            # title is set.
+            def head
+                title = @derive.snapshot.goals.last&.fetch(:title)
+                return title if title
+
+                ledger = @derive.snapshot.ledger
+                Address.new(place: ledger[:place], name: ledger[:name]).to_s
+            end
 
             def criteria
                 all = @derive.criteria

@@ -24,7 +24,7 @@ class UndoTest < UndoCase
         out = ok("undo", BETA)
         assert_equal "undone: #{BETA} is back as it was before " \
                      "E#{event[:id]}", out.lines.first.chomp
-        assert_match(/\AStatus — /, out.lines.last)
+        assert_match(/\AStatus \(Build the thing\) — /, out.lines.last)
         assert_equal 0, db[:facts].count
     end
 

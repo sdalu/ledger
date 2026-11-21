@@ -36,7 +36,7 @@ class PieceTest < PieceCase
                             "Build the parser: its grammar — done when: " \
                             "tests pass — for: D1"],
                      out.lines(chomp: true)[0..1]
-        assert_match(/\AStatus — /, out.lines.last)
+        assert_match(/\AStatus \(Build the thing\) — /, out.lines.last)
     end
 
     def test_a_route_with_skills_and_a_peer_route

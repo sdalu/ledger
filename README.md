@@ -210,11 +210,14 @@ answered, dropped or undone item does not give its id back. Each writer
 runs as one `BEGIN IMMEDIATE` transaction that records an event with
 every row's before and after, and writes only when `check` on the result
 fails nothing it passed before and names no failure on the item written;
-it prints the line and the status line. A second writer waits for the
-lock and gives up with exit 2 after 10 seconds. `--dry-run` on every
-writer but `new`, `take`, `close` and `mockup` prints a unified diff of
-the `show` text and the status line the change would give and writes
-nothing (exit 2 with the refusal when it would refuse).
+it prints the line and the status line, `Status (TITLE) — criteria …`,
+TITLE the latest Goal block's title (the ledger's address when none is
+set), so that two live ledgers in one session are told apart. A second
+writer waits for the lock and gives up with exit 2 after 10 seconds.
+`--dry-run` on every writer but `new`, `take`, `close` and `mockup`
+prints a unified diff of the `show` text and the status line the
+change would give and writes nothing (exit 2 with the refusal when it
+would refuse).
 
 `piece PATH P<n> --status out` claims the piece for the session
 (`CLAUDE_CODE_SESSION_ID`, or `--session ID`; refused without one);
@@ -246,13 +249,14 @@ orchestration skill registers five in its front matter and
 also what the waker needs, registered by the user (The waker, below).
 
 - **heartbeat** (PostToolUse, Bash): when the command it ran names
-  `ledger … check` or `ledger … status`, the last `Status —` line it
-  finds in the output goes to the user as a `systemMessage`. `check`
-  also counts repeats: a line that has not changed since the last check
-  is marked `unchanged ×N`. The count is kept on the ledger's row, not
-  as an event, so an undo does not move it; `check --peek` reads without
-  counting. A piece `out` with no event on it for 60 minutes
-  (`LEDGER_STALL_MINUTES` changes the budget) is named `stalled:`.
+  `ledger … check` or `ledger … status`, the last `Status (TITLE) —`
+  line it finds in the output goes to the user as a `systemMessage`,
+  its title naming the ledger. `check` also counts repeats: a line
+  that has not changed since the last check is marked `unchanged ×N`.
+  The count is kept on the ledger's row, not as an event, so an undo
+  does not move it; `check --peek` reads without counting. A piece
+  `out` with no event on it for 60 minutes (`LEDGER_STALL_MINUTES`
+  changes the budget) is named `stalled:`.
 - **brief-constraints** (PreToolUse, Agent): reads the Constraints of
   the session's ledgers, and a brief that names a path one of them names
   (`vendor/`, `units/time.py`) without carrying it verbatim is refused.
@@ -322,7 +326,8 @@ them (open when the block has neither title nor short); the done blocks
 are folded under *Done goals · N*, newest first, each with its
 evidence. On top of the page,
 the next step ("Answer O1: …", "Leave a note"), the path and the
-session's status line folded under *Ledger details*, then what remains
+session's status line, without its title (the page names the ledger),
+folded under *Ledger details*, then what remains
 (questions to answer, answers sent and awaiting filing, questions being
 prepared, unfinished pieces with a fold to propose their order,
 criteria not met, failing shape checks) with what is done folded below.

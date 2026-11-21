@@ -38,11 +38,11 @@ class MainTest < HookTest
         out, _, status = launch("heartbeat",
                                 { tool_name: "Bash",
                                   tool_input: { command: "ledger status" },
-                                  tool_response: "Status — x" },
+                                  tool_response: "Status (T) — x" },
                                 "BUNDLE_GEMFILE" => "/nonexistent/Gemfile")
 
         assert_equal 0, status.exitstatus
-        assert_equal "{\"systemMessage\":\"Status — x\"}\n", out
+        assert_equal "{\"systemMessage\":\"Status (T) — x\"}\n", out
     end
 
     def test_the_launcher_runs_a_journal_hook_under_the_bundle

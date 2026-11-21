@@ -3,17 +3,18 @@
 module Ledger
     module Hooks
         # PostToolUse on Bash: when the command ran `ledger … check` or
-        # `ledger … status`, the last `Status —` line it printed goes to
-        # the user as a systemMessage. The user does not see tool output,
-        # so a check that ran is no heartbeat until this shows it. Nothing
-        # is denied or rewritten; the standard library alone, since it
-        # runs after every Bash call.
+        # `ledger … status`, the last `Status (TITLE) —` line it printed
+        # goes to the user as a systemMessage, its title naming the
+        # ledger. The user does not see tool output, so a check that ran
+        # is no heartbeat until this shows it. Nothing is denied or
+        # rewritten; the standard library alone, since it runs after
+        # every Bash call.
         module Heartbeat
             # `ledger` as a command word (bin/ledger, ./ledger), not
             # ledger-viewer, then check or status later on
             # the line.
             LEDGER = %r{(?:^|[\s/])ledger\s.*\b(?:check|status)\b}
-            STATUS = /^Status — .+$/
+            STATUS = /^Status \(.+\) — .+$/
             KEYS = %w[stdout output content].freeze
 
             module_function

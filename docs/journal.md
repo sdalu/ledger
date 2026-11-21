@@ -690,20 +690,27 @@ a whole number above 0 is refused, exit 2, at the first command that
 derives (hard error over a silent default). A question with
 `closed_at` set is in no derived state.
 
-**The status line**, with `deferred:` (each piece with its condition),
-`assuming:` (the open assumptions) then `stalled:` (U14) after
-`blocked:`:
+**The status line**, headed by its ledger: TITLE is the latest Goal
+block's title as stored, the ledger's address when none is set, so
+that two live ledgers in one session print lines told apart; a lone
+ledger's line carries it too. Then, with `deferred:` (each piece with
+its condition), `assuming:` (the open assumptions) then `stalled:`
+(U14) after `blocked:`:
 
 ```
-Status — criteria 3/4 · pieces 14/15 verified, 1 kept · out: P2 ·
-back: … · blocked: … · deferred: P6 (three closures) · assuming:
-A2, A5 · stalled: P2 · waiting on you: O3 · being
+Status (TITLE) — criteria 3/4 · pieces 14/15 verified, 1 kept ·
+out: P2 · back: … · blocked: … · deferred: P6 (three closures) ·
+assuming: A2, A5 · stalled: P2 · waiting on you: O3 · being
 prepared: O9 (P36) · your word: P47 (commit, deploy) · from the
 viewer: N1 · done: propose close
 ```
 
 on one line; `· unchanged ×N` appended by `check` (not `--peek`) when it
-repeats.
+repeats (a renamed goal changes the line, so the count restarts). The
+readers key on the parts after the head: `status --json`'s
+`propose_close` on the line's end, the viewer on its ` · ` parts, its
+ledger page dropping the title (`Status — criteria …`), since the page
+already names the ledger.
 
 ## 4. The command contract
 
@@ -935,7 +942,7 @@ objection.
 
 | Hook (event, matcher) | Reads | Does |
 |---|---|---|
-| `heartbeat` (PostToolUse, Bash) | the tool output | a command naming `ledger … check\|status`: the last `Status —` line as `systemMessage`. Stdlib only, no bundler, no Sequel: a bare interpreter start after every Bash call (the launcher's rule above) |
+| `heartbeat` (PostToolUse, Bash) | the tool output | a command naming `ledger … check\|status`: the last `Status (TITLE) —` line as `systemMessage`, its title naming the ledger. Stdlib only, no bundler, no Sequel: a bare interpreter start after every Bash call (the launcher's rule above) |
 | `brief-constraints` (PreToolUse, Agent) | `constraints.quote` of the session's ledgers | deny a brief naming a path a constraint's quote names without carrying the quote (whitespace and case folded) |
 | `journal-write` (PreToolUse, Bash) | the command words | deny a command that writes the journal by hand: `sqlite3` on it without `-readonly`, a redirect, `cp`, `mv`, `rm`, `install`, `tee` onto it or its `-wal`/`-shm`, `sed`, `perl` or `ruby` in place, interpreter code opening it; a segment whose program is the launcher passes; the refusal names the `bin/ledger` commands. Stdlib only |
 | `finish` (Stop) | snapshot, checks | a ledger with a piece, none planned, out, back or blocked, none awaiting a word and no question open, that fails `--final`: refuse once with the FAIL lines and the finish steps; a ledger failing only `final-deferred` lets the stop through, the session waiting on the event as it would on the user; on the retry the stop goes through |

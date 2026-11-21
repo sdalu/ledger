@@ -28,6 +28,17 @@ class LedgerPageTest < ViewerTest
         assert_includes last_response.headers["Content-Type"], "text/html"
     end
 
+    # The page already names its ledger: the details' status line
+    # drops the title the line carries.
+    def test_the_details_status_line_has_no_title
+        sign_in
+        https "/l/#{@lid}"
+        status = last_response.body[%r{<p class="status">(Status.*?)</p>}, 1]
+
+        assert_match(/\AStatus — criteria \d/, status)
+        refute_includes status, "Port the parser"
+    end
+
     def test_a_page_carries_the_viewers_headers
         sign_in
         csp = { "page" => LedgerViewer::Headers::PAGE_CSP }

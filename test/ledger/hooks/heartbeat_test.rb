@@ -5,7 +5,7 @@ require_relative "helper"
 # The heartbeat: the last status line a `ledger check|status` printed
 # goes to the user; any other command is silent.
 class HeartbeatTest < HookTest
-    STATUS = "Status — criteria 0/1 · pieces 0/0 verified"
+    STATUS = "Status (Build it) — criteria 0/1 · pieces 0/0 verified"
 
     def beat(command, response)
         hook("heartbeat", tool_name: "Bash",
@@ -14,7 +14,7 @@ class HeartbeatTest < HookTest
 
     def test_the_last_status_line_of_a_check_is_shown
         answer = beat("bin/ledger check /w/LEDGER.md",
-                      { stdout: "Status — old\nok x\n#{STATUS}\n" })
+                      { stdout: "Status (Old) — x\nok x\n#{STATUS}\n" })
 
         assert_equal({ "systemMessage" => STATUS }, json(answer))
     end

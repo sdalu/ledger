@@ -7,8 +7,19 @@ require_relative "helper"
 # `status`: the status line, or its parts as JSON v1.
 class StatusTest < CommandCase
     def test_the_line_is_printed
-        assert_equal "Status — criteria 0/1 · pieces 0/0 verified\n",
+        assert_equal "Status (Build the thing) — criteria 0/1 · " \
+                     "pieces 0/0 verified\n",
                      ok("status", BETA)
+    end
+
+    # The title ahead of the counts leaves the close proposal read.
+    def test_a_finished_ledger_proposes_to_close
+        ok("criterion", BETA, "D1", "--text", "tests pass")
+        ok("criterion", BETA, "D1", "--met", "ran it")
+        doc = JSON.parse(ok("status", "--json", BETA))
+        assert_equal "Status (Build the thing) — criteria 1/1 · pieces 0/0 " \
+                     "verified · done: propose close", doc["line"]
+        assert doc["propose_close"]
     end
 
     def test_json_carries_the_parts

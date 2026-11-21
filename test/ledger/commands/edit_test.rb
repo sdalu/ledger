@@ -75,6 +75,8 @@ class EditTest < CommandCase
         out = ok("edit", BETA, "goal", "--text", "A newer title")
         assert_equal "Title: A newer title", out.lines.first.chomp
         assert_equal "A newer title", db[:goals].get(:title)
+        assert_equal "Status (A newer title) — criteria 0/1 · " \
+                     "pieces 0/0 verified", out.lines(chomp: true).last
     end
 
     def test_a_dry_run_writes_nothing

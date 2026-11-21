@@ -29,7 +29,8 @@ class SessionStartTest < HookTest
         text = context("startup")
 
         assert text.start_with?("Ledger #{ADDRESS} — bin/ledger show " \
-                                "#{ADDRESS} for the whole\nStatus — ")
+                                "#{ADDRESS} for the whole\n" \
+                                "Status (#{ADDRESS}) — ")
         ["> the first words", "> the revised words",
          "- C1: \"keep vendor/ untouched\"", "Open:\n- O1: Title 1",
          "In flight:\n- P1 [planned]"].each { assert_includes text, it }
