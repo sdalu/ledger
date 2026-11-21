@@ -79,6 +79,19 @@ module LedgerViewer
                 first_line(entry["text"])
             end
 
+            # The same answer as [lead, head, rest]: a choice is "chose ",
+            # its option up to the first ':' or ';', then the rest of it,
+            # so a one-row receipt can show what was chosen and no more.
+            def answer_parts(entry)
+                choice = entry["choice"]
+                if filled?(choice) && !filled?(entry["word"])
+                    head, rest = choice.split(/(?=[:;])/, 2)
+                    return ["chose ", head, rest.to_s]
+                end
+
+                ["", answer_summary(entry), ""]
+            end
+
             def picks(picks)
                 picks.map { |item, pick| "#{item}: #{pick}" }.join("; ")
             end

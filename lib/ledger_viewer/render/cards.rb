@@ -96,7 +96,7 @@ module LedgerViewer
                 @scope.partial(
                     "ledger/received",
                     { head: head(question, "is-flight is-card"), kase:, form:,
-                      summary: Helpers.answer_summary(last), said: said(last),
+                      parts: Helpers.answer_parts(last), said: said(last),
                       id: last["id"], receipt: Clock.receipt(last),
                       next_waiting: @waiting.html, lid: @kit.lid,
                       ref: question["id"] }

@@ -1182,33 +1182,43 @@
     }
   }
 
-  /* a card just sent, collapsed in place to one row: its title, what was
-     sent, and Change; Change opens it again */
+  /* a card just sent, collapsed in place to two lines: its id, title and
+     Change, then what was sent, the chosen option up to its first ':' or
+     ';'; Change opens it again. No column is shared with the next card, so
+     none has to line up. */
   .entries:has(> .is-card) > li.is-collapsed {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0 var(--space-m);
-    padding-block-end: 0;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: baseline;
+    gap: 0.2rem var(--space-s);
+    /* the head's own padding goes with its box (display: contents) */
+    padding: var(--space-s) var(--space-m);
     border-inline-start: 3px solid var(--accent);
-    & > .card-head {
-      flex: 1 1 14rem;
+    & > .card-head { display: contents; }
+    & > .card-head > .head-tags { grid-column: 1; grid-row: 1; margin: 0; }
+    & > .card-head > .text {
+      grid-column: 2;
+      grid-row: 1;
       margin: 0;
-      padding-block: var(--space-xs);
-      border-block-end: 0;
-      background: none;
-      & > .text { font-size: 1rem; }
+      font-size: 1rem;
     }
     & > :is(.detail, .said, .next-waiting) { display: none; }
-    & > .sent {
-      flex: 2 1 14rem;
-      margin-block: 0;
+    & > :is(.sent, .sent-line) {
+      grid-column: 2 / 4;
+      grid-row: 2;
+      margin: 0;
       padding: 0;
       background: none;
-      & :is(.said, .meta) { display: none; }
+      & :is(.said, .meta, .sum-rest) { display: none; }
+      & .sum-head { font-weight: 650; }
     }
-    & > .sent-line { flex: 2 1 14rem; margin: 0; }
-    & > .comment-fold { flex: none; margin-inline-start: auto; }
+    & > .comment-fold {
+      grid-column: 3;
+      grid-row: 1;
+      margin: 0;
+      & > summary { list-style: none; }
+      & > summary::-webkit-details-marker { display: none; }
+    }
   }
 
   /* the card the page moved on to: one outline, once */

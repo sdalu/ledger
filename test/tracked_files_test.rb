@@ -33,17 +33,20 @@ class TrackedFilesTest < Minitest::Test
         end
     end
 
+    # What git lists that is a file to read: a worktree nested in the
+    # checkout or a linked directory is listed too, and is no file.
+    def files = carried.select { File.file?(File.join(ROOT, it)) }
+
     def read(file) = File.binread(File.join(ROOT, file))
 
     def test_no_file_holds_a_private_address
-        found = carried.select { File.file?(File.join(ROOT, it)) }
-                       .select { read(it).match?(PRIVATE) }
+        found = files.select { read(it).match?(PRIVATE) }
 
         assert_empty found, "files with an RFC 1918 address"
     end
 
     def test_no_file_names_the_estate
-        found = carried.select do |file|
+        found = files.select do |file|
             text = read(file)
             NAMES.any? { text.include?(it) }
         end
