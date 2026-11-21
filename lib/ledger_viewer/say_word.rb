@@ -35,8 +35,9 @@ module LedgerViewer
             text.split(",").map { Render::Text.strip(it) }.reject(&:empty?)
         end
 
-        # The entries of this ledger's inbox no session has taken.
-        def pending = @reading.inbox.reject { it["taken"] }
+        # The entries of this ledger's inbox no session has taken, but
+        # the comments on a question: they answer nothing to replace.
+        def pending = @reading.inbox.reject { it["taken"] || it["comment"] }
 
         def sent(ref, word: false)
             pending.select { it["ref"] == ref && (!word || word?(it)) }

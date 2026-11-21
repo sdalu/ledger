@@ -345,6 +345,15 @@ What the page takes, all as inbox entries, of the four kinds
   piece and its status, no form, and the server refuses an answer to
   it; the status line names it `being prepared: O9 (P36)`, and its wait
   starts only once it can be answered.
+- **A comment on a question**, not an answer (to ask for more before
+  answering): below an open question's answer form, a fold *Ask about
+  O<n>* with its own *Send question*; the entry carries `comment: true`
+  and the text, and the server refuses it empty or once the question is
+  no longer open. It replaces nothing, and an answer sent after it need
+  not name it; the card stays a question to answer, with *asked: N<n>,
+  sent HH:MM · awaiting filing* until the session takes it, and only
+  that line and the fold are redrawn when it is sent with `fetch`.
+  `ledger inbox` shows it as *comment on question O<n>, not an answer*.
 - **A comment on a planned piece**, before it goes out, and with two or
   more planned, **a proposed order**, refused unless it names each
   planned piece once.
