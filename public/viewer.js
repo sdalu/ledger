@@ -334,6 +334,26 @@
   const waitingSig = root => new Map([...root.querySelectorAll('section.waiting > ul.entries:not(.answered) > li[id]')]
     .map(li => [li.id, [li.querySelector('.card-head .text')?.textContent, li.querySelector(':scope > .detail')?.textContent].join('|')]));
   let known = waitingSig(document);
+  const redraw = doc => {
+    for (const sel of regions) {
+      const a = document.querySelector(sel), b = doc.querySelector(sel);
+      if (!a || !b) continue;
+      if (sel.endsWith('.count')) a.textContent = b.textContent;
+      else { const c = document.importNode(b, true); a.replaceWith(c); wire(c); }
+    }
+    // the one-click bar for several pieces comes and goes with what still
+    // waits: a word sent on one card leaves it naming pieces already given
+    const bar = document.querySelector(giveAll), fresh = doc.querySelector(giveAll);
+    if (bar && !fresh) bar.remove();
+    else if (bar && fresh) bar.replaceWith(document.importNode(fresh, true));
+  };
+  // anything but the cards acted on gone from what waits, or changed, is
+  // somebody else's change
+  const outsideOf = (doc, mine) => {
+    const now = waitingSig(doc);
+    return [now, [...known].some(([id, sig]) => !mine.includes(id) && now.get(id) !== sig)
+      || [...now.keys()].some(id => !known.has(id))];
+  };
   const settle = fn => {
     if (reduced() || !document.startViewTransition) { fn(); return Promise.resolve(); }
     return document.startViewTransition(fn).finished.catch(() => {});
@@ -341,6 +361,10 @@
   document.addEventListener('submit', async e => {
     const f = e.target;
     if (!f.matches || !f.matches('form.say') || f.dataset.plain) return;
+    if (batch && /\/say$/.test(new URL(f.action).pathname)) {
+      const kind = trayKind(f, e.submitter);
+      if (kind) { e.preventDefault(); toTray(f, e.submitter, kind); return; }
+    }
     const card = f.closest('li.is-card[id]');
     if (!card || !/^[qp]-/.test(card.id) || !/\/say$/.test(new URL(f.action).pathname)) return;
     e.preventDefault();
@@ -406,17 +430,8 @@
     await settle(() => {
       card.replaceWith(mine);
       wire(mine);
-      for (const sel of regions) {
-        const a = document.querySelector(sel), b = doc.querySelector(sel);
-        if (!a || !b) continue;
-        if (sel.endsWith('.count')) a.textContent = b.textContent;
-        else { const c = document.importNode(b, true); a.replaceWith(c); wire(c); }
-      }
-      // the one-click bar for several pieces comes and goes with what still
-      // waits: a word sent on one card leaves it naming pieces already given
-      const bar = document.querySelector(giveAll), fresh = doc.querySelector(giveAll);
-      if (bar && !fresh) bar.remove();
-      else if (bar && fresh) bar.replaceWith(document.importNode(fresh, true));
+      markTray();
+      redraw(doc);
     });
     for (const c of document.querySelectorAll('.entries > li[id]')) c.style.viewTransitionName = '';
     known = now;
@@ -438,6 +453,267 @@
     const card = sum.closest('li.is-collapsed');
     settle(() => card.classList.remove('is-collapsed'));
   });
+  // the tray: with batch mode on, a word, a comment or a drop on a card
+  // waits in it instead of being sent; its bar at the page's foot lists
+  // them, and Validate sends them all in one write. The switch and the
+  // tray are kept per ledger in localStorage; without it they last as
+  // long as the page
+  const local = {
+    get: k => { try { return localStorage.getItem(k); } catch (e) { return null; } },
+    set: (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} },
+    drop: k => { try { localStorage.removeItem(k); } catch (e) {} },
+  };
+  const trayKey = 'tray:' + lid, batchKey = 'batch:' + lid;
+  let batch = ledgerPage && local.get(batchKey) === '1';
+  let tray = [];
+  try {
+    const kept = JSON.parse(local.get(trayKey) || '[]');
+    if (ledgerPage && Array.isArray(kept)) tray = kept.filter(i => i && i.fields && i.card);
+  } catch (e) { tray = []; }
+  const keepTray = () => { if (tray.length) local.set(trayKey, JSON.stringify(tray)); else local.drop(trayKey); };
+  // what a form says, if the tray takes it: a word on a piece, a comment on
+  // a piece or a question (Ask about), a drop of either
+  const trayKind = (f, sub) => {
+    if (!f.closest('li[id]') || f.closest('.picture-ask')) return '';
+    const ref = f.elements.ref ? f.elements.ref.value : '';
+    const word = sub && sub.name === 'word' ? sub.value : '';
+    if (/^P\d+$/.test(ref)) return word === 'drop' ? 'drop' : word ? 'word' : 'comment';
+    if (/^O\d+$/.test(ref)) return f.elements.comment ? 'comment' : word === 'drop' ? 'drop' : '';
+    return '';
+  };
+  const firstLine = s => (s || '').trim().split('\n')[0];
+  const lineOf = i => {
+    const text = firstLine(i.fields.text);
+    if (i.kind === 'word') return i.fields.word + (text ? ' — ' + text : '');
+    if (i.kind === 'drop') return text || 'no reason given';
+    return text;
+  };
+  const kindLabel = i => i.kind === 'word' ? 'Word ' + i.fields.word : i.kind === 'drop' ? 'Drop' : 'Comment';
+  // the part of a card an item came from: its fold, or the form itself
+  const partOf = (card, i) => {
+    const f = card.querySelectorAll('form.say')[i.form];
+    if (!f || !f.elements.ref || f.elements.ref.value !== i.ref) return null;
+    const fold = f.parentElement.closest('details');
+    return fold && card.contains(fold) ? fold : f;
+  };
+  const button = (cls, label) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = cls;
+    b.textContent = label;
+    return b;
+  };
+  // an item's card says it is in the tray, with a Remove; its form is closed
+  // as after a send. Done again whenever a card is drawn anew
+  const markTray = () => {
+    for (const i of tray) {
+      const card = document.getElementById(i.card);
+      i.gone = !card;
+      if (!card || card.querySelector('.tray-line[data-item="' + i.id + '"]')) continue;
+      const part = partOf(card, i);
+      if (part) {
+        if (part.tagName === 'DETAILS') part.open = false;
+        part.hidden = true;
+        part.dataset.trayed = i.id;
+      }
+      const line = document.createElement('p');
+      line.className = 'tray-line';
+      line.dataset.item = i.id;
+      line.setAttribute('role', 'status');
+      const what = document.createElement('span');
+      what.textContent = kindLabel(i) + ' in the tray';
+      const rm = button('a-untray', 'Remove');
+      rm.setAttribute('aria-label', 'Remove ' + kindLabel(i).toLowerCase() + ' on ' + i.ref + ' from the tray');
+      rm.addEventListener('click', () => untray(i.id, true));
+      line.append(what, rm);
+      const head = card.querySelector(':scope > .card-head');
+      if (head) head.after(line); else card.prepend(line);
+    }
+  };
+  let bar = null, says = '';
+  const drawBar = () => {
+    if (!tray.length) { if (bar) bar.remove(); bar = null; says = ''; return; }
+    if (!bar) {
+      bar = document.createElement('aside');
+      bar.className = 'tray-bar';
+      bar.setAttribute('aria-labelledby', 'tray-count');
+      document.body.append(bar);
+    }
+    const gone = tray.filter(i => i.gone).length;
+    bar.replaceChildren();
+    const head = document.createElement('div');
+    head.className = 'tray-head';
+    const count = document.createElement('h2');
+    count.id = 'tray-count';
+    count.textContent = tray.length + ' in the tray';
+    const acts = document.createElement('div');
+    acts.className = 'tray-acts';
+    const ok = button('a-validate', 'Validate');
+    ok.disabled = gone > 0;
+    ok.addEventListener('click', validate);
+    const empty = button('a-empty', 'Empty tray');
+    empty.addEventListener('click', () => confirmEmpty(acts));
+    acts.append(ok, empty);
+    head.append(count, acts);
+    const list = document.createElement('ul');
+    list.className = 'tray-items';
+    for (const i of tray) {
+      const li = document.createElement('li');
+      li.dataset.item = i.id;
+      if (i.gone) li.classList.add('is-gone');
+      if (i.refused) li.classList.add('is-refused');
+      const id = document.createElement('a');
+      id.className = 'tag';
+      id.textContent = i.ref;
+      if (!i.gone) id.href = '#' + i.card;
+      const kind = document.createElement('span');
+      kind.className = 'tray-kind';
+      kind.textContent = i.kind;
+      const text = document.createElement('span');
+      text.className = 'tray-text';
+      text.textContent = i.gone ? 'no longer on the page' : lineOf(i);
+      const rm = button('a-untray', 'Remove');
+      rm.setAttribute('aria-label', 'Remove ' + i.kind + ' on ' + i.ref);
+      rm.addEventListener('click', () => untray(i.id, false));
+      li.append(id, kind, text, rm);
+      if (i.refused) {
+        const why = document.createElement('p');
+        why.className = 'tray-why';
+        why.textContent = i.refused;
+        li.append(why);
+      }
+      list.append(li);
+    }
+    const note = document.createElement('p');
+    note.className = 'tray-says';
+    note.setAttribute('role', 'status');
+    note.textContent = says || (gone ? 'Remove the items no longer on the page to validate.' : '');
+    bar.append(head, list, note);
+  };
+  const toTray = (f, sub, kind) => {
+    const card = f.closest('li[id]');
+    const fields = {};
+    for (const [k, v] of new FormData(f, sub)) {
+      if (k !== 'token' && typeof v === 'string' && !(k in fields)) fields[k] = v;
+    }
+    const i = {id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+               ref: fields.ref, kind, card: card.id, form: [...card.querySelectorAll('form.say')].indexOf(f), fields};
+    f.reset();
+    tray.push(i);
+    keepTray();
+    says = '';
+    markTray();
+    drawBar();
+    const line = card.querySelector('.tray-line[data-item="' + i.id + '"] button');
+    if (line) line.focus();
+  };
+  // Remove: the item leaves the tray, its form comes back; from a card the
+  // focus goes back to what the form was, from the bar to the bar
+  const untray = (id, fromCard) => {
+    const at = tray.findIndex(i => i.id === id);
+    if (at < 0) return;
+    tray.splice(at, 1);
+    keepTray();
+    says = '';
+    document.querySelector('.tray-line[data-item="' + id + '"]')?.remove();
+    const part = document.querySelector('[data-trayed="' + id + '"]');
+    if (part) { part.hidden = false; delete part.dataset.trayed; }
+    drawBar();
+    if (fromCard && part) (part.querySelector('summary, button') || part).focus();
+    else if (bar) (bar.querySelectorAll('.tray-items .a-untray')[Math.min(at, tray.length - 1)] || bar.querySelector('.a-validate')).focus();
+  };
+  const emptyTray = () => {
+    for (const i of [...tray]) untray(i.id, false);
+  };
+  // Empty asks inside the bar, never in a browser dialog
+  const confirmEmpty = acts => {
+    acts.replaceChildren();
+    const q = document.createElement('span');
+    q.className = 'tray-ask';
+    q.textContent = 'Empty the tray of ' + tray.length + '?';
+    const yes = button('a-empty', 'Yes, empty it');
+    yes.addEventListener('click', emptyTray);
+    const keep = button('a-keep', 'Keep them');
+    keep.addEventListener('click', () => { drawBar(); bar.querySelector('.a-empty').focus(); });
+    acts.append(q, yes, keep);
+    keep.focus();
+  };
+  // Validate: every item in one request, one write; refused, nothing is
+  // written and the tray keeps them all, the refused ones marked
+  const validate = async () => {
+    if (sending || !tray.length || tray.some(i => i.gone)) return;
+    const token = document.querySelector('form.say input[name="token"]')?.value || '';
+    sending = true;
+    says = 'Sending…';
+    drawBar();
+    let r = null, doc = null, refused = null;
+    try {
+      r = await fetch('/l/' + lid + '/say-batch', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: new URLSearchParams({token, items: JSON.stringify(tray.map(i => i.fields))}),
+      });
+      if (r.ok && r.redirected) doc = new DOMParser().parseFromString(await r.text(), 'text/html');
+      else if ((r.headers.get('Content-Type') || '').startsWith('application/json')) refused = await r.json();
+    } catch (err) { doc = null; }
+    if (!doc) {
+      sending = false;
+      for (const i of tray) delete i.refused;
+      for (const x of (refused && refused.items) || []) if (tray[x.item]) tray[x.item].refused = x.why;
+      keepTray();
+      says = refused ? refused.why : 'Not sent: the viewer did not answer' + (r ? ' (' + r.status + ')' : '') + '. The tray is kept.';
+      drawBar();
+      return;
+    }
+    const cards = [...new Set(tray.map(i => i.card))];
+    tray = [];
+    keepTray();
+    says = '';
+    const [now, outside] = outsideOf(doc, cards);
+    await settle(() => {
+      for (const id of cards) {
+        const card = document.getElementById(id), fresh = doc.getElementById(id);
+        if (!card) continue;
+        if (!fresh) { card.remove(); continue; }
+        const mine = document.importNode(fresh, true);
+        if (/^[qp]-/.test(id) && mine.querySelector('.sent, .sent-line')) mine.classList.add('is-collapsed');
+        card.replaceWith(mine);
+        wire(mine);
+      }
+      redraw(doc);
+      drawBar();
+    });
+    known = now;
+    if (outside) stale(); else here = doc.body.dataset.stamp || here;
+    sending = false;
+  };
+  // the switch, in the ledger's head: off by default, per ledger
+  if (ledgerPage) {
+    const head = document.querySelector('.ledger-head');
+    const sw = document.createElement('div');
+    sw.className = 'batch-switch';
+    sw.innerHTML = '<input type="checkbox" role="switch" id="batch-mode" class="a-batch">'
+      + '<label for="batch-mode">Batch mode</label><span class="batch-says" id="batch-says"></span>';
+    const box = sw.querySelector('input');
+    box.setAttribute('aria-describedby', 'batch-says');
+    const sayMode = () => {
+      box.checked = batch;
+      sw.querySelector('.batch-says').textContent = batch
+        ? 'words, comments and drops wait in the tray until you validate them'
+        : 'each word, comment and drop is sent at once';
+    };
+    box.addEventListener('change', () => {
+      batch = box.checked;
+      local.set(batchKey, batch ? '1' : '0');
+      sayMode();
+    });
+    sayMode();
+    const at = head && (head.querySelector(':scope > .waker') || head.querySelector(':scope > nav.tiles'));
+    if (at) at.before(sw); else if (head) head.append(sw);
+    markTray();
+    drawBar();
+  }
   let live = false;
   const poll = async () => {
     try {

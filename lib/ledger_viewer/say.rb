@@ -7,18 +7,20 @@ require_relative "say_all"
 require_relative "say_answer"
 require_relative "say_ledger"
 require_relative "say_picture"
+require_relative "say_tray"
 require_relative "say_word"
 
 module LedgerViewer
     # What a posted form says, checked against the ledger's JSON v1
     # document, by the rules of a post: the entries
     # to append, or the Refusal that names why nothing is. SayAll is its
-    # say-all.
+    # say-all, SayTray an item of the tray.
     class Say
         include SayAll
         include SayAnswer
         include SayLedger
         include SayPicture
+        include SayTray
         include SayWord
 
         MAX_TEXT = 4000

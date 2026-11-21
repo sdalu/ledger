@@ -613,7 +613,10 @@ end
 through the same call, in-process, actor `viewer:<user>`, command
 `inbox`; it is one more writer under the same lock, so a session and the
 viewer at once, or two sessions, serialize on `BEGIN IMMEDIATE` and
-neither reads a state the other is changing. *Decision*:
+neither reads a state the other is changing. The viewer's tray (batch
+mode, README) is one such call: every item the user collected, checked
+first and filed together, one `inbox` event with an `N<n>` per item; one
+item refused and the call writes nothing. *Decision*:
 inside a request thread the viewer waits at most 2 s, not 10
 (`busy_timeout` on its own connection), and answers 503, "the journal is
 busy" and try again: a request thread held 10 s is the slow work

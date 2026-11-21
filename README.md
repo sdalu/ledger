@@ -492,6 +492,31 @@ What the page takes, all as inbox entries, of the four kinds
   word `drop`. Questions have the same icon, to drop (ignore) one; so a
   question never offers drop or ignore among its choices (`check` fails
   it, save per item).
+- **The tray**, for sending several things at once. *Batch mode*, a
+  switch the script draws in the ledger's head, is off by default and
+  kept per ledger in the browser (localStorage; without it the switch
+  and the tray last as long as the page). While it is on, a word on a
+  piece, a comment on a piece or a question (*Ask about*) and a drop of
+  either go into the tray instead of being sent: the card says *Word
+  commit in the tray* (*Comment*, *Drop*) with *Remove*, its form
+  closed as after a send. Answers, notes, Close, Abandon, pictures asked
+  and the order are still sent at once. A bar sticks to the page's foot
+  while the tray holds something: *N in the tray*, each item's id, kind
+  and text cut at one line with its *Remove*, then *Validate* and
+  *Empty tray* (which asks again inside the bar). *Validate* posts the
+  whole tray in one request (`POST /l/ID/say-batch`: token, Origin and
+  Host as `/say`, `items` the JSON list of the forms trayed); each item
+  is checked by the rules of its own send, in the tray's order, an item
+  seeing those before it as sent (a second word on one piece is refused
+  as it would be after the first), and all are filed in one write, one
+  `inbox` event, each its own `N<n>`. One item refused and nothing is
+  written: the answer, JSON, names each refused item with its reason
+  (400 when any is malformed, else 409), the tray keeps them all and
+  marks those. Sent, the tray empties and the cards, the head's next
+  step, the tiles, the side list and the Waiting count are drawn again.
+  The tray is kept per ledger across a reload; an item whose card is no
+  longer on the page says so in the bar, and *Validate* waits until it
+  is removed. Batch mode off, everything is sent at once as before.
 - **The close of the ledger**, only while its status line ends with
   `done: propose close`: the head reads *Ready to close.* and offers
   *Close the ledger*, a fold that says what closing does, takes an
@@ -820,7 +845,7 @@ test/
 │                        word, pane and window, quote, Cancel focus, a
 │                        send collapsing into its Sent row and moving on to
 │                        the next card, no reload of a ledger page, the
-│                        paused-stream status
+│                        paused-stream status, the tray of batch mode
 └── browser_run.rb       runs the browser checks, below
 ```
 

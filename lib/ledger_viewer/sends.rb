@@ -1,18 +1,23 @@
 # frozen_string_literal: true
 
+require "json"
+
 module LedgerViewer
-    # What the page's script talks to: the sends it posts, the stamp it
-    # polls and the stream that pushes the stamp when it moves. A Sinatra
-    # extension, registered on Web.
+    # What the page's script talks to: the sends it posts (a form, one
+    # word for several pieces, the tray), the stamp it polls and the
+    # stream that pushes the stamp when it moves. A Sinatra extension,
+    # registered on Web.
     module Sends
+        ROUTE = %r{/l/([0-9a-f]{10})/(say|say-all|say-batch)}
+
         def self.registered(app)
             app.helpers SendHelpers
-            app.post(%r{/l/([0-9a-f]{10})/(say|say-all)}) do |lid, route|
+            app.post(ROUTE) do |lid, route|
                 redirect to(file(lid, route), false), 303
             end
             app.get("/stamp") { stamp_page }
             app.get("/events") { stamp_stream }
-            app.error(Refusal) { refusal_page(env["sinatra.error"]) }
+            app.error(Refusal) { refused(env["sinatra.error"]) }
         end
 
         # What the routes use.
@@ -52,7 +57,24 @@ module LedgerViewer
                 settings.renderer.refusal(refused.message, stale_page(refused))
             end
 
+            # A refused send: the tray's in JSON, any other a page.
+            def refused(refusal)
+                tray? ? tray_refusal(refusal) : refusal_page(refusal)
+            end
+
+            # The tray's refusal, for its page's script: why, and each
+            # item refused with its status and why (Tray::Refused).
+            def tray_refusal(refused)
+                page_headers
+                status refused.status
+                content_type "application/json; charset=utf-8"
+                items = refused.respond_to?(:items) ? refused.items : []
+                JSON.generate(why: refused.message, items:)
+            end
+
             private
+
+            def tray? = request.path_info.end_with?("/say-batch")
 
             # A form posted by a page of this viewer: its Origin is the
             # scheme (rack.url_scheme, which Puma sets to https under TLS)

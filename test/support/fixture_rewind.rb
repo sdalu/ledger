@@ -4,11 +4,13 @@
 # test/browser/viewer.cjs as
 #     bundle exec ruby test/support/fixture_rewind.rb mark ADDRESS
 #     bundle exec ruby test/support/fixture_rewind.rb rewind ADDRESS E<n>
+#     bundle exec ruby test/support/fixture_rewind.rb since ADDRESS E<n>
 # on the test journal ($LEDGER_JOURNAL). `mark` prints the ledger's
 # newest event id as E<n>. `rewind` deletes the inbox events after E<n>
 # with the entries they filed, in one transaction, and puts the N
 # counter back; it refuses when any later event is not an inbox event,
-# so a rewind never hides a real change. A test aid: no command of
+# so a rewind never hides a real change. `since` prints how many of the
+# ledger's events came after E<n>. A test aid: no command of
 # bin/ledger takes a viewer's entry back.
 
 $LOAD_PATH.unshift File.expand_path("../../lib", __dir__)
@@ -20,6 +22,13 @@ module FixtureRewind
     def self.mark(journal, address)
         id = journal.ledger(address)[:id]
         "E#{journal.db[:events].where(ledger_id: id).max(:id)}"
+    end
+
+    # How many of the ledger's events came after MARK.
+    def self.since(journal, address, mark)
+        id = journal.ledger(address)[:id]
+        journal.db[:events].where(ledger_id: id)
+               .where(Sequel[:id] > mark[1..].to_i).count
     end
 
     def self.rewind(journal, address, mark)
@@ -63,8 +72,9 @@ module FixtureRewind
         journal = Ledger::Journal.open
         case word
         when "mark" then puts mark(journal, address)
+        when "since" then puts since(journal, address, mark.to_s)
         when "rewind" then rewind(journal, address, mark.to_s)
-        else abort "usage: fixture_rewind.rb mark|rewind ADDRESS [E<n>]"
+        else abort "usage: fixture_rewind.rb mark|rewind|since ADDRESS [E<n>]"
         end
     ensure
         journal&.close

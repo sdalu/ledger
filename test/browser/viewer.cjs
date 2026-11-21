@@ -18,6 +18,7 @@ const [base, ledger, which] = process.argv.slice(2);
     {cwd: path.join(__dirname, '../..'), env: process.env, encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit']}).trim();
   const mark = () => rewinder('mark');
   const rewind = to => rewinder('rewind', to);
+  const since = to => Number(rewinder('since', to));
   let touched = 0;
   const touch = () => run('fact', 'browser check touch ' + (++touched) + ' — viewer.cjs');
   const b = which === 'chrome'
@@ -477,6 +478,79 @@ const [base, ledger, which] = process.argv.slice(2);
   t('P80: a send with script off lands on the next card\'s anchor', await q.evaluate(id => location.hash === '#' + id
     && document.getElementById('p-P4').classList.contains('is-receipt') && !!document.getElementById(id), next));
   await plain.close();
+  rewind(sent);
+  // P25: batch mode off by default; on, a word, a comment and a drop wait in the tray, each card saying so; one
+  // removed, the tray kept across a reload, the rest sent by one Validate as one write; off again, sent at once
+  await p.goto(base + page);
+  const posts = [];
+  const count = r => { if (r.method() === 'POST') posts.push(new URL(r.url()).pathname); };
+  p.on('request', count);
+  t('P25: batch mode is a switch in the head, off by default', await p.evaluate(() => {
+    const s = document.querySelector('.ledger-head .batch-switch input[role="switch"]');
+    return !!s && !s.checked && !document.querySelector('.tray-bar');
+  }));
+  await p.check('#batch-mode');
+  await p.locator('#p-P4 button[name="word"][value="commit"]').click();
+  await p.locator('#q-O1 .ask-about > details > summary').click();
+  await p.fill('#say-O1-ask', 'which file?\nthe second line');
+  await p.locator('#q-O1 .ask-about button[type="submit"]').click();
+  await p.locator('#piece-P3 .drop-fold > summary').click();
+  await p.locator('#piece-P3 button.a-drop').click();
+  const trayed = () => p.evaluate(() => ({
+    count: document.querySelector('.tray-bar h2')?.textContent,
+    items: [...document.querySelectorAll('.tray-bar .tray-items > li')].map(li =>
+      [li.querySelector('.tag').textContent, li.querySelector('.tray-kind').textContent, li.querySelector('.tray-text').textContent]),
+    cards: [...document.querySelectorAll('.tray-line')].map(l => l.closest('li[id]').id + ' ' + l.querySelector('span').textContent),
+    sticky: (() => { const b = document.querySelector('.tray-bar'); return !!b && getComputedStyle(b).position === 'sticky'
+      && b.getBoundingClientRect().bottom <= innerHeight + 1 && b.getBoundingClientRect().bottom > innerHeight - 48; })(),
+    closed: !!document.querySelector('#p-P4 form.say[hidden]') && document.querySelector('#piece-P3 .drop-fold').hidden
+      && document.querySelector('#q-O1 .ask-about > details').hidden}));
+  const held = await trayed();
+  t('P25: nothing is sent while batch mode is on', posts.length === 0);
+  t('P25: the bar says 3 in the tray, each item its id, kind and one line of text, sticky at the foot',
+    held.count === '3 in the tray' && held.sticky && JSON.stringify(held.items) === JSON.stringify(
+      [['P4', 'word', 'commit'], ['O1', 'comment', 'which file?'], ['P3', 'drop', 'no reason given']]));
+  t('P25: each card says in the tray, its form closed', held.closed && JSON.stringify(held.cards) === JSON.stringify(
+    ['q-O1 Comment in the tray', 'p-P4 Word commit in the tray', 'piece-P3 Drop in the tray']));
+  await p.locator('#q-O1 .tray-line button.a-untray').click();
+  t('P25: Remove on a card takes the item out and gives the form back', await p.evaluate(() =>
+    !document.querySelector('#q-O1 .tray-line') && !document.querySelector('#q-O1 .ask-about > details').hidden
+    && document.querySelector('.tray-bar h2').textContent === '2 in the tray'));
+  await p.reload();
+  const back = await trayed();
+  t('P25: the tray and its cards are kept across a reload, batch mode still on',
+    back.count === '2 in the tray' && back.cards.length === 2 && await p.isChecked('#batch-mode'));
+  await p.locator('.tray-bar .a-empty').click();
+  t('P25: Empty asks inside the bar, and Keep keeps them', await p.evaluate(() =>
+    /Empty the tray of 2\?/.test(document.querySelector('.tray-bar .tray-acts').textContent))
+    && await p.locator('.tray-bar .a-keep').click().then(() => p.evaluate(() =>
+      document.querySelectorAll('.tray-bar .tray-items > li').length === 2)));
+  sent = mark();
+  await p.locator('.tray-bar .a-validate').click();
+  await p.waitForSelector('.tray-bar', {state: 'detached'});
+  t('P25: Validate sends the rest in one request, one write, and empties the tray', JSON.stringify(posts) ===
+    JSON.stringify([page + '/say-batch']) && since(sent) === 1);
+  t('P25: after Validate the cards and the counts are drawn again', await p.evaluate(() =>
+    document.getElementById('p-P4').classList.contains('is-receipt') && /drop asked/.test(document.getElementById('piece-P3').textContent)
+    && !document.querySelector('.tray-line') && !document.querySelector('.stale-note')));
+  rewind(sent);
+  // an item whose card is gone is said, and blocks Validate until removed
+  await p.evaluate(() => localStorage.setItem('tray:' + location.pathname.split('/')[2], JSON.stringify(
+    [{id: 'x1', ref: 'O9', kind: 'comment', card: 'q-O9', form: 0, fields: {ref: 'O9', comment: '1', text: 'gone'}}])));
+  await p.reload();
+  t('P25: an item whose card is gone says so and is not sent until removed', await p.evaluate(() => {
+    const li = document.querySelector('.tray-bar .tray-items > li');
+    return li.classList.contains('is-gone') && li.querySelector('.tray-text').textContent === 'no longer on the page'
+      && document.querySelector('.tray-bar .a-validate').disabled;
+  }));
+  await p.locator('.tray-bar .a-untray').click();
+  t('P25: removed, the tray is gone', await p.locator('.tray-bar').count() === 0);
+  await p.uncheck('#batch-mode');
+  await p.locator('#p-P4 button[name="word"][value="commit"]').click();
+  await p.waitForSelector('#p-P4.is-collapsed');
+  t('P25: batch mode off sends a word at once, as before', JSON.stringify(posts.slice(1)) === JSON.stringify([page + '/say'])
+    && await p.locator('.tray-bar').count() === 0);
+  p.off('request', count);
   rewind(sent);
   // P66: an id link carries its item's title in the viewer's tip, shown on hover and on focus; a link to an id
   // not in the ledger has none; a link that says more than the id has none

@@ -7,6 +7,7 @@ require_relative "form"
 require_relative "render/next_waiting"
 require_relative "render/reading"
 require_relative "say"
+require_relative "tray"
 
 module LedgerViewer
     # A form posted to a ledger, taken in its order: the size, the token,
@@ -18,9 +19,10 @@ module LedgerViewer
     class Sender
         MAX_BODY = 64 * 1024
 
-        # What was posted: to ledger `lid`, `route` (say or say-all), a
-        # `body` of `length` bytes (the Content-Length, -1 when it is no
-        # number), `action` the path posted to, `token` the one this
+        # What was posted: to ledger `lid`, `route` (say, say-all or
+        # say-batch, the tray), a `body` of `length` bytes (the
+        # Content-Length, -1 when it is no number), `action` the path
+        # posted to, `token` the one this
         # session's forms carry, `actor` who sent it (the events row's).
         Post = Data.define(:lid, :route, :body, :length, :action, :token,
                            :actor)
@@ -43,7 +45,7 @@ module LedgerViewer
 
         def file(form, post)
             entry = ledger(post.lid)
-            bodies = bodies(Say.new(@ledgers.read(entry), form), post.route)
+            bodies = bodies(@ledgers.read(entry), form, post.route)
             Ledger::Inbox.append(@ledgers.journal, entry.path,
                                  bodies.map { entry_of(it) },
                                  actor: post.actor)
@@ -74,7 +76,13 @@ module LedgerViewer
                     !body.fields.fetch("word", "").empty?)
         end
 
-        def bodies(say, route) = route == "say-all" ? say.all : say.one
+        def bodies(data, form, route)
+            case route
+            when "say-batch" then Tray.new(data, form).bodies
+            when "say-all" then Say.new(data, form).all
+            else Say.new(data, form).one
+            end
+        end
 
         def ledger(lid)
             @ledgers.find(lid) or refuse(404, "No live ledger by that name.")
@@ -84,6 +92,11 @@ module LedgerViewer
 
         def stale!(form, post)
             return if Rack::Utils.secure_compare(form["token"], post.token)
+            # the tray is kept in the browser: a reload gives the token
+            if post.route == "say-batch"
+                refuse(403, "The page is from an earlier run of this " \
+                            "viewer: reload it; the tray is kept.")
+            end
 
             raise Stale.new(form.fields.except("token", "text"), form["text"],
                             post.action)
