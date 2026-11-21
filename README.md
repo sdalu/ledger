@@ -118,8 +118,8 @@ user's words.
 Every item has a writer, and no ledger is edited by hand. `piece
 PATH new|P<n>` adds a piece with the next free id or changes one
 (`--title`, `--what` for the detail, `--status`, `--route`,
-`--done-when`, `--evidence`, `--after`, `--for`, `--by`, `--verified-by`;
-an empty value clears a link); `ask PATH --title TITLE "question"
+`--done-when`, `--evidence`, `--after`, `--for`, `--by`, `--verified-by`,
+`--cause`; an empty value clears a link); `ask PATH --title TITLE "question"
 [--choices "A = … | B = …"] [--recommend "A, why"] [--items "x | y"]
 [--by P<n>] [--see F2] (--mockup NAME | --pending P<n> | --no-picture
 WHY) [--replaces O<n>]` puts a question under Open (it refuses one
@@ -169,7 +169,12 @@ nothing (exit 2 with the refusal when it would refuse).
 another session's `--status out` on it is refused, naming the holder
 and the time, and any other status clears the claim. `--status
 verified` needs `--verified-by WHO` (`me`, the route that checked it, or
-`peer: SESSION`). `undo PATH` puts back the last event that changed the
+`peer: SESSION`). A piece out or back that goes back to `--status
+planned` says why with `--cause brief|split|depth|contract|env` (the
+brief lacked something, the piece was cut wrong, the tier or effort was
+too low, the delegate broke the escalation contract, the environment
+failed), refused without one and on any other change; `show PATH P<n>`
+lists the returns, one a line. `undo PATH` puts back the last event that changed the
 ledger's items, in an event of its own, one level, refused once a row
 changed since; the inbox's takes are never undone. `restore PATH --to
 E<n>` puts back every item-changing event after `E<n>`; without `--to`

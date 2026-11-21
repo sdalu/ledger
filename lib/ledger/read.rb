@@ -78,10 +78,11 @@ module Ledger
             db[:events].where(ledger_id: snapshot.ledger_id).max(:at)
         end
 
-        # {id => {at:, actor:}} of the events the rows name: the briefs
-        # and the takes.
+        # {id => {at:, actor:}} of the events the rows name: the briefs,
+        # the returns and the takes.
         def events(db, snapshot)
             ids = [*snapshot.piece_briefs.map { it[:event_id] },
+                   *snapshot.piece_returns.map { it[:event_id] },
                    *snapshot.inbox_entries.filter_map { it[:taken_id] }]
             db[:events].where(id: ids).select(:id, :at, :actor).all
                        .to_h { [it[:id], it.slice(:at, :actor)] }

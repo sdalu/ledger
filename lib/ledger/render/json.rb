@@ -20,7 +20,8 @@ module Ledger
 
             # What the rows alone do not say: UPDATED_AT (ms), SIZES
             # {picture id => bytes}, EVENTS {event id => {at:, actor:}}
-            # for the briefs and the takes, CLAIMS {piece id => ms}.
+            # for the briefs, the returns and the takes, CLAIMS {piece id
+            # => ms}.
             Context = Data.define(:updated_at, :sizes, :events, :claims)
 
             def self.ledger(snapshot, derive, context)
@@ -273,12 +274,13 @@ module Ledger
                     @markdown = markdown
                     @briefs = snapshot.piece_briefs.group_by { it[:piece_id] }
                     @criteria = Refs.group(snapshot.piece_criteria, :piece_id)
+                    @returns = Refs.group(snapshot.piece_returns, :piece_id)
                 end
 
                 def call(piece)
                     { id: "P#{piece[:n]}", **head(piece), **links(piece),
                       **prose(piece), **state(piece), brief: brief(piece),
-                      criteria: criteria(piece),
+                      criteria: criteria(piece), returns: returns(piece),
                       line: @markdown.line("P#{piece[:n]}") }
                 end
 
@@ -349,6 +351,15 @@ module Ledger
                 def criteria(piece)
                     @criteria.fetch(piece[:id], []).map do |row|
                         row.slice(:text, :mark, :evidence)
+                    end
+                end
+
+                # Each time the piece went back to planned, oldest first.
+                def returns(piece)
+                    @returns.fetch(piece[:id], []).map do |row|
+                        event = @context.events.fetch(row[:event_id])
+                        { cause: row[:cause], from: row[:from_status],
+                          at: Json.time(event[:at]), actor: event[:actor] }
                     end
                 end
             end
