@@ -85,6 +85,11 @@ the ledger's row in the journal marked closed, out of every hook's and
 the viewer's sight, and refuses while a viewer entry is pending. It
 checks shape, not truth: a paraphrased goal in quote marks passes.
 
+`survey [DIR] [--peer NAME]` is the read for a session with no goal: the
+live ledgers at DIR (the current directory) or under it with their status
+lines and pending entries, and with `--peer` the pieces routed `peer: NAME`
+in any live ledger; it writes nothing and counts no heartbeat.
+
 `show PATH` prints the whole ledger as Markdown; `show PATH ID` prints
 one item's fields (a piece, question, criterion, fact, constraint,
 decision `X<n>` with its links, or a noticed line `Z<n>`), one `key:

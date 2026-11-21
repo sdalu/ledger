@@ -493,6 +493,7 @@ command's refusal, exit 2, nothing written.
 | `check [--final] [--peek] [--fix-hints] [--json] PATH` | `ok  name` / `FAIL name -- detail` per rule, `  hint:` after a FAIL, status line (the beat, unless `--peek`); `--json` prints JSON v1 | exit 1 on any FAIL |
 | `show PATH [ID] [--json]` | no ID: the whole ledger as Markdown; an ID (`P`, `O`, `D`, `C`, `F`, `X`, `Z`): its fields as `key: value` lines, links as `answers: O3`, `rests-on: F2, C3` lines; or JSON v1 | unknown id |
 | `status PATH [--json]` | the status line; JSON v1 | |
+| `survey [DIR] [--peer NAME] [--json]` | read-only, for a session with no goal: each live ledger at DIR (the current directory by default) or under it: its address, its status line as `check --peek` prints it, its pending entries as `inbox` prints them; with `--peer`, the pieces of any live ledger whose `peer` is exactly NAME, one `ADDRESS  piece line` each; nothing found says so; no beat, no event; JSON v1 | |
 | `close PATH [--take N<n>…]` | `closed: ADDRESS (L<id>)`, then `noticed, to carry: N` and the lines; `--take` takes the entries (the viewer's Close, `ref` `close`) in the close's event | `--final` fails (FAIL lines, exit 1), a refused close taking nothing; inbox pending besides the entries taken; an entry unknown or taken |
 | `inbox PATH [--wait [--timeout S] \| --follow [--quiet S]]` | the pending entries, or "inbox: nothing pending"; polls the ledger's newest event id each second | `--wait` timeout exit 1 |
 | `take PATH N<n>…` | `taken: …; pending: …`; one `take` event setting `taken_id` | unknown id; "already taken at TIME: another session filed it" |
@@ -589,6 +590,8 @@ other reader through `--json`; the hooks read the `Snapshot` and the
   total], pieces: {verified, live, kept}, out, back, blocked, stalled,
   waiting, preparing: [[O, P]], words: [{piece, words}], from_viewer,
   propose_close}`.
+- `survey --json`: `{schema, kind: "survey", dir, ledgers: [{address, status,
+  inbox: [{id, text}]}], peer: null \| {name, pieces: [{ledger, id, line}]}}`.
 - `show PATH ID --json`: `{schema, kind: "item", item}`, the item's
   object below; `show PATH ID` prints its scalar fields as `key: value`,
   lists joined by ` | `.
