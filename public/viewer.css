@@ -1135,6 +1135,29 @@
     background: color-mix(in oklab, var(--ask) 6%, var(--panel));
   }
 
+  /* a send nothing answered: said under the form, with Check, then Retry */
+  .send-unconfirmed {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-xs) var(--space-m);
+    margin-block-start: var(--space-s);
+    color: var(--fail);
+    & button {
+      min-block-size: 2.75rem;
+      padding-inline: var(--space-s);
+      border: 1px solid var(--edge);
+      border-radius: var(--radius);
+      font: inherit;
+      font-weight: 600;
+      color: var(--ink);
+      background: var(--panel);
+      cursor: pointer;
+      &:hover { border-color: var(--accent); }
+      &:disabled { cursor: not-allowed; opacity: 0.6; }
+    }
+  }
+
   /* a part the user holds changed elsewhere: said in it, drawn anew only
      when its Update is pressed */
   .changed-line {
