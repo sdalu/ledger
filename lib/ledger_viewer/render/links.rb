@@ -14,24 +14,16 @@ module LedgerViewer
                 ids.map { "[#{it}](##{kind}-#{it})" }.join(", ")
             end
 
-            # The meta line's parts for `piece`; `settled` is {id =>
-            # whether that piece is settled}.
-            def meta(piece, settled)
-                out = []
-                out << waits(piece, settled) unless piece["after"].empty?
-                out << "for #{ids(piece["for"], "crit")}" unless
-                    piece["for"].empty?
-                out
-            end
-
-            # The meta, evidence and done fields of a piece's row.
-            def fields(piece, settled)
-                meta = ([piece["route_text"]] + meta(piece, settled))
-                       .reject { it.to_s.empty? }.join(" · ")
-                { meta:, evidence: piece["evidence"].to_s,
+            # The meta, evidence and done fields of a piece's row: what it
+            # waits for and serves is its RAID line's (Raid).
+            def fields(piece)
+                { meta: piece["route_text"].to_s,
+                  evidence: piece["evidence"].to_s,
                   done: piece["done_when"].to_s }
             end
 
+            # 'waits for P3' while an after piece is not settled; `settled`
+            # is {id => whether that piece is settled}.
             def waits(piece, settled)
                 after = piece["after"]
                 waiting = after.reject { settled.fetch(it, false) }

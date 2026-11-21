@@ -40,6 +40,12 @@ module LedgerViewer
 
             def criteria = @data.fetch("criteria")
 
+            # The assumptions (state, fact, see, for), the decisions and
+            # the links, as their objects.
+            def assumptions = @data.fetch("assumptions")
+            def decision_rows = @data.fetch("decisions")
+            def links = @data.fetch("links")
+
             # When the ledger last changed: its last event.
             def updated = Time.iso8601(@data.fetch("ledger")["updated_at"])
 

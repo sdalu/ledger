@@ -1,2 +1,2 @@
-<%# <%== carries markup built here: the icon, the meter, the inline text. %>
-<dl class="facets"><% rows.each do |row| %><div class="<%= row.cls %>"><dt><%== icon(row.icon) %><%= row.label %></dt><dd><%== row.lead %><%== inline(row.text) %></dd></div><% end %></dl>
+<%# <%== carries markup built here: the icon, the inline text. %>
+<dl class="facets"><% rows.each do |row| %><div class="<%= row.cls %>"><dt><%== icon(row.icon) %><%= row.label %></dt><dd><%== inline(row.text) %></dd></div><% end %></dl>

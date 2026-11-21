@@ -8,7 +8,8 @@ module Ledger
         # compacted needs of its ledgers, at most BUDGET characters shared
         # equally among them. Per ledger, every line as `show` prints it:
         # a pointer line, the status line, every Goal block, Constraints,
-        # the open questions, the pieces in flight with `(ready)` or
+        # the open questions, the open assumptions with their check, the
+        # pieces in flight with `(ready)` or
         # `(stalled)`. Over its share a ledger drops lines from the end,
         # pieces then questions, each list closed by `… N more: bin/ledger
         # show ADDRESS`; when the goal blocks and constraints alone exceed
@@ -34,6 +35,7 @@ module Ledger
                 @goals = blocks[1, found.snapshot.goals.size]
                 @constraints = blocks.find { it.start_with?("Constraints") }
                 @questions = questions(markdown)
+                @assuming = assuming(markdown)
                 @pieces = pieces(markdown)
             end
 
@@ -59,6 +61,7 @@ module Ledger
                         constraints: @constraints)
                 [head, *goals, constraints,
                  list("Open:", @questions, questions),
+                 list("Assuming:", @assuming, @assuming.size),
                  list("In flight:", @pieces, pieces)].compact.join(SEPARATOR)
             end
 
@@ -90,6 +93,12 @@ module Ledger
             def questions(markdown)
                 @found.derive.open_questions.map do |question|
                     markdown.line("O#{question[:n]}")
+                end
+            end
+
+            def assuming(markdown)
+                @found.derive.open_assumptions.map do |row|
+                    markdown.line("A#{row[:n]}")
                 end
             end
 

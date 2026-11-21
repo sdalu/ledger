@@ -17,6 +17,8 @@ class MarkdownTest < RenderTest
 
         Facts:
 
+        Assumptions:
+
         Decisions:
 
         Pieces:
@@ -104,7 +106,7 @@ class MarkdownTest < RenderTest
 
         assert_equal ["Goal G1 (2026-11-19, verbatim):", "Done when:",
                       "Constraints (verbatim, where said):", "Facts:",
-                      "Decisions:", "Pieces:", "Open:",
+                      "Assumptions:", "Decisions:", "Pieces:", "Open:",
                       "Out of scope, noticed:"], labels
     end
 

@@ -132,6 +132,6 @@ class AddressTest < JournalTest
         fresh = @journal.create_ledger(ADDRESS, project: "alpha")
 
         assert_equal fresh[:id], @journal.ledger(ADDRESS)[:id]
-        assert_equal 8, db[:counters].where(ledger_id: fresh[:id]).count
+        assert_equal 9, db[:counters].where(ledger_id: fresh[:id]).count
     end
 end

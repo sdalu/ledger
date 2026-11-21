@@ -11,6 +11,7 @@ require_relative "kit"
 require_relative "mockups"
 require_relative "nav"
 require_relative "next_waiting"
+require_relative "raid"
 require_relative "record"
 require_relative "reading"
 require_relative "refs"
@@ -95,6 +96,7 @@ module LedgerViewer
                 cases = Case.new(scope)
                 lid = entry.id
                 Kit.new(scope:, reading:, lid:, cases:,
+                        raid: Raid.new(scope, reading),
                         say: SayForm.new(scope, lid, token, cases),
                         word: WordForm.new(scope, lid, token),
                         refs: Refs.new(scope), blocks: Blocks.new(scope),
@@ -117,7 +119,12 @@ module LedgerViewer
                     title, = Text.title_of(criterion["text"])
                     titled[criterion["id"]] = title
                 end
-                titled
+                titled.merge(assumed(reading))
+            end
+
+            # An assumption stands for its text.
+            def assumed(reading)
+                reading.assumptions.to_h { [it["id"], it["text"]] }
             end
         end
     end

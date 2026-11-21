@@ -14,12 +14,17 @@ module Ledger
             REFERENCES = {
                 "P" => [%i[piece_links after_id], %i[questions by_id],
                         %i[question_sees piece_id],
-                        %i[question_pictures pending_id]],
+                        %i[question_pictures pending_id],
+                        %i[assumption_sees piece_id],
+                        %i[assumption_links piece_id]],
                 "D" => [%i[piece_links criterion_id],
-                        %i[question_sees criterion_id]],
-                "C" => [%i[question_sees constraint_id]],
-                "F" => [%i[question_sees fact_id]],
-                "O" => []
+                        %i[question_sees criterion_id],
+                        %i[assumption_sees criterion_id]],
+                "C" => [%i[question_sees constraint_id],
+                        %i[assumption_sees constraint_id]],
+                "F" => [%i[question_sees fact_id], %i[assumption_sees fact_id],
+                        %i[assumptions fact_id]],
+                "O" => [%i[assumption_links question_id]]
             }.freeze
 
             private

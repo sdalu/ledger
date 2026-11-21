@@ -19,9 +19,9 @@ module Ledger
             LISTS = { "P" => %i[pieces], "O" => %i[questions closed_questions],
                       "D" => %i[criteria], "C" => %i[constraints],
                       "F" => %i[facts], "X" => %i[decisions],
-                      "G" => %i[goals] }.freeze
-            UNKNOWN = "is no piece, question, criterion, fact, constraint, " \
-                      "decision, goal or noticed line of"
+                      "G" => %i[goals], "A" => %i[assumptions] }.freeze
+            UNKNOWN = "is no piece, question, criterion, fact, assumption, " \
+                      "constraint, decision, goal or noticed line of"
 
             private
 

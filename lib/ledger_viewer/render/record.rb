@@ -3,6 +3,7 @@
 require_relative "decisions"
 require_relative "entry"
 require_relative "links"
+require_relative "raid_fold"
 require_relative "reading"
 require_relative "serving"
 require_relative "sourced"
@@ -23,6 +24,8 @@ module LedgerViewer
                 @scope = kit.scope
                 @reading = kit.reading
                 @lid = kit.lid
+                @raid = kit.raid
+                @raid_fold = RaidFold.new(kit)
                 @entry = Entry.new(@scope)
                 @serving = Serving.new(@scope, @reading)
                 @decisions = Decisions.new(@scope, @entry, @lid)
@@ -32,14 +35,14 @@ module LedgerViewer
             def html
                 head = "<h2 id=\"record\">#{@scope.icon("archive")}" \
                        "Done and on record</h2>"
-                head + folds.filter_map { fold(*it) }.join
+                head + folds.compact.filter_map { fold(*it) }.join
             end
 
             private
 
             def folds
                 reading = @reading
-                [["criteria-met", "Criteria marked", marked],
+                [raid, ["criteria-met", "Criteria marked", marked],
                  ["pieces-settled", "Pieces verified, kept or dropped",
                   settled],
                  *lines("constraints", "Constraints", reading.constraints),
@@ -48,6 +51,12 @@ module LedgerViewer
                   reading.decisions.length],
                  ["scope", "Out of scope, noticed", plain(reading.scope_lines),
                   reading.scope_lines.length]]
+            end
+
+            # The RAID fold, or nil when it would be empty.
+            def raid
+                body, count = @raid_fold.html
+                ["raid", "RAID", body, count] if body
             end
 
             def lines(key, title, list)
@@ -105,7 +114,8 @@ module LedgerViewer
                             tag_tip: Status.tip(piece),
                             anchor: "piece-#{piece["id"]}",
                             why: Why.icon(@lid, piece["id"]),
-                            **Links.fields(piece, @reading.settled))
+                            fold: @raid.piece(piece),
+                            **Links.fields(piece))
             end
         end
     end

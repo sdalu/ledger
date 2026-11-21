@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "ledger/checks/assumptions"
+
 module Ledger
     module Checks
         # `check --fix-hints`: after each FAIL line, the form the rule
@@ -101,6 +103,6 @@ module Ledger
                 "every criterion `[x]` with evidence or `[-]` with why; " \
                 "`bin/ledger criterion PATH D<n> --met EVIDENCE` or " \
                 "`--unmet WHY`"
-        }.freeze
+        }.merge(Assumptions::HINTS).freeze
     end
 end

@@ -37,11 +37,13 @@ module LedgerViewer
                     { cls: "is-ask is-card", anchor: "p-#{piece["id"]}",
                       text: piece["title"], tag: piece["id"],
                       detail: piece["detail"].to_s, meta: meta(piece),
-                      kase: @kit.cases.facets(piece),
+                      kase: kase(piece),
                       extra: @kit.word.drop(piece["id"]),
                       why: Why.icon(@kit.lid, piece["id"]) }
                 )
             end
+
+            def kase(piece) = @kit.cases.facets(piece) + @kit.raid.piece(piece)
 
             def meta(piece)
                 since = @reading.word_since(piece)

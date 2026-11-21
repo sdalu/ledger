@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "ledger/checks/assumptions"
 require "ledger/checks/codes"
 require "ledger/checks/criteria"
 require "ledger/checks/final"
@@ -53,6 +54,8 @@ module Ledger
                 Open.rated(d) + Pieces.rated(d) + Goal.rated(d)
             end),
             rule("verified-by", Pieces.method(:verified_by)),
+            rule("assumptions-refuted", Assumptions.method(:refuted)),
+            rule("assumptions-settled", Assumptions.method(:settled)),
             rule("final-pieces", Final.method(:pieces),
                  prefix: "still open: ", join: ", ", final: true),
             rule("final-deferred", Final.method(:deferred),
@@ -65,6 +68,10 @@ module Ledger
         # The rules that answer [item, token] pairs: the write path
         # refuses a write for them only by the pairs it adds.
         FINDINGS = { "codes" => Codes.method(:findings) }.freeze
+        # The rules the write path never compares: the write they would
+        # refuse is the one that records what was found (`assume A<n>
+        # --refuted-by F<n>`).
+        REPORTED = %w[assumptions-refuted].freeze
 
         module_function
 
@@ -89,7 +96,7 @@ module Ledger
         # compares before and after; findings nil for a rule without.
         def call(snapshot)
             derive = Derive.new(snapshot)
-            RULES.reject(&:final).filter_map do |rule|
+            compared.filter_map do |rule|
                 problems = rule.rule.call(derive)
                 next if problems.empty?
 
@@ -99,5 +106,8 @@ module Ledger
         end
 
         def hint(name) = HINTS.fetch(name)
+
+        # The rules step 6 compares: neither final nor REPORTED.
+        def compared = RULES.reject { it.final || REPORTED.include?(it.name) }
     end
 end

@@ -18,8 +18,8 @@ module Ledger
     #
     #     exit Ledger::CLI.run(ARGV)
     class CLI
-        WORDS = %w[new goal check show status close fact constraint decide
-                   noticed criterion edit piece ask answer word choice
+        WORDS = %w[new goal check show status close fact assume constraint
+                   decide noticed criterion edit piece ask answer word choice
                    renumber undo restore inbox take mockup survey stats
                    waker].freeze
         # Words of other pieces of the build: refused as not built yet.
@@ -257,6 +257,7 @@ require "ledger/commands/show"
 require "ledger/commands/status"
 require "ledger/commands/close"
 require "ledger/commands/fact"
+require "ledger/commands/assume"
 require "ledger/commands/constraint"
 require "ledger/commands/decide"
 require "ledger/commands/noticed"

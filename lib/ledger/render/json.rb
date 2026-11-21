@@ -91,27 +91,7 @@ module Ledger
                 end
             end
 
-            # criteria, constraints, facts and decisions: id, the columns,
-            # and the line `show` prints.
-            def items
-                { criteria: lined("D", :criteria, %i[mark text evidence why]),
-                  constraints: lined("C", :constraints, %i[text quote],
-                                     &Text::Pointer.method(:of_constraint)),
-                  facts: lined("F", :facts, %i[text pointer],
-                               &Text::Pointer.method(:of_fact)),
-                  decisions: lined("X", :decisions,
-                                   %i[date body by note subject]) }
-            end
-
-            # A block adds the columns it derives from the row, after the
-            # row's own.
-            def lined(kind, table, columns)
-                @snapshot[table].map do |row|
-                    { id: "#{kind}#{row[:n]}", **row.slice(*columns),
-                      **(block_given? ? yield(row) : {}),
-                      line: @markdown.line("#{kind}#{row[:n]}") }
-                end
-            end
+            def items = Items.new(@snapshot, @derive, @markdown).call
 
             def links = Links.new(@snapshot).call
 
@@ -157,6 +137,52 @@ module Ledger
             def fails
                 Checks.failures(@snapshot).map do |name, detail|
                     { name:, detail: }
+                end
+            end
+        end
+
+        class Json
+            # The one-line items: criteria, constraints, facts, assumptions
+            # and decisions, each its id, its columns, what it derives and
+            # the line `show` prints.
+            class Items
+                def initialize(snapshot, derive, markdown)
+                    @snapshot = snapshot
+                    @derive = derive
+                    @markdown = markdown
+                end
+
+                def call
+                    { criteria: lined("D", :criteria,
+                                      %i[mark text evidence why]),
+                      constraints: lined("C", :constraints, %i[text quote],
+                                         &Text::Pointer.method(:of_constraint)),
+                      facts: lined("F", :facts, %i[text pointer],
+                                   &Text::Pointer.method(:of_fact)),
+                      assumptions: lined("A", :assumptions,
+                                         %i[text check state]) { assumed(it) },
+                      decisions: lined("X", :decisions,
+                                       %i[date body by note subject]) }
+                end
+
+                private
+
+                # The fact that settled it, what it rests on, what rests
+                # on it.
+                def assumed(row)
+                    { fact: @derive.settled_by(row),
+                      see: @derive.assumption_sees(row),
+                      for: @derive.resting(row) }
+                end
+
+                # A block adds the columns it derives from the row, after
+                # the row's own.
+                def lined(kind, table, columns)
+                    @snapshot[table].map do |row|
+                        { id: "#{kind}#{row[:n]}", **row.slice(*columns),
+                          **(block_given? ? yield(row) : {}),
+                          line: @markdown.line("#{kind}#{row[:n]}") }
+                    end
                 end
             end
         end
@@ -329,7 +355,9 @@ module Ledger
                       end,
                       scope: @derive.scopes(piece).map do |row|
                           row.slice(:word, :text)
-                      end }
+                      end,
+                      rests_on_assumptions:
+                          @derive.rests_on(piece).map { @derive.aref(it) } }
                 end
 
                 def prose(piece)
@@ -350,6 +378,7 @@ module Ledger
                 def state(piece)
                     { ready: @derive.ready?(piece),
                       stalled: @derive.stalled?(piece),
+                      touched_at: Json.time(@derive.touched_at(piece)),
                       settled: @derive.settled?(piece) }
                 end
 
@@ -436,7 +465,9 @@ module Ledger
                     { choices: choices(question),
                       items: @derive.items(question),
                       by: (@refs["P", question[:by_id]] if question[:by_id]),
-                      see: sees(question), pictures: pictures(question) }
+                      see: sees(question), pictures: pictures(question),
+                      rests_on_assumptions: @derive.question_rests_on(question)
+                                                   .map { @derive.aref(it) } }
                 end
 
                 def choices(question)
