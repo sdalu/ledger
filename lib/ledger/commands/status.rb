@@ -27,7 +27,8 @@ module Ledger
             def document(snapshot, line)
                 derive = Derive.read(journal.db, snapshot)
                 { schema: Render::Json::SCHEMA, kind: "status", line:,
-                  **counts(derive), **states(derive), **waiting(derive),
+                  **counts(derive), **states(derive), unsent: unsent(derive),
+                  **waiting(derive),
                   propose_close: line.end_with?("done: propose close") }
             end
 
@@ -50,6 +51,13 @@ module Ledger
             def deferred(derive)
                 derive.deferred.map do |piece|
                     { piece: derive.ref(piece), until: piece[:until] }
+                end
+            end
+
+            # The ready pieces planned past the limit, the age in minutes.
+            def unsent(derive)
+                derive.unsent.map do |piece, age|
+                    { piece: derive.ref(piece), minutes: age / 60_000 }
                 end
             end
 

@@ -83,23 +83,40 @@ end
 # and that it writes nothing.
 class StatsTest < StatsCase
     SONNET = "sonnet, effort: low"
-    TABLE = [["route", "pieces", "first-pass", "blocked", "out, median",
-              "returns"],
-             ["opus, effort: high", "3", "1/2 50%", "1 33%", "10.0 min",
+    TABLE = [["route", "pieces", "first-pass", "blocked", "unsent",
+              "out, median", "returns"],
+             ["opus, effort: high", "3", "1/2 50%", "1 33%", "0", "10.0 min",
               "depth 1"],
-             ["peer: web", "1", "-", "0 0%", "20.0 min", "unrecorded 1"],
-             ["kept", "1", "-", "0 0%", "-", "-"]].freeze
+             ["peer: web", "1", "-", "0 0%", "1", "20.0 min", "unrecorded 1"],
+             ["kept", "1", "-", "0 0%", "0", "-", "-"]].freeze
 
     def test_each_group_and_its_columns_as_json
         assert_equal({ pieces: 3, first_pass_verified: 0.5,
                        blocked_share: 1.fdiv(3), median_out_minutes: 10.0,
-                       returns: { depth: 1 } }, groups["opus, effort: high"])
+                       returns: { depth: 1 } }, columns["opus, effort: high"])
         assert_equal({ pieces: 1, first_pass_verified: nil,
                        blocked_share: 0.0, median_out_minutes: 20.0,
-                       returns: { unrecorded: 1 } }, groups["peer: web"])
+                       returns: { unrecorded: 1 } }, columns["peer: web"])
         assert_equal({ pieces: 1, first_pass_verified: nil,
                        blocked_share: 0.0, median_out_minutes: nil,
-                       returns: {} }, groups["kept"])
+                       returns: {} }, columns["kept"])
+    end
+
+    # P4, planned again at minute 120, has been ready for ages; P3,
+    # planned again by a write left at its own time, has not.
+    def test_the_unsent_pieces_per_route_as_json
+        unsent = groups.values.map { it[:unsent] }
+        assert_equal [0, 1, 0], unsent
+    end
+
+    def columns = groups.transform_values { it.except(:unsent) }
+
+    # On a fixed clock: P3 planned again at minute 30, P4 at 120.
+    def test_the_pieces_unsent_per_route_on_a_fixed_clock
+        stamp_piece(3, 30)
+        assert_equal [0, 0, 0], unsent_at(140)
+        assert_equal [1, 0, 0], unsent_at(200)
+        assert_equal [1, 1, 0], unsent_at(241)
     end
 
     def test_the_table_one_row_a_group_in_columns
@@ -132,6 +149,23 @@ class StatsTest < StatsCase
     end
 
     def everything = [state, db[:ledgers].all, db[:piece_returns].all]
+
+    # The unsent counts of opus, the peer and kept at MINUTE.
+    def unsent_at(minute)
+        groups = Ledger::Stats.read(db, [@beta], now: minute * 60_000)
+        assert_equal ["opus, effort: high", "peer: web", "kept"],
+                     groups.map(&:route)
+        groups.map(&:unsent)
+    end
+
+    # Every event touching piece N moved to MINUTE, the later ones kept
+    # after it.
+    def stamp_piece(number, minute)
+        id = db[:pieces].where(ledger_id: @beta, n: number).get(:id)
+        events = db[:event_rows].where(tbl: "pieces", row_id: id)
+                                .select_map(:event_id)
+        db[:events].where(id: events).update(at: minute * 60_000)
+    end
 
     def test_it_writes_nothing
         before = everything

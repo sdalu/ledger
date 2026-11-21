@@ -670,7 +670,9 @@ stored.
 | settled | `verified` or `kept` |
 | unfinished | `planned`, `out`, `back` or `deferred` (`--final` fails on these) |
 | in flight | `blocked`, `back`, `out`, `planned`, `deferred`, in that urgency |
-| ready | `planned` and every `after` piece settled |
+| ready | `planned`, no `piece_awaits` row, and every `after` piece `verified`, `kept` or `dropped` (a piece with no `after` is ready) |
+| ready since | the later of the last event row touching the piece and the event that last set each `after` piece `verified`, `kept` or `dropped` |
+| unsent | ready for longer than the ready limit: 120 minutes, `LEDGER_READY_LIMIT` (minutes) overrides (S2); the age is the time since it became ready |
 | awaiting | its `piece_awaits` rows, in position order |
 | stalled (U14) | `out`, and no event row touching it for more than the stall budget: 60 minutes, `LEDGER_STALL_MINUTES` overrides (S2) |
 | question preparing | its `by` piece or a `pending` picture's piece is not settled |
@@ -689,7 +691,12 @@ its `piece_links`, `piece_awaits`, `piece_scopes`, `piece_briefs`,
 **The stall budget (S2).** `Ledger::Derive::STALL_MINUTES = 60`, read
 once at start from `LEDGER_STALL_MINUTES` when set; a value that is not
 a whole number above 0 is refused, exit 2, at the first command that
-derives (hard error over a silent default). A question with
+derives (hard error over a silent default). The ready limit,
+`Ledger::Ready::LIMIT = 120`, is read the same way from
+`LEDGER_READY_LIMIT`, and a bad value is refused the same way, naming
+the variable. An unsent piece is never a failing check: no rule reads
+the clock, so a write is never refused (Worse) because time made a
+piece unsent. A question with
 `closed_at` set is in no derived state.
 
 **The status line**, headed by its ledger: TITLE is the latest Goal
@@ -697,12 +704,14 @@ block's title as stored, the ledger's address when none is set, so
 that two live ledgers in one session print lines told apart; a lone
 ledger's line carries it too. Then, with `deferred:` (each piece with
 its condition), `assuming:` (the open assumptions) then `stalled:`
-(U14) after `blocked:`:
+(U14) after `blocked:`, then `ready, unsent:` (each unsent piece with
+its age, `25 min`, `3 h` or `2 days`, as the viewer says a wait):
 
 ```
 Status (TITLE) — criteria 3/4 · pieces 14/15 verified, 1 kept ·
 out: P2 · back: … · blocked: … · deferred: P6 (three closures) ·
-assuming: A2, A5 · stalled: P2 · waiting on you: O3 · being
+assuming: A2, A5 · stalled: P2 · ready, unsent: P65 (2 days),
+P70 (3 h) · waiting on you: O3 · being
 prepared: O9 (P36) · your word: P47 (commit, deploy) · from the
 viewer: N1 · done: propose close
 ```
@@ -734,7 +743,7 @@ command's refusal, exit 2, nothing written.
 | `show PATH [ID] [--json]` | PATH a live address or `L<id>`, live or closed; no ID: the whole ledger as Markdown, a closed one's followed by a blank line and `closed: TIME` or `abandoned: TIME` (ISO 8601, `closed_at`); an ID (`P`, `O`, `D`, `C`, `F`, `A`, `X`, `G`, `Z`): its fields as `key: value` lines, links as `answers: O3`, `rests-on: F2, C3` lines; or JSON v1 | unknown id |
 | `status PATH [--json]` | the status line; JSON v1 | |
 | `survey [DIR] [--peer NAME] [--json]` | read-only, for a session with no goal: each live ledger at DIR (the current directory by default) or under it: its address, its status line as `check --peek` prints it, its pending entries as `inbox` prints them; with `--peer`, the pieces of any live ledger whose `peer` is exactly NAME, one `ADDRESS  piece line` each; nothing found says so; no beat, no event; JSON v1 | |
-| `stats [PATH] [--json]` | one row per route over every ledger, live and closed, or one (a live address, or `L<id>` live or closed): `route` (`MODEL, effort: E`, `peer: NAME` or `kept`, the route a piece has now), `pieces`, `first-pass` (of the pieces verified, those never back to planned from out or back), `blocked` (ever blocked, of all), `out, median` (each span from the event setting a piece out to the next that changes its status; a piece still out counts none), `returns` (by cause from `piece_returns`, a return in `event_rows` with no row as `unrecorded`); over every ledger (no PATH), a last line `closed ledgers: N finished, M abandoned` (an abandoned one: its `close` event's `argv` holds `--abandon`), in JSON `closed: {finished, abandoned}`; JSON v1. Only the events still in force count: no undo or restore, nor an event one of them reverted (unless a later restore reverted that revert). Reads `events`, `event_rows` and `piece_returns`, writes nothing (no event, no beat) | unknown address or `L<id>` |
+| `stats [PATH] [--json]` | one row per route over every ledger, live and closed, or one (a live address, or `L<id>` live or closed): `route` (`MODEL, effort: E`, `peer: NAME` or `kept`, the route a piece has now), `pieces`, `first-pass` (of the pieces verified, those never back to planned from out or back), `blocked` (ever blocked, of all), `unsent` (the pieces of the live ledgers ready and unsent now), `out, median` (each span from the event setting a piece out to the next that changes its status; a piece still out counts none), `returns` (by cause from `piece_returns`, a return in `event_rows` with no row as `unrecorded`); over every ledger (no PATH), a last line `closed ledgers: N finished, M abandoned` (an abandoned one: its `close` event's `argv` holds `--abandon`), in JSON `closed: {finished, abandoned}`; JSON v1. Only the events still in force count: no undo or restore, nor an event one of them reverted (unless a later restore reverted that revert). Reads `events`, `event_rows` and `piece_returns`, writes nothing (no event, no beat) | unknown address or `L<id>` |
 | `close PATH [--abandon] [--take N<n>…]` | the after-action block, read from the ledger's events once the close is written: `after action:`, then each of these lines that has an item: `returned: P2 (depth), P5 (unrecorded)` (every return, its cause from `piece_returns`, `unrecorded` without a row), `blocked: P4` (the pieces ever blocked), `stalled: P6 (2.5 h)` (the pieces with a span out over an hour, the longest), `answered: O1 12 min, O3 2.1 h` (each closed question, from the event inserting it to the event writing its `answers` edge; `O3 (no ask record)` or `O3 (no answer record)` when that event or edge is not found), `by me: X4` (the decisions by me); with none of these, the block is the one line `after action: nothing returned, blocked or stalled`; the returns, blocked pieces and spans are those `stats` counts, from the events still in force. Then `closed: ADDRESS (L<id>)`, then `noticed, to carry: N` and the lines; `--take` takes the entries (the viewer's Close, `ref` `close`, or its Abandon, `ref` `abandon`) in the close's event. `--abandon` closes it unfinished, `--final` not required: in the same event, every piece planned, out, back or blocked set `dropped` with its `piece_awaits` and `piece_scopes` rows deleted (as `word --word drop` does), every open question closed by a decision by user `O<n>: abandoned with the ledger` with its `answers` edge, then `closed_at`; the line is `abandoned: ADDRESS (L<id>)`. No column marks it: an abandoned ledger is a closed one whose `close` event's `argv` holds `--abandon` (`lib/ledger/abandon.rb`). A close is never undone: `undo` and `restore` take a live ledger | `--final` fails, unless `--abandon` (FAIL lines, exit 1), a refused close taking nothing; inbox pending besides the entries taken (with `--abandon` too: `not abandoned; an entry is pending`); an entry unknown or taken |
 | `inbox PATH [--wait [--timeout S] \| --follow [--quiet S]]` | the pending entries, or "inbox: nothing pending", each headed `N<n> (TIME, KIND):` with KIND one of `answer to O3`, `comment on question O3, not an answer`, `picture asked for O3 (svg)` (on O<n> or P<n>), `comment on piece P4`, `word on P4: commit`, `proposed order of the planned pieces`, the close or abandon word, `note` (`lib/ledger/hooks/entry.rb`, `KINDS`); polls the ledger's newest event id each second | `--wait` timeout exit 1 |
 | `take PATH N<n>…` | `taken: …; pending: …`; one `take` event setting `taken_id` | unknown id; "already taken at TIME: another session filed it" |
@@ -840,13 +849,13 @@ other reader through `--json`; the hooks read the `Snapshot` and the
   status}`.
 - `status --json`: `{schema, kind: "status", line, criteria: [met,
   total], pieces: {verified, live, kept}, out, back, blocked,
-  deferred: [{piece, until}], stalled,
+  deferred: [{piece, until}], stalled, unsent: [{piece, minutes}],
   waiting, preparing: [[O, P]], words: [{piece, words}], from_viewer,
   propose_close}`.
 - `survey --json`: `{schema, kind: "survey", dir, ledgers: [{address, status,
   inbox: [{id, text}]}], peer: null \| {name, pieces: [{ledger, id, line}]}}`.
 - `stats --json`: `{schema, kind: "stats", groups: [{route, pieces,
-  first_pass_verified, blocked_share, median_out_minutes, returns:
+  first_pass_verified, blocked_share, unsent, median_out_minutes, returns:
   {cause: count}}]}`, shares as fractions 0..1, `null` where there is
   nothing to divide or no span out.
 - `show PATH ID --json`: `{schema, kind: "item", item}`, the item's
@@ -867,7 +876,7 @@ other reader through `--json`; the hooks read the `Snapshot` and the
 | links | `[{kind, from, to}]`, visible ids at both ends |
 | closed_questions | the `questions` shape plus `closed_at`, the rows with `closed_at` set, oldest first (the graph page reads them) |
 | pictures | `[{name, files: [{path, type, size}]}]` |
-| pieces | `[{id, status, kept_reason, until, route: {model, effort, skills, peer} \| null, route_text, title, detail, done_when, evidence, after: [P], for: [D], awaits: [{word, what}], scope: [{word, text}], rests_on_assumptions: [A], problem, risk: {rating, text}, plan, verified_by, claim: {session, since} \| null, ready, stalled, touched_at, settled, brief: {version, at} \| null, criteria: [{text, mark, evidence}], returns: [{cause, from, at, actor}], pictures: [{role, name}], no_picture, line}]` (`returns` oldest first, `pictures` before first) |
+| pieces | `[{id, status, kept_reason, until, route: {model, effort, skills, peer} \| null, route_text, title, detail, done_when, evidence, after: [P], for: [D], awaits: [{word, what}], scope: [{word, text}], rests_on_assumptions: [A], problem, risk: {rating, text}, plan, verified_by, claim: {session, since} \| null, ready, ready_since, unsent, stalled, touched_at, settled, brief: {version, at} \| null, criteria: [{text, mark, evidence}], returns: [{cause, from, at, actor}], pictures: [{role, name}], no_picture, line}]` (`returns` oldest first, `pictures` before first) |
 | questions | `[{id, title, detail, problem, risk: {rating, text}, recommend, choices: [{label, effect, cost, text}], items, by, see: [ids], pictures: [{name} \| {pending}], rests_on_assumptions: [A], preparing: P \| null, preparing_status, asked_since, line}]` |
 | refs | `{id: {kind, line}}` for C, D, F, P and X |
 | noticed | `[line]` |
@@ -963,7 +972,8 @@ never cut). Per ledger, every line as `show` prints it:
 4. Constraints, verbatim;
 5. Open: each question's line;
 6. Assuming: each open assumption's line, its check on it;
-7. In flight: each blocked, back, out, planned, deferred piece's line
+7. Ready, unsent: each unsent piece's line, its age appended, `(3 h)`;
+8. In flight: each blocked, back, out, planned, deferred piece's line
    (a deferred one ends `— until: CONDITION`), `(ready)` or `(stalled)`
    appended where derived.
 

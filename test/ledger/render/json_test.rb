@@ -133,8 +133,9 @@ class JsonTest < JsonCase
              noticed inbox asked status fails].freeze
     PIECE = %i[id status kept_reason until route route_text title detail
                done_when evidence after for awaits scope rests_on_assumptions
-               problem risk plan verified_by claim ready stalled touched_at
-               settled brief criteria returns pictures no_picture line].freeze
+               problem risk plan verified_by claim ready ready_since unsent
+               stalled touched_at settled brief criteria returns pictures
+               no_picture line].freeze
     QUESTION = %i[id title detail problem risk recommend choices items by see
                   pictures rests_on_assumptions preparing preparing_status
                   asked_since line].freeze
@@ -248,14 +249,16 @@ class JsonRowsTest < JsonCase
         refute_includes Ledger::Render::Json.generate(document), "12345"
     end
 
+    # P2 awaits commit: not ready.
     def test_pieces_take_ready_stalled_and_settled_from_derive
         build
         states = document[:pieces].map do |piece|
-            piece.values_at(:ready, :stalled, :settled)
+            piece.values_at(:ready, :unsent, :stalled, :settled)
         end
 
-        assert_equal [[false, false, true], [true, false, false],
-                      [false, true, false]], states
+        assert_equal [[false, false, false, true],
+                      [false, false, false, false],
+                      [false, false, true, false]], states
     end
 
     def test_a_piece_carries_its_route_and_risk
@@ -352,5 +355,23 @@ class JsonPointerTest < JsonCase
         assert_equal "path", fact[:pointer_kind]
         assert_equal %i[id text quote where where_kind line], constraint.keys
         assert_equal [nil, nil], constraint.values_at(:where, :where_kind)
+    end
+end
+
+# A ready piece's time: P2 given its word back ten minutes in, so ready
+# since then, and unsent at NOW.
+class JsonReadyTest < JsonCase
+    def test_a_ready_piece_says_since_when_and_whether_unsent
+        build
+        write("piece", [], at: T0 + (10 * MINUTE)) { unawait(it) }
+
+        assert_equal [true, "2023-11-14T23:23:20+01:00", true],
+                     document[:pieces][1].values_at(:ready, :ready_since,
+                                                    :unsent)
+    end
+
+    def unawait(change)
+        change.delete(:piece_scopes, db[:piece_scopes].get(:id))
+        change.delete(:piece_awaits, db[:piece_awaits].get(:id))
     end
 end

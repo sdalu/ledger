@@ -9,12 +9,12 @@ module Ledger
         # equally among them. Per ledger, every line as `show` prints it:
         # a pointer line, the status line, every Goal block, Constraints,
         # the open questions, the open assumptions with their check, the
-        # pieces in flight with `(ready)` or
-        # `(stalled)`. Over its share a ledger drops lines from the end,
-        # pieces then questions, each list closed by `… N more: bin/ledger
-        # show ADDRESS`; when the goal blocks and constraints alone exceed
-        # it, the latest Goal block stays whole and the constraints become
-        # their ids. A quote is never cut.
+        # pieces ready and unsent with their age, the pieces in flight
+        # with `(ready)` or `(stalled)`. Over its share a ledger drops
+        # lines from the end, pieces then questions, each list closed by
+        # `… N more: bin/ledger show ADDRESS`; when the goal blocks and
+        # constraints alone exceed it, the latest Goal block stays whole
+        # and the constraints become their ids. A quote is never cut.
         class ResumeView
             BUDGET = 10_000
             SEPARATOR = "\n\n"
@@ -34,9 +34,7 @@ module Ledger
                 blocks = markdown.render.split("\n\n")
                 @goals = blocks[1, found.snapshot.goals.size]
                 @constraints = blocks.find { it.start_with?("Constraints") }
-                @questions = questions(markdown)
-                @assuming = assuming(markdown)
-                @pieces = pieces(markdown)
+                lines(markdown)
             end
 
             # The longest text within SHARE, dropping from the end.
@@ -62,6 +60,7 @@ module Ledger
                 [head, *goals, constraints,
                  list("Open:", @questions, questions),
                  list("Assuming:", @assuming, @assuming.size),
+                 list("Ready, unsent:", @unsent, @unsent.size),
                  list("In flight:", @pieces, pieces)].compact.join(SEPARATOR)
             end
 
@@ -90,6 +89,13 @@ module Ledger
                 "Constraints: #{ids.join(", ")}, in full: #{@show}"
             end
 
+            def lines(markdown)
+                @questions = questions(markdown)
+                @assuming = assuming(markdown)
+                @unsent = unsent(markdown)
+                @pieces = pieces(markdown)
+            end
+
             def questions(markdown)
                 @found.derive.open_questions.map do |question|
                     markdown.line("O#{question[:n]}")
@@ -99,6 +105,13 @@ module Ledger
             def assuming(markdown)
                 @found.derive.open_assumptions.map do |row|
                     markdown.line("A#{row[:n]}")
+                end
+            end
+
+            # Each piece's line with its age: `… (2 d)`.
+            def unsent(markdown)
+                @found.derive.unsent.map do |piece, age|
+                    "#{markdown.line("P#{piece[:n]}")} (#{Text.span(age)})"
                 end
             end
 

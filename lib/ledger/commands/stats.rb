@@ -15,11 +15,11 @@ module Ledger
         class Stats < CLI::Command
             USAGE = "[PATH]"
             SUMMARY = "a track record per route over every ledger or one: " \
-                      "pieces, first-pass verified, blocked, median time " \
-                      "out, returns by cause"
+                      "pieces, first-pass verified, blocked, ready and " \
+                      "unsent, median time out, returns by cause"
             LEDGER = /\AL([1-9]\d*)\z/
-            HEAD = ["route", "pieces", "first-pass", "blocked", "out, median",
-                    "returns"].freeze
+            HEAD = ["route", "pieces", "first-pass", "blocked", "unsent",
+                    "out, median", "returns"].freeze
 
             private
 
@@ -66,7 +66,7 @@ module Ledger
             def group(group)
                 { route: group.route, pieces: group.pieces,
                   first_pass_verified: group.first_pass_share,
-                  blocked_share: group.blocked_share,
+                  blocked_share: group.blocked_share, unsent: group.unsent,
                   median_out_minutes: group.median_out_minutes,
                   returns: group.returns }
             end
@@ -88,6 +88,7 @@ module Ledger
             def cells(group)
                 [group.route, group.pieces.to_s, first_pass(group),
                  "#{group.blocked} #{percent(group.blocked_share)}",
+                 group.unsent.to_s,
                  out(group.median_out_minutes), returns(group.returns)]
             end
 

@@ -377,6 +377,8 @@ module Ledger
 
                 def state(piece)
                     { ready: @derive.ready?(piece),
+                      ready_since: Json.time(@derive.ready_since(piece)),
+                      unsent: @derive.unsent?(piece),
                       stalled: @derive.stalled?(piece),
                       touched_at: Json.time(@derive.touched_at(piece)),
                       settled: @derive.settled?(piece) }
