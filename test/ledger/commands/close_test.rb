@@ -61,7 +61,8 @@ class CloseTest < CommandCase
         ok("noticed", BETA, "side thing")
         finish
         out = ok("close", BETA)
-        assert_equal ["after action:", "closed: #{BETA} (L#{@beta})",
+        assert_equal ["after action: nothing returned, blocked or stalled",
+                      "closed: #{BETA} (L#{@beta})",
                       "noticed, to carry: 1", "- side thing"],
                      out.lines(chomp: true)
         refute_nil db[:ledgers].where(id: @beta).get(:closed_at)
@@ -157,6 +158,18 @@ class CloseAfterActionTest < CommandCase
         ok("criterion", BETA, "D1", "--met", "seen")
         assert_equal [*BLOCK, "closed: #{BETA} (L#{@beta})"],
                      ok("close", BETA).lines(chomp: true)
+    end
+
+    # O3 closed by a write that links no decision to it.
+    def test_a_question_closed_without_an_answer_record_says_so
+        ask(200, "Which size fits?", "Size choice")
+        id = db[:questions].where(ledger_id: @beta, n: 3).get(:id)
+        Ledger::Write.run(@journal, BETA, "ask", []) do |change|
+            change.update(:questions, id, closed_at: Ledger::Write.now)
+        end
+        ok("criterion", BETA, "D1", "--met", "seen")
+        assert_includes ok("close", BETA).lines(chomp: true),
+                        "answered: O1 12 min, O2 2.1 h, O3 (no answer record)"
     end
 
     def test_a_refused_close_prints_no_block
