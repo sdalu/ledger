@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "ledger/checks/codes"
 require "ledger/checks/criteria"
 require "ledger/checks/final"
 require "ledger/checks/goal"
@@ -42,6 +43,7 @@ module Ledger
             rule("pieces-awaits", Awaits.method(:problems)),
             rule("titles", ->(d) { Pieces.titles(d) + Open.titles(d) }),
             rule("details", ->(d) { Pieces.details(d) + Open.details(d) }),
+            rule("codes", Codes.method(:problems)),
             rule("pieces-order", Pieces.method(:order)),
             rule("criteria-pieces", Criteria.method(:pieces)),
             rule("case-rated", lambda do |d|

@@ -557,6 +557,7 @@ per rule, its commands spelled for `bin/ledger`
 | pieces-awaits | `start` only on a planned or kept piece, a finishing word on a settled one, a scope only for a word awaited | `checks/pieces.rb` |
 | titles | pieces in flight and open questions: the title rule | `checks/pieces.rb`, `checks/open.rb` |
 | details | a detail not mostly ids | same |
+| codes | no code of one or two capitals and digits (W1, S4) standing alone whose letter is not a kind (P O D C F X N Z E L), unless an open question's `— see:` names an item whose words hold it; read in the latest Goal block's title, short and context, pieces in flight (title, detail, problem, plan), open questions (title, detail, problem, risk, recommend), decisions (body, note), facts (text, pointer), constraints' where and noticed lines; not in the Goal quote, a constraint's quote, double quotes, `` `code` `` or a URL; the detail is `ID: CODE, …` | `checks/codes.rb`, tokens in `text/codes.rb` |
 | pieces-order | out, back or verified only once `after` is settled; none waits for a dropped piece | `checks/pieces.rb` |
 | criteria-pieces | no criterion met while a piece serving it is unfinished | `checks/criteria.rb` |
 | case-rated | a rated risk on every open question and on every piece awaiting a word, a problem on that piece, Title and In short on the latest Goal | `checks/open.rb`, `checks/pieces.rb`, `checks/goal.rb` |
@@ -599,8 +600,8 @@ other reader through `--json`; the hooks read the `Snapshot` and the
 | ledger | `{id, address, place, name, project, url_id, updated_at, closed_at}` (`updated_at` is the last event's time) |
 | goals | `[{stamp, date, revised, title, short, context, quote}]` |
 | criteria | `[{id, mark, text, evidence, why, line}]` |
-| constraints | `[{id, text, quote, line}]` |
-| facts | `[{id, text, pointer, line}]` |
+| constraints | `[{id, text, quote, where, where_kind, line}]` (`where` is the line after `"QUOTE" — `; both null when the line has another shape) |
+| facts | `[{id, text, pointer, pointer_kind, line}]` |
 | decisions | `[{id, date, body, by, note, subject, line}]` (`id` is `X<n>`) |
 | links | `[{kind, from, to}]`, visible ids at both ends |
 | closed_questions | the `questions` shape plus `closed_at`, the rows with `closed_at` set, oldest first (the graph page reads them) |
@@ -616,6 +617,16 @@ other reader through `--json`; the hooks read the `Snapshot` and the
 
 `line` is the item's line exactly as `show` prints it, so a reader never
 rebuilds one. Times are ISO 8601 in local time with the offset.
+
+**Pointer kinds.** A fact's `pointer` and a constraint's `where` carry
+their kind (`text/pointer.rb`), so a reader draws them without parsing:
+`url` (the whole pointer is an `http` or `https` URL), `path` (one word
+holding a `/` or ending with a file extension, optionally `:line` or
+`:line-line`), `turn` (`turn` followed by text: said in the
+conversation), `text` (anything else). The kinds are tried in that
+order. No pointer is refused for its form. The viewer draws a URL as a
+link opening a new tab, a path in monospace titled `file`, a turn as
+written titled `said in the conversation`, free text unchanged.
 
 **The index document.** `{schema, kind: "index", ledgers}`, one entry
 per ledger, live first, then by `updated_at`, newest first: `id`,

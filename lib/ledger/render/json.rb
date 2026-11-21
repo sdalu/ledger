@@ -5,6 +5,7 @@ require "json"
 
 require "ledger/derive"
 require "ledger/render/markdown"
+require "ledger/text/pointer"
 
 module Ledger
     module Render
@@ -91,15 +92,20 @@ module Ledger
             # and the line `show` prints.
             def items
                 { criteria: lined("D", :criteria, %i[mark text evidence why]),
-                  constraints: lined("C", :constraints, %i[text quote]),
-                  facts: lined("F", :facts, %i[text pointer]),
+                  constraints: lined("C", :constraints, %i[text quote],
+                                     &Text::Pointer.method(:of_constraint)),
+                  facts: lined("F", :facts, %i[text pointer],
+                               &Text::Pointer.method(:of_fact)),
                   decisions: lined("X", :decisions,
                                    %i[date body by note subject]) }
             end
 
+            # A block adds the columns it derives from the row, after the
+            # row's own.
             def lined(kind, table, columns)
                 @snapshot[table].map do |row|
                     { id: "#{kind}#{row[:n]}", **row.slice(*columns),
+                      **(block_given? ? yield(row) : {}),
                       line: @markdown.line("#{kind}#{row[:n]}") }
                 end
             end

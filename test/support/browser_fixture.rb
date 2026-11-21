@@ -12,8 +12,8 @@ module BrowserFixture
     GOAL = ["--goal", "fix the calendar, the noise $\\sigma^2$ **bounded**",
             "--title", "Port the parser", "--short", "port the parser to C23",
             "--date", "2026-11-19"].freeze
-    FACT = "leftovers, not re-checked: V1 radii (menu.css:28); V2 one " \
-           "shadow (room.css:211); S1 empty slot — doc/r.md:3"
+    FACT = "leftovers, not re-checked: `V1` radii (menu.css:28); `V2` one " \
+           "shadow (room.css:211); `S1` empty slot — doc/r.md:3"
     PIECES = [
         ["--route", "sonnet, effort: medium",
          "--title", "document the priority range", "--for", "D1"],
