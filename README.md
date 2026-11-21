@@ -353,8 +353,9 @@ session yet, questions being
 prepared, criteria not met straight under the Goal, unfinished pieces
 with a fold to propose their order, failing shape checks) with what is
 done folded below. A planned or deferred piece with nothing to say yet
-(no problem, risk or plan, no word awaited, no picture, nothing sent on
-it) is one row under Unfinished pieces (title, status, id, the links
+(no problem, risk or plan, no word awaited, no picture, no issue such
+as returned, stalled or ready and not sent, nothing sent on it) is one
+row under Unfinished pieces (title, status, id, the links
 icon) that opens into its card; a link to `#piece-P<n>` opens it. Out,
 back and blocked pieces, and any with something to say, stay cards; a
 blocked piece says what blocks it straight under its title.

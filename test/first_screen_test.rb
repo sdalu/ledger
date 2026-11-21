@@ -81,6 +81,18 @@ class FirstScreenTest < ViewerTest
         end
     end
 
+    # Returned, stalled or ready and not sent: the issue on the RAID line
+    # is what to read, so the piece stays a card.
+    def test_a_planned_piece_with_an_issue_stays_a_card
+        ledger("piece", "P1", "--status", "out", "--session", "s1")
+        ledger("piece", "P1", "--status", "planned", "--cause", "depth")
+        card = card("piece-P1")
+
+        assert_includes card, "card-head"
+        refute_includes card, "piece-row"
+        assert_includes card, "returned 1: depth"
+    end
+
     private
 
     def page

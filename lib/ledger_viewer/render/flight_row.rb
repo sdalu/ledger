@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "case"
+require_relative "raid"
 require_relative "text"
 require_relative "why"
 
@@ -15,14 +16,21 @@ module LedgerViewer
             QUIET = %w[planned deferred].freeze
 
             # Whether PIECE has nothing to say: planned or deferred, no
-            # problem, risk or plan, no word awaited, no picture, and
-            # nothing the user sent on it waiting to be filed (READING).
+            # problem, risk or plan, no word awaited, no picture, no issue
+            # (returned, stalled, ready and not sent: the card's RAID line
+            # must show it), and nothing the user sent on it waiting to be
+            # filed (READING).
             def self.quiet?(piece, reading)
                 QUIET.include?(piece["status"]) && piece["awaits"].empty? &&
-                    Case.fields(piece).values_at("problem", "risk", "plan")
-                        .all? { Text.strip(it.to_s).empty? } &&
+                    untold?(piece) && Raid.issues(piece).empty? &&
                     piece.fetch("pictures", []).empty? &&
                     reading.unfiled_on(piece["id"]).empty?
+            end
+
+            # No problem, risk or plan.
+            def self.untold?(piece)
+                Case.fields(piece).values_at("problem", "risk", "plan")
+                    .all? { Text.strip(it.to_s).empty? }
             end
 
             def initialize(scope, lid)
