@@ -8,7 +8,7 @@ class GoalChecksTest < CheckCase
         goal(title: "O13 D1")
 
         assert_fails "goal-titled",
-                     "#{Ledger::Checks::Goal::TITLED}Goal (2026-11-20, " \
+                     "#{Ledger::Checks::Goal::TITLED}Goal G2 (2026-11-20, " \
                      "verbatim): #{Ledger::Text::Title::MOSTLY_IDS}"
     end
 
@@ -22,7 +22,7 @@ class GoalChecksTest < CheckCase
         goal(stamp: "2026-11-21, revised", revised: true, quote: "do it now")
 
         assert_fails "goal-revision", "#{Ledger::Checks::Goal::GO_AHEAD}: " \
-                                      "Goal (2026-11-21, revised):"
+                                      "Goal G2 (2026-11-21, revised):"
     end
 
     def test_a_revision_of_four_words_passes

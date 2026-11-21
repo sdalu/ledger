@@ -385,7 +385,7 @@
     }
     /* an id in no state colour: the same split in gray, the letter pale and
        the number solid */
-    :is(.legend, .question-nav li:not(.is-ask, .is-flight, .is-fail), .entries > li:not(.is-ask, .is-flight, .is-fail, .is-done, .is-card)) &.is-split {
+    :is(.legend, .goal, .question-nav li:not(.is-ask, .is-flight, .is-fail), .entries > li:not(.is-ask, .is-flight, .is-fail, .is-done, .is-card)) &.is-split {
       --state: var(--muted);
       & > .n { color: var(--on-state); background: var(--muted); }
     }
@@ -715,8 +715,8 @@
     }
   }
 
-  /* earlier goals, newest first, folded under the current one */
-  .goal-history {
+  /* the done goals, newest first, folded under the active ones */
+  .goal-done {
     margin-block-start: var(--space-s);
     & > summary { min-block-size: 1.5rem; font-size: 0.875rem; color: var(--muted); }
     & > .goal { margin-block-start: var(--space-s); }
@@ -1263,12 +1263,15 @@
     background: var(--panel);
     overflow-wrap: anywhere;
     & + .goal { margin-block-start: var(--space-s); }
+    /* its id heads it, at the end of the title's line */
+    & > .tag { float: inline-end; margin-inline: var(--space-s) 0; }
     & .goal-title {
       font-size: 1.25rem;
       font-weight: 650;
       line-height: 1.3;
     }
     & .goal-short { font-size: 1.0625rem; }
+    & .goal-evidence { margin-block-start: 0.25rem; font-size: 0.875rem; }
     & .goal-context {
       margin-block-start: 0.25rem;
       font-size: 0.875rem;

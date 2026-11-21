@@ -36,7 +36,8 @@ class CheckCase < JournalTest
     end
 
     def goal(**columns)
-        @rows.insert(:goals, stamp: "2026-11-20, verbatim", date: "2026-11-20",
+        @rows.insert(:goals, n: @rows.next_id("G"),
+                             stamp: "2026-11-20, verbatim", date: "2026-11-20",
                              revised: false, title: "Ledger in Ruby",
                              short: "one journal", quote: "go full ruby now",
                              **columns)

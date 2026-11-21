@@ -56,7 +56,7 @@ module Ledger
             end
 
             def seed(change, row, carried)
-                change.insert(:goals, **row)
+                change.insert(:goals, n: change.next_id("G"), **row)
                 change.insert(:criteria, n: change.next_id("D"), mark: " ",
                                          text: PLACEHOLDER, evidence: "")
                 carried.each { change.insert(:noticed, line: it) }

@@ -15,7 +15,7 @@ class CodesTest < Minitest::Test
     end
 
     def test_kinds_are_not_codes
-        assert_empty Codes.find("P3, O2, D1, C23, F4, X2, N1, Z3, E9, L2")
+        assert_empty Codes.find("P3, O2, D1, C23, F4, X2, N1, Z3, E9, L2, G2")
     end
 
     def test_quotes_code_and_urls_are_set_aside

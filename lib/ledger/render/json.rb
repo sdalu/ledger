@@ -18,6 +18,8 @@ module Ledger
         #     Ledger::Render::Json.generate(doc)   # the text
         class Json
             SCHEMA = 1
+            # A Goal block's own columns, between its id and its done mark.
+            GOAL = %i[stamp date revised title short context quote].freeze
 
             # What the rows alone do not say: UPDATED_AT (ms), SIZES
             # {picture id => bytes}, EVENTS {event id => {at:, actor:}}
@@ -84,8 +86,8 @@ module Ledger
 
             def goals
                 @snapshot.goals.map do |row|
-                    row.slice(:stamp, :date, :revised, :title, :short,
-                              :context, :quote)
+                    { id: "G#{row[:n]}", **row.slice(*GOAL),
+                      done: !row[:done_at].nil?, **row.slice(:done_evidence) }
                 end
             end
 

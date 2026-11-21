@@ -11,7 +11,7 @@ module Ledger
         #     Ledger::Text::Codes.find('"W1" and `S4`')     # => []
         module Codes
             # The letters of a ledger's ids, those the commands take too.
-            KINDS = %w[P O D C F X N Z E L].freeze
+            KINDS = %w[P O D C F X N Z E L G].freeze
             # Not after a word character, / . _ or -; not followed by a
             # word character, a / or a .ext: then it is a path or a name.
             CODE = %r{(?<![\p{Word}/.-])[A-Z]{1,2}[0-9]+

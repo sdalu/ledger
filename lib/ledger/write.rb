@@ -146,12 +146,12 @@ module Ledger
         # The table each visible id's letter names.
         TABLES = { "P" => :pieces, "O" => :questions, "D" => :criteria,
                    "C" => :constraints, "F" => :facts, "N" => :inbox_entries,
-                   "X" => :decisions }.freeze
+                   "X" => :decisions, "G" => :goals }.freeze
         # Columns filled from the write when the row leaves them out.
         WITH_LEDGER = (Snapshot::LEDGER_TABLES + [:pictures]).freeze
         WITH_EVENT = %i[links pictures piece_briefs piece_returns].freeze
         # The shape of a visible id.
-        REF = /\A(?<kind>[PODCFNX])(?<n>[1-9]\d*)\z/
+        REF = /\A(?<kind>[PODCFNXG])(?<n>[1-9]\d*)\z/
 
         attr_reader :ledger, :event_id
         # `own`: the visible id the command writes, set by the block once
@@ -166,6 +166,9 @@ module Ledger
         end
 
         def ledger_id = ledger[:id]
+
+        # The write's time (ms), its event's.
+        def at = @db[:events].where(id: event_id).get(:at)
 
         # U3: the next n of a kind, inside the transaction; an id given
         # once is never given again, whatever became of its item.

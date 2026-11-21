@@ -22,7 +22,7 @@ class RenderTest < JournalTest
     def text(&) = render(snapshot(&))
 
     def goal(change, **columns)
-        change.insert(:goals, **GOAL, **columns)
+        change.insert(:goals, n: change.next_id("G"), **GOAL, **columns)
     end
 
     def criterion(change, **columns)
