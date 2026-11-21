@@ -7,7 +7,8 @@ module Ledger
     # pieces of the ledgers named, grouped by the route each has now, and
     # what their history says. The status changes are read from
     # event_rows, so a return written before piece_returns existed still
-    # counts, as `unrecorded`. Nothing is written.
+    # counts, as `unrecorded`; only the events still in force count
+    # (Stats::InForce). Nothing is written.
     #
     #     Ledger::Stats.read(db, [3, 4]).map(&:route)
     #     # => ["sonnet, effort: medium", "peer: web", "kept"]
@@ -41,6 +42,7 @@ module Ledger
         def initialize(db, ledger_ids)
             @db = db
             @pieces = db[:pieces].where(ledger_id: ledger_ids).all
+            @reverted = InForce.new(db, ledger_ids).reverted
             @changes = changes.group_by(&:piece_id)
             @recorded = db[:piece_returns].where(piece_id: ids)
                                           .select_map(%i[piece_id event_id
@@ -49,7 +51,7 @@ module Ledger
         end
 
         # The groups: model routes by model then effort, then the peers,
-        # kept, unrouted.
+        # then kept.
         def groups
             @pieces.group_by { [rank(it), route(it)] }.sort_by(&:first)
                    .map { |(_, label), list| group(label, list) }
@@ -62,7 +64,6 @@ module Ledger
         def route(piece)
             return "kept" if piece[:status] == "kept"
             return "peer: #{piece[:peer]}" if piece[:peer]
-            return "unrouted" unless piece[:model]
 
             "#{piece[:model]}, effort: #{piece[:effort]}"
         end
@@ -70,7 +71,6 @@ module Ledger
         def rank(piece)
             return [2] if piece[:status] == "kept"
             return [1] if piece[:peer]
-            return [3] unless piece[:model]
 
             [0, MODELS.index(piece[:model]), EFFORTS.index(piece[:effort])]
         end
@@ -109,7 +109,7 @@ module Ledger
         end
 
         # The status changes of the pieces, oldest first: event_rows on
-        # pieces from events of the piece's own ledger.
+        # pieces from events of the piece's own ledger still in force.
         def changes
             ledgers = @pieces.to_h { [it[:id], it[:ledger_id]] }
             @db[:event_rows].join(:events, id: :event_id)
@@ -118,8 +118,14 @@ module Ledger
                             .select(:row_id, :event_id, :before, :after,
                                     :ledger_id, :at)
                             .filter_map do |row|
-                change(row) if ledgers[row[:row_id]] == row[:ledger_id]
+                change(row) if in_force?(row, ledgers)
             end
+        end
+
+        # Whether ROW is of its piece's own ledger and of an event in force.
+        def in_force?(row, ledgers)
+            ledgers[row[:row_id]] == row[:ledger_id] &&
+                !@reverted.include?(row[:event_id])
         end
 
         def change(row)
@@ -134,4 +140,5 @@ module Ledger
     end
 end
 
+require "ledger/stats/in_force"
 require "ledger/stats/track"

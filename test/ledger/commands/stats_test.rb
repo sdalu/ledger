@@ -140,3 +140,42 @@ class StatsTest < StatsCase
         assert_equal before, everything
     end
 end
+
+# `stats` reads only the events in force: an undone claim or return
+# counts nowhere, and a restore that reverts the undo brings it back.
+class StatsUndoTest < StatsCase
+    OPUS = "opus, effort: high"
+
+    def setup
+        super
+        ok("piece", BETA, "P3", *OUT)
+    end
+
+    def opus = groups[OPUS]
+
+    def return_env
+        ok("piece", BETA, "P3", "--status", "planned", "--cause", "env")
+    end
+
+    def test_a_claim_undone_leaves_no_return_and_no_span
+        ok("undo", BETA)
+        assert_equal({ depth: 1 }, opus[:returns])
+        assert_in_delta 10.0, opus[:median_out_minutes]
+    end
+
+    def test_a_return_with_a_cause_undone_leaves_no_return
+        return_env
+        ok("undo", BETA)
+        assert_equal "out", db[:pieces].where(ledger_id: @beta, n: 3)
+                                       .get(:status)
+        assert_equal({ depth: 1 }, opus[:returns])
+    end
+
+    def test_a_restore_that_reverts_the_undo_brings_the_return_back
+        return_env
+        back = db[:events].max(:id)
+        ok("undo", BETA)
+        ok("restore", BETA, "--to", "E#{back}")
+        assert_equal({ depth: 1, env: 1 }, opus[:returns])
+    end
+end
