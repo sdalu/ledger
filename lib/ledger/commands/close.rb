@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "ledger/after_action"
 require "ledger/commands/answer"
 
 module Ledger
@@ -8,6 +9,7 @@ module Ledger
         # ones, its row kept with `closed_at`; refused while `--final`
         # fails or an entry of the viewer is pending. `--take` files the
         # entries that asked for it (the viewer's Close) in the same event.
+        # A close done prints its after-action block (AfterAction) first.
         class Close < CLI::Command
             include Taking
 
@@ -32,6 +34,7 @@ module Ledger
 
             def run(path)
                 id, noticed = closing(path)
+                AfterAction.lines(journal.db, id).each { @out.puts it }
                 @out.puts "closed: #{Address.parse(path)} (L#{id})"
                 carry(noticed)
                 0
