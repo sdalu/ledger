@@ -70,16 +70,24 @@ module Ledger
             end
 
             # Scalars as `key: value`, lists joined by ` | `, a link kind
-            # as its own line (`rests-on: F2, C3`).
+            # as its own line (`rests-on: F2, C3`), a piece's return as
+            # its own line (`return: env, from back, TIME`).
             def text(item)
                 links = item[:links] || {}
-                [*item.except(:links).map do |key, value|
+                [*item.except(:links, :returns).map do |key, value|
                     "#{key}: #{value(value)}"
                 end,
                  *links.map do |kind, ids|
                      "#{kind.tr("_", "-")}: #{ids.join(", ")}"
-                 end]
+                 end,
+                 *returns(item)]
                     .join("\n")
+            end
+
+            def returns(item)
+                item.fetch(:returns, []).map do |row|
+                    "return: #{row[:cause]}, from #{row[:from]}, #{row[:at]}"
+                end
             end
 
             def value(value)

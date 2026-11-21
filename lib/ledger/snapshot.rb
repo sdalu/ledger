@@ -8,7 +8,8 @@ module Ledger
     class Snapshot
         # Keyed by ledger_id.
         LEDGER_TABLES = %i[goals criteria constraints facts decisions links
-                           pieces questions noticed inbox_entries].freeze
+                           pieces piece_returns questions noticed
+                           inbox_entries].freeze
         # Keyed by piece_id, through pieces.
         PIECE_TABLES = %i[piece_links piece_awaits piece_scopes
                           piece_briefs piece_criteria].freeze

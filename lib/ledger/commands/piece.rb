@@ -8,9 +8,10 @@ module Ledger
     module Commands
         # `piece PATH new|P<n> [--status --route --title --what --done-when
         # --evidence --after --for --problem --risk --plan --scope --awaits
-        # --verified-by --session --by]`: add a piece or change one; `--by
-        # X<n>` writes the decision's led_to edge to it, `--status out`
-        # claims it for the session (U12).
+        # --verified-by --session --by --cause]`: add a piece or change one;
+        # `--by X<n>` writes the decision's led_to edge to it, `--status
+        # out` claims it for the session (U12), `--status planned` on a
+        # piece out or back records its return with `--cause`.
         class Piece < CLI::Command
             USAGE = "PATH TARGET"
             SYNOPSIS = "PATH new|P<n> [--FIELD VALUE...]"
@@ -37,7 +38,9 @@ module Ledger
                             "other (what)",
                 "verified-by" => "who checked it: me, a route, peer: SESSION",
                 "session" => "who claims an out ($CLAUDE_CODE_SESSION_ID)",
-                "by" => "X<n>, the decision that led to it"
+                "by" => "X<n>, the decision that led to it",
+                "cause" => "why a piece out or back goes back to planned: " \
+                           "brief, split, depth, contract or env"
             }.freeze
 
             private
@@ -76,8 +79,8 @@ module Ledger
         end
 
         # The rows one `piece` command changes: the piece, its links, its
-        # awaited words and their scope, the led_to edge of `--by`, and the
-        # claim of `--status out`.
+        # awaited words and their scope, the led_to edge of `--by`, the
+        # claim of `--status out`, and the return of `--cause`.
         class PieceWriter
             BY = /\AX[1-9]\d*\z/
             # The flag of each piece_links kind and the column it fills.
@@ -101,6 +104,7 @@ module Ledger
                 PieceWords.new(@change, @db, id).sync(row.awaits, row.scopes)
                 by(id)
                 claim(id, row)
+                returned(id, row)
                 @change.own
             end
 
@@ -184,6 +188,14 @@ module Ledger
 
             def claim(id, row)
                 @change.status(id, "out", session: @session) if row.claim?
+            end
+
+            # The return a `--status planned` from out or back records,
+            # in the write's event.
+            def returned(id, row)
+                from = row.returning or return
+                @change.insert(:piece_returns, piece_id: id, from_status: from,
+                                               cause: row.cause)
             end
         end
 
@@ -329,12 +341,52 @@ module Ledger
             end
         end
 
+        # A return: `--status planned` on a piece out or back, which says
+        # why with `--cause`; `--cause` on any other change is refused.
+        module PieceCause
+            CAUSES = %w[brief split depth contract env].freeze
+            RETURNED = %w[out back].freeze
+            CAUSE_LIST = "one of brief, split, depth, contract or env"
+
+            # The status a return leaves (out or back); nil when the
+            # command is no return.
+            def returning
+                return unless @old && @opts["status"]&.strip == "planned"
+
+                @old[:status] if RETURNED.include?(@old[:status])
+            end
+
+            # The cause given, stripped.
+            def cause = @opts["cause"]&.strip
+
+            private
+
+            def caused
+                return uncaused unless returning
+
+                if cause.to_s.empty?
+                    refuse("P#{@old[:n]} goes back to planned from " \
+                           "#{returning}: --cause says why, #{CAUSE_LIST}")
+                end
+                refuse("--cause #{cause}: #{CAUSE_LIST}") unless
+                    CAUSES.include?(cause)
+            end
+
+            def uncaused
+                return unless @opts.key?("cause")
+
+                refuse("--cause is for a return: --status planned on a " \
+                       "piece out or back")
+            end
+        end
+
         # The pieces columns a `piece` command asks for: the old row, or a
         # new piece's defaults, with each flag given applied; refused when
         # the result breaks a rule a piece keeps. AWAITS and SCOPES are
         # the stored [[word, what]] and [[word, text]] lists.
         class PieceRow
             include PieceFlags
+            include PieceCause
 
             COLUMNS = (%i[status kept_reason dash title detail risk_rating] +
                        NO_ROUTE.keys + PROSE.values).freeze
@@ -415,6 +467,7 @@ module Ledger
                     @row[:title]
                 awaiting
                 routed
+                caused
                 refuse(VERIFIED) if @opts["status"]&.strip == "verified" &&
                                     @row[:verified_by].nil?
             end

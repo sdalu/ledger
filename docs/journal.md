@@ -301,7 +301,35 @@ Sequel.migration do
 end
 ```
 
-The `CHECK` constraints the migration adds, each one a check rule the
+```ruby
+# frozen_string_literal: true
+
+# lib/ledger/migrations/002_piece_returns.rb (sketch)
+Sequel.migration do
+    change do
+        create_table(:piece_returns) do  # piece --status planned --cause
+            primary_key :id
+            foreign_key :ledger_id, :ledgers, null: false
+            foreign_key :piece_id, :pieces, null: false
+            foreign_key :event_id, :events, null: false # the return's write
+            String :from_status, null: false # out | back
+            String :cause, null: false   # brief split depth contract env
+            index %i[ledger_id piece_id]
+        end
+    end
+end
+```
+
+**A piece's returns.** A piece out or back that goes back to planned
+(a retry) says why: `piece P<n> --status planned --cause C` writes a
+`piece_returns` row in the same event as the status, its time and actor
+those of the event. The causes: `brief`, the brief lacked something;
+`split`, the piece was cut wrong; `depth`, the tier or the effort was too
+low; `contract`, the delegate broke the escalation contract; `env`, the
+environment failed. The row goes through the write path, so `undo` and
+`restore` take it back with the status.
+
+The `CHECK` constraints the migrations add, each one a check rule the
 schema makes impossible (section 5):
 
 | Table | Constraint |
@@ -318,6 +346,7 @@ schema makes impossible (section 5):
 | piece_links | after: `after_id` set and `<> piece_id`; for: `criterion_id` set |
 | piece_awaits | `word` in the list; `what <> ''` iff other |
 | piece_criteria | `mark IN (' ','x','-')` |
+| piece_returns | `from_status IN ('out','back')`; `cause IN ('brief','split','depth','contract','env')` |
 | questions | `risk_rating BETWEEN 0 AND 10` |
 | question_sees, question_pictures | exactly one target column set |
 | pictures | `name <> ''`; `type` in the served list |
@@ -496,7 +525,7 @@ command's refusal, exit 2, nothing written.
 | `close PATH [--take N<n>…]` | `closed: ADDRESS (L<id>)`, then `noticed, to carry: N` and the lines; `--take` takes the entries (the viewer's Close, `ref` `close`) in the close's event | `--final` fails (FAIL lines, exit 1), a refused close taking nothing; inbox pending besides the entries taken; an entry unknown or taken |
 | `inbox PATH [--wait [--timeout S] \| --follow [--quiet S]]` | the pending entries, or "inbox: nothing pending"; polls the ledger's newest event id each second | `--wait` timeout exit 1 |
 | `take PATH N<n>…` | `taken: …; pending: …`; one `take` event setting `taken_id` | unknown id; "already taken at TIME: another session filed it" |
-| `piece PATH new\|P<n> [--status --route --title --what --done-when --evidence --after --for --problem --risk --plan --scope --awaits --verified-by --session --by X<n> --dry-run]` | the new id (new), the piece line, status line | target shape; no such piece; title, detail; scope grammar or a word not awaited; new without title; awaiting without problem and rated risk; no route and not kept; out without a session, or out under another holder; verified without `--verified-by`; checks |
+| `piece PATH new\|P<n> [--status --route --title --what --done-when --evidence --after --for --problem --risk --plan --scope --awaits --verified-by --session --by X<n> --cause C --dry-run]` | the new id (new), the piece line, status line | target shape; no such piece; title, detail; scope grammar or a word not awaited; new without title; awaiting without problem and rated risk; no route and not kept; a return (`--status planned` from out or back) without `--cause` or with a cause not in `brief`, `split`, `depth`, `contract`, `env`; `--cause` on any other change; out without a session, or out under another holder; verified without `--verified-by`; checks |
 | `ask PATH QUESTION --title [--choices --by --items --see --problem --risk --recommend] (--mockup N \| --pending P \| --no-picture WHY) [--replaces O<n>] [--dry-run]` | the id, the line, a warning at 7–8 options, the picker card (dry run), status line | title, detail; problem and rated risk; empty question; not exactly one picture decision; pending piece missing or dropped; no picture of that name in the journal; `--by` dropped; option grammar; `--items` without `--choices`; `--replaces` not open or with an untaken entry; checks |
 | `answer PATH O<n> --decision [--date] [--take N…] [--replaces X<n>] [--dry-run]` | the id (`X<n>`), the decision line, the take line, status line | not open; empty decision; unknown or already taken entry; checks |
 | `word PATH P<n> --word W [--date] [--take N…] [--dry-run]` | the id (`X<n>`), the decision line, the piece line, the take line, status line | not P<n>; no piece; empty; awaits no word; a word not awaited; unknown or taken entry; checks |
@@ -591,7 +620,8 @@ other reader through `--json`; the hooks read the `Snapshot` and the
   propose_close}`.
 - `show PATH ID --json`: `{schema, kind: "item", item}`, the item's
   object below; `show PATH ID` prints its scalar fields as `key: value`,
-  lists joined by ` | `.
+  lists joined by ` | `, and a piece's returns one a line, `return:
+  CAUSE, from STATUS, TIME`.
 - `show PATH --json`: `{schema, kind: "ledger", …}`:
 
 | Key | Content |
@@ -605,7 +635,7 @@ other reader through `--json`; the hooks read the `Snapshot` and the
 | links | `[{kind, from, to}]`, visible ids at both ends |
 | closed_questions | the `questions` shape plus `closed_at`, the rows with `closed_at` set, oldest first (the graph page reads them) |
 | pictures | `[{name, files: [{path, type, size}]}]` |
-| pieces | `[{id, status, kept_reason, route: {model, effort, skills, peer} \| null, route_text, title, detail, done_when, evidence, after: [P], for: [D], awaits: [{word, what}], scope: [{word, text}], problem, risk: {rating, text}, plan, verified_by, claim: {session, since} \| null, ready, stalled, settled, brief: {version, at} \| null, criteria: [{text, mark, evidence}], line}]` |
+| pieces | `[{id, status, kept_reason, route: {model, effort, skills, peer} \| null, route_text, title, detail, done_when, evidence, after: [P], for: [D], awaits: [{word, what}], scope: [{word, text}], problem, risk: {rating, text}, plan, verified_by, claim: {session, since} \| null, ready, stalled, settled, brief: {version, at} \| null, criteria: [{text, mark, evidence}], returns: [{cause, from, at, actor}], line}]` (`returns` oldest first) |
 | questions | `[{id, title, detail, problem, risk: {rating, text}, recommend, choices: [{label, effect, cost, text}], items, by, see: [ids], pictures: [{name} \| {pending}], preparing: P \| null, preparing_status, asked_since, line}]` |
 | refs | `{id: {kind, line}}` for C, D, F, P and X |
 | noticed | `[line]` |
@@ -710,7 +740,7 @@ a temporary directory per test.
 
 | Area | Files |
 |---|---|
-| journal, write path | `lib/ledger.rb` (the `Ledger::Error` family), `lib/ledger/journal.rb`, `migrations/001_journal.rb`, `snapshot.rb`, `write.rb` |
+| journal, write path | `lib/ledger.rb` (the `Ledger::Error` family), `lib/ledger/journal.rb`, `migrations/001_journal.rb`, `migrations/002_piece_returns.rb`, `snapshot.rb`, `write.rb` |
 | text rules | `lib/ledger/text/{title,picker,awaits,risk,options}.rb`, pure functions |
 | render | `lib/ledger/render/markdown.rb` (`show`), `render/json.rb` and `read.rb` (JSON v1) |
 | derived states, checks | `lib/ledger/derive.rb`, `lib/ledger/checks/*.rb` |
