@@ -10,6 +10,7 @@ module Ledger
         module Entry
             KINDS = { "answer" => "answer to %s",
                       "comment" => "comment on piece %s",
+                      "ask" => "comment on question %s, not an answer",
                       "order" => "proposed order of the planned pieces",
                       "close" => "the word to close the ledger: " \
                                  "ledger close PATH --take N<n>",
@@ -33,15 +34,17 @@ module Ledger
                 ref = entry["ref"]
                 word = given(entry["word"])
                 return "word on #{ref}: #{word}" if word
-                format(KINDS.fetch(kind(ref)), ref)
+                format(KINDS.fetch(kind(ref, entry["comment"])), ref)
             end
 
-            def kind(ref)
+            # A comment on a question is told from an answer by its
+            # `comment` field.
+            def kind(ref, comment = nil)
                 case ref
                 when nil then "note"
                 when "order" then "order"
                 when "close" then "close"
-                when /\AO\d+\z/ then "answer"
+                when /\AO\d+\z/ then given(comment) ? "ask" : "answer"
                 when /\AP\d+\z/ then "comment"
                 end
             end

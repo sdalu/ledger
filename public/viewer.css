@@ -479,6 +479,13 @@
       }
       & > .meta { margin-block-start: var(--space-xs); }
       & > .say { margin-block-start: var(--space-m); }
+      /* a question about the question, under its answer form: what was
+         asked and not filed, then the fold */
+      & > .ask-about {
+        margin-block-start: var(--space-s);
+        & > .asked-line { margin: 0; font-size: 0.875rem; color: var(--muted); }
+        & .say { margin-block-start: var(--space-xs); }
+      }
       /* the rest of the title, under the head: the question itself, or what the piece covers */
       & > .detail { margin-block: 0 var(--space-xs); }
       /* the head's own border already separates the case from it */

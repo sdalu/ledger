@@ -14,7 +14,8 @@ module Ledger
     #                                actor: "viewer:anna")
     #
     # Each entry's hash holds the viewer's fields (`ref`, `word`,
-    # `choice`, `order`, `notes`, `picks`, `replaces`) and `text`. One
+    # `choice`, `order`, `notes`, `picks`, `replaces`, `comment`: true on
+    # a comment on a question, no answer) and `text`. One
     # call is one `inbox` event, however many entries it files.
     module Inbox
         STAMP = "%Y-%m-%d %H:%M:%S"

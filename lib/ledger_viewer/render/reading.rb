@@ -65,11 +65,13 @@ module LedgerViewer
                 detail.empty? ? piece["title"] : "#{piece["title"]}: #{detail}"
             end
 
-            # {O<n> => the latest answer sent and no session took}.
+            # {O<n> => the latest answer sent and no session took}; a
+            # comment on a question is no answer.
             def sent_answers
                 @sent_answers ||= unfiled.each_with_object({}) do |entry, out|
                     ref = entry["ref"]
-                    out[ref] = entry if ref.to_s.match?(/\AO\d+\z/)
+                    out[ref] = entry if ref.to_s.match?(/\AO\d+\z/) &&
+                                        !entry["comment"]
                 end
             end
 

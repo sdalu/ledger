@@ -18,6 +18,9 @@ module Ledger
                     "every comment, per option or per item too), O<n> then " \
                     "removed from Open (`bin/ledger answer ADDRESS O<n> " \
                     "--decision ... --take N<n>` does both and the take); a " \
+                    "comment on a question (not an answer) answered in your " \
+                    "reply and filed as a Decision by user or by amending " \
+                    "the question, the question still open; a " \
                     "comment on a planned piece into that piece's brief or " \
                     "as a Decision by user; a comment on a piece awaiting " \
                     "the user's word (sent without the word) answered in " \
