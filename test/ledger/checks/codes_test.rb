@@ -70,6 +70,37 @@ class CodesChecksTest < CheckCase
         assert_fails "codes", "P1: V1, V2; F1: T5"
     end
 
+    def test_a_write_to_a_flagged_piece_adding_no_code_passes
+        id = piece(detail: "under W1 of the parser")
+        write(checks: Ledger::Checks, own: "P1") do |change|
+            change.update(:pieces, id, status: "blocked")
+        end
+
+        assert_equal "blocked", snapshot.pieces.first[:status]
+        assert_fails "codes", "P1: W1"
+    end
+
+    def test_a_reword_adding_a_code_is_refused_naming_it
+        id = piece(detail: "under W1 of the parser")
+        error = assert_raises(Ledger::Worse) do
+            write(checks: Ledger::Checks, own: "P1") do |change|
+                change.update(:pieces, id,
+                              detail: "under W1 of the parser and W9 here")
+            end
+        end
+
+        assert_equal "FAIL codes -- P1: W9", error.message
+    end
+
+    def test_a_reword_removing_the_code_passes_and_then_check_passes
+        id = piece(detail: "under W1 of the parser")
+        write(checks: Ledger::Checks, own: "P1") do |change|
+            change.update(:pieces, id, detail: "under the web baseline")
+        end
+
+        assert_passes "codes"
+    end
+
     def test_a_settled_piece_is_not_read
         piece(status: "verified", evidence: "ran", detail: "under W1")
 

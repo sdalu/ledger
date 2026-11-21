@@ -375,6 +375,10 @@ end
    The write is refused, and the transaction rolled back, when *after*
    fails a rule *before* passed or names `own` (the id written) in a
    failure: a write may not leave a ledger worse than it found it.
+   `codes` is compared finer, as (item, code) pairs: a write is refused
+   for it only when it adds a pair (`FAIL codes -- P3: W9`), so a status
+   change or a reword that keeps or removes a code on an item already
+   flagged passes; `check` and the status line still show every pair.
 7. `--dry-run`: print the unified diff of `show` before and after
    (`--- ADDRESS`, `+++ ADDRESS (after)`), "dry run: nothing written",
    roll back. Exit 0, or 2 with the refusal it would give.
@@ -557,7 +561,7 @@ per rule, its commands spelled for `bin/ledger`
 | pieces-awaits | `start` only on a planned or kept piece, a finishing word on a settled one, a scope only for a word awaited | `checks/pieces.rb` |
 | titles | pieces in flight and open questions: the title rule | `checks/pieces.rb`, `checks/open.rb` |
 | details | a detail not mostly ids | same |
-| codes | no code of one or two capitals and digits (W1, S4) standing alone whose letter is not a kind (P O D C F X N Z E L), unless an open question's `— see:` names an item whose words hold it; read in the latest Goal block's title, short and context, pieces in flight (title, detail, problem, plan), open questions (title, detail, problem, risk, recommend), decisions (body, note), facts (text, pointer), constraints' where and noticed lines; not in the Goal quote, a constraint's quote, double quotes, `` `code` `` or a URL; the detail is `ID: CODE, …` | `checks/codes.rb`, tokens in `text/codes.rb` |
+| codes | no code of one or two capitals and digits (W1, S4) standing alone whose letter is not a kind (P O D C F X N Z E L), unless an open question's `— see:` names an item whose words hold it; read in the latest Goal block's title, short and context, pieces in flight (title, detail, problem, plan), open questions (title, detail, problem, risk, recommend), decisions (body, note), facts (text, pointer), constraints' where and noticed lines; not in the Goal quote, a constraint's quote, double quotes, `` `code` `` or a URL; the detail is `ID: CODE, …`; a write is refused only for a code it adds (section 2) | `checks/codes.rb`, tokens in `text/codes.rb` |
 | pieces-order | out, back or verified only once `after` is settled; none waits for a dropped piece | `checks/pieces.rb` |
 | criteria-pieces | no criterion met while a piece serving it is unfinished | `checks/criteria.rb` |
 | case-rated | a rated risk on every open question and on every piece awaiting a word, a problem on that piece, Title and In short on the latest Goal | `checks/open.rb`, `checks/pieces.rb`, `checks/goal.rb` |

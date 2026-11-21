@@ -16,9 +16,12 @@ module Ledger
     # gives the id sets it with `change.own =`); `dry`, roll back
     # after the block and the checks, keeping the result; `actor` and
     # `at` for the events row; `checks`, the rule runner of step 6, a
-    # callable taking a Snapshot and answering [[rule, detail], ...]. The
-    # write is refused (Worse) when after fails a rule before passed, or
-    # a failure names `own` as a whole word: F1 never matches F10.
+    # callable taking a Snapshot and answering [[rule, detail], ...] or
+    # [[rule, detail, findings], ...]. The write is refused (Worse) when
+    # after fails a rule before passed, or a failure names `own` as a
+    # whole word: F1 never matches F10. A rule that answers findings
+    # ([item, token] pairs, `codes`) refuses only for pairs the write
+    # adds.
     class Write
         Result = Data.define(:event, :before, :after, :value, :dry)
         OPTIONS = { own: nil, dry: false, actor: nil, at: nil,
@@ -95,13 +98,36 @@ module Ledger
         def refuse_worse(before, after, own)
             checks = @options[:checks]
             return unless checks
-            passed = checks.call(before).map(&:first)
-            worse = checks.call(after).reject do |rule, detail|
-                passed.include?(rule) && !names?(detail, own)
-            end
+            worse = regressions(checks.call(before), checks.call(after), own)
             return if worse.empty?
             lines = worse.map { |rule, detail| "FAIL #{rule} -- #{detail}" }
             raise Worse, lines.join("\n")
+        end
+
+        # [[rule, detail]] of the failures AFTER that WAS did not have.
+        def regressions(was, after, own)
+            passed = was.map(&:first)
+            after.filter_map do |rule, detail, found|
+                next added(rule, found, was) if found
+                next if passed.include?(rule) && !names?(detail, own)
+
+                [rule, detail]
+            end
+        end
+
+        # A rule answering its findings ([item, token] pairs) is worse
+        # only by the pairs it did not find before: a write to an item
+        # already failing adds nothing unless it adds a pair. The detail
+        # names the pairs added, "P3: W9".
+        def added(rule, found, was)
+            before = was.find { it[0] == rule }&.dig(2) || []
+            new = found - before
+            return if new.empty?
+
+            detail = new.group_by(&:first).map do |item, pairs|
+                "#{item}: #{pairs.map(&:last).join(", ")}"
+            end
+            [rule, detail.join("; ")]
         end
 
         # Whether DETAIL names OWN whole, no word character on either

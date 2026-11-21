@@ -28,10 +28,19 @@ module Ledger
 
             # "P3: W1, S4" for each item holding codes, in page order.
             def problems(derive)
+                items(derive).map { |id, codes| "#{id}: #{codes.join(", ")}" }
+            end
+
+            # [["P3", "W1"], ["P3", "S4"]]: what the write path compares,
+            # so that only a code a write adds refuses it.
+            def findings(derive)
+                items(derive).flat_map { |id, codes| codes.map { [id, it] } }
+            end
+
+            # [[id, codes]] of the items holding codes, in page order.
+            def items(derive)
                 (goal(derive) + pieces(derive) + questions(derive) +
-                 standing(derive)).filter_map do |id, codes|
-                    "#{id}: #{codes.join(", ")}" if codes.any?
-                end
+                 standing(derive)).select { |_, codes| codes.any? }
             end
 
             def goal(derive)
