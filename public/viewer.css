@@ -567,6 +567,7 @@
     & > li > .card-head .head-tags > .tag.status { background: var(--panel); }
     /* a piece with nothing to say yet: one line, opening into its card */
     & > li.is-row {
+      position: relative;
       padding: 0;
       & > .piece-row { margin-inline: 0; }
       & > .piece-row > summary {
@@ -612,6 +613,19 @@
         & > .raid:first-child { margin-block-start: 0; padding-block-start: 0; border-block-start: 0; }
       }
       & .row-drop { display: flex; flex-wrap: wrap; justify-content: flex-end; }
+      /* open, the row keeps its drop in its head line at the right, as a
+         card does; the drop's own form, once open, takes the row's width */
+      & > .piece-row[open] {
+        & > summary { padding-inline-end: calc(var(--card-pad) + 2.75rem); }
+        & .row-drop:not(:has(.drop-fold[open])) {
+          position: absolute;
+          inset-block-start: 0;
+          /* the card's own head pads inside its border; this box sits on it */
+          inset-inline-end: calc(var(--card-pad) - 1px);
+          block-size: 2.75rem;
+          align-items: center;
+        }
+      }
     }
     /* rows in a run sit closer than cards */
     & > li.is-row + li.is-row { margin-block-start: calc(var(--space-s) - var(--space-m)); }

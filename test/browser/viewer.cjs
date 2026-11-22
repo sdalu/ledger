@@ -256,6 +256,18 @@ t('the status pill is as tall as the id chip beside it', await p.evaluate(() => 
   const opened = await pill();
   await tag.click();
   const shut2 = await pill();
+// an open row keeps its drop icon in its head line, at a card's distance from the edge
+const rowDrop = await p.evaluate(() => {
+  const d = document.querySelector('li.is-row details.piece-row');
+  if (!d) return null;
+  d.open = true;
+  const s = d.querySelector(':scope > summary').getBoundingClientRect(), t = d.querySelector('.row-drop .drop-fold > summary').getBoundingClientRect();
+  const li = d.closest('li').getBoundingClientRect(), head = document.querySelector('li.is-card .card-head'), ct = head.querySelector('.drop-fold > summary').getBoundingClientRect();
+  const r = [Math.abs((t.top + t.height / 2) - (s.top + s.height / 2)), Math.abs((li.right - t.right) - (head.getBoundingClientRect().right - ct.right))];
+  d.open = false;
+  return r;
+});
+t('an open row draws its drop icon in its head line, as far from the edge as a card does', !!rowDrop && rowDrop[0] <= 1 && rowDrop[1] <= 1, JSON.stringify(rowDrop));
   t('R20: a status is one pill; its meaning opens inside it after the word, not repeating it, and closes again',
     !shut.open && !shut.shown && opened.open && opened.shown && opened.one && opened.inside
     && /^(planned|out)$/.test(opened.word) && opened.text.length > 10 && !opened.text.startsWith(opened.word)
