@@ -17,14 +17,16 @@ module Ledger
                           edit],
             "Pieces and questions" => %w[piece ask choice mockup],
             "The user's word" => %w[inbox take answer word waker],
-            "History" => %w[renumber undo restore purge]
+            "History" => %w[renumber undo restore purge],
+            "The gate" => %w[gate-stamp githook]
         }.freeze
 
         NOTES = <<~TEXT
             PATH is the ledger's address, the path its file would have
             (.claude/LEDGER.md or LEDGER-NAME.md); the journal holds it, nothing is
             written there. Every writer but new, take, close, mockup, waker and purge
-            takes --dry-run, which prints the diff and writes nothing.
+            takes --dry-run, which prints the diff and writes nothing. In githook and
+            gate-stamp, PATH is a git repository's, and no ledger is written.
 
             ledger help WORD, or ledger WORD --help, gives the word's options.
 
@@ -47,7 +49,7 @@ module Ledger
 
         # One word's line: its synopsis, its summary wrapped in the column.
         def entry(word)
-            command = Commands.const_get(word.capitalize)
+            command = Commands.named(word)
             head = "  #{word} #{command.synopsis}"
             body = wrap(command::SUMMARY, WIDTH - COLUMN)
                    .gsub("\n", "\n#{" " * COLUMN}")

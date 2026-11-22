@@ -61,4 +61,6 @@ task :rubocop do
     rubocop_run(%w[lib test rakelib config Rakefile config.ru])
 end
 
-task default: %i[test rubocop]
+# The stamp brackets the run: the index tree taken first, stamped last,
+# so a run that fails stamps nothing.
+task default: %i[stamp:begin test rubocop stamp:write]

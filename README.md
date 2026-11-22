@@ -287,7 +287,8 @@ backup path. Without `--confirmed` it prints the ledger's place, name, closed
 time and the row counts per table and exits 2, writing nothing; a live ledger
 or an unknown id is refused. It is irreversible: the purge is no event of any
 ledger, so `undo` and `restore` cannot bring the ledger back; the backup is
-the way back. The `self-routed` check fails
+the way back. `gate-stamp` and `githook` (below, The gate stamp) take a git
+repository's path, not a ledger's. The `self-routed` check fails
 a piece in flight, awaiting no word, routed `peer:` to the ledger's own
 project (the session that holds the ledger): keep it or route it to a
 delegate.
@@ -1064,6 +1065,27 @@ journal and those tables exist.
 The gate is `bundle exec rake`: the minitest suite under `test/`, then
 the house rubocop rules with this project's deltas in
 `.rubocop.local.yml`; `rake test` and `rake rubocop` run either alone.
+
+**The gate stamp.** When the default task passes, it writes the tree id
+of the git index it tested (`git write-tree`, taken before the run and
+compared after: an index that changed during the run is not stamped)
+into `stamps/<repo id>` beside the journal, one tree per line, the last
+50 kept (`rakelib/stamp.rake`, `lib/ledger/gate_stamp.rb`); the repo id
+is the first 16 hex digits of the SHA-256 of the working tree's real
+path. A project whose gate is not rake calls `ledger gate-stamp [PATH]
+[--tree TREE]` at its end, `TREE` being what it took before the run.
+`ledger githook install PATH` makes the stamps count: its pre-commit
+hook passes a commit whose staged tree is stamped. Otherwise, from a
+Claude session (`CLAUDECODE` set in the environment) it refuses the
+commit with one sentence naming the gate; by hand it prints one warning
+line and lets the commit through. The hook lives in `.git/ledger-hooks`
+(core.hooksPath pointed there, the repository's other hooks linked into
+it and its own pre-commit hook chained), or, when the repository's own
+config already sets core.hooksPath, in that directory beside the
+pre-commit hook it chains as `pre-commit.ledger-previous`; a path set in
+global or system config is refused. `ledger githook uninstall PATH`
+puts the previous state back; both are idempotent. Nothing installs a
+hook by itself: the tests use scratch repositories only.
 
 `rake gate:partial` is the edit loop's gate, over what changed since
 `HEAD` and the untracked files (`BASE=ref` for another commit, or

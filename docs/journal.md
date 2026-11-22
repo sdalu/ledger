@@ -858,6 +858,9 @@ command's refusal, exit 2, nothing written.
 | `restore PATH [--to E<n>] [--dry-run]` | `restored: ADDRESS is back as at E<n>`, status line; without `--to` the ledger's last ten events (`E<n>  time  actor  command  summary`) | no `--to` (it lists them); E<n> not this ledger's; nothing after it; a row changed since |
 | `purge L<n> [--confirmed]` | a closed ledger removed from the journal, irreversibly: the journal is first copied (SQLite online backup) to `journal.db.before-purge-L<n>-YYYYMMDD-HHMMSS` beside it, then one transaction deletes every row of the ledger in every table (`lib/ledger/purge.rb`, in child-first order; a test fails when a table pointing at a ledger is not listed); prints `purged L<n>: PLACE NAME, closed TIME`, the row count per table and `backup: PATH`. No event is written (nothing remains to hold one) and `undo`, `restore` cannot take it back: the backup is the way back. Without `--confirmed`: `would remove L<n>: …` and the counts, exit 2, nothing written | not `L<n>`; no such ledger; a live ledger; the backup name exists; no `--confirmed` (exit 2 after the counts) |
 
+| `gate-stamp [PATH] [--tree TREE]` | `stamped TREE`: the tree id of PATH's git index (the current directory by default) appended to `<journal dir>/stamps/<repo id>` (last 50 kept; repo id = first 16 hex digits of SHA-256 of the working tree's real path), when it equals TREE (taken by the gate before it ran; the index tree itself when omitted). When it does not, `nothing stamped` on stderr, exit 0, nothing written. Not a ledger word: no journal is opened (`lib/ledger/gate_stamp.rb`) | PATH not a git working tree |
+| `githook install\|uninstall PATH`, `githook check` | install: the pre-commit hook of the repository at PATH, in `.git/ledger-hooks` with core.hooksPath set there (the other hooks linked, `.git/hooks/pre-commit` chained), or in the directory the repository's own core.hooksPath names (its pre-commit moved to `pre-commit.ledger-previous` and chained); uninstall puts the previous state back; both idempotent (`already installed`, `not installed`). `check`, which the hook runs on the current directory: exit 0 when the staged tree is stamped; else exit 1 with one sentence when `CLAUDECODE` is set, or one warning line and exit 0 when it is not (`lib/ledger/githook.rb`) | PATH not a git working tree; core.hooksPath set outside the repository's own config; `pre-commit.ledger-previous` already exists; an action but install, uninstall or check |
+
 `help [WORD]`, `--help` and `-h` in place of WORD, or no word at all,
 print the words by section with each one's SUMMARY (`lib/ledger/help.rb`);
 `help WORD` and `-h` or `--help` among a word's arguments print its
@@ -1183,6 +1186,7 @@ a temporary directory per test.
 | render | `lib/ledger/render/markdown.rb` (`show`), `render/json.rb` and `read.rb` (JSON v1) |
 | derived states, checks | `lib/ledger/derive.rb`, `lib/ledger/checks/*.rb` |
 | commands | `lib/ledger/cli.rb`, `lib/ledger/commands/*.rb`, `bin/ledger` |
+| gate stamp, pre-commit hook | `lib/ledger/gate_stamp.rb`, `lib/ledger/githook.rb`, `commands/{gate_stamp,githook}.rb`, `rakelib/stamp.rake` (the default task's first and last step) |
 | history, inbox, pictures | `lib/ledger/history.rb`, `inbox.rb`, `pictures.rb` |
 | hooks | `lib/ledger/hooks/*.rb`, registered by the orchestration skill (SKILL.md's front matter, `hooks.json`) |
 | viewer | `lib/ledger_viewer/`, `views/`, `public/`, `config.ru`, `bin/ledger-viewer`; it reads `Ledger::Read` and writes through `Ledger::Inbox.append` and `Ledger::Waker.switch` |

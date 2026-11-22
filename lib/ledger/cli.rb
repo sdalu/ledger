@@ -17,11 +17,16 @@ module Ledger
     # nothing written.
     #
     #     exit Ledger::CLI.run(ARGV)
+    # The command class of a word: gate-stamp is Commands::GateStamp.
+    module Commands
+        def self.named(word) = const_get(word.split("-").map(&:capitalize).join)
+    end
+
     class CLI
         WORDS = %w[new goal check show status close fact assume constraint
                    decide noticed criterion edit piece ask answer word choice
                    renumber undo restore inbox take mockup survey stats
-                   waker purge].freeze
+                   waker purge githook gate-stamp].freeze
         # Words of other pieces of the build: refused as not built yet.
         NOT_BUILT = [].freeze
 
@@ -49,8 +54,7 @@ module Ledger
         private
 
         def dispatch(word, words)
-            Commands.const_get(word.capitalize)
-                    .new(words, out: @out, err: @err).call
+            Commands.named(word).new(words, out: @out, err: @err).call
         rescue Worse => e
             e.message.lines(chomp: true).each { @err.puts refused(word, it) }
             2
@@ -162,7 +166,10 @@ module Ledger
             # What the help says of every --date.
             DATE = "the date, YYYY-MM-DD (today by default)"
 
-            def self.word = name.split("::").last.downcase
+            def self.word
+                name.split("::").last.gsub(/(?<=.)([A-Z])/, "-\\1").downcase
+            end
+
             def self.synopsis = self::SYNOPSIS || self::USAGE
 
             def initialize(words, out:, err:)
@@ -278,3 +285,5 @@ require "ledger/commands/survey"
 require "ledger/commands/stats"
 require "ledger/commands/waker"
 require "ledger/commands/purge"
+require "ledger/commands/githook"
+require "ledger/commands/gate_stamp"

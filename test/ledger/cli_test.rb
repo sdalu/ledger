@@ -22,7 +22,7 @@ class CliTest < CommandCase
     def test_help_lists_every_word_with_its_summary
         _, out, = cli("help")
         Ledger::CLI::WORDS.each do |word|
-            command = Ledger::Commands.const_get(word.capitalize)
+            command = Ledger::Commands.named(word)
             refute_empty command::SUMMARY, word
             assert_match(/^  #{word} /, out, word)
         end
@@ -59,7 +59,7 @@ class CliTest < CommandCase
     def test_every_word_has_its_command
         assert_empty Ledger::CLI::NOT_BUILT
         Ledger::CLI::WORDS.each do |word|
-            assert Ledger::Commands.const_defined?(word.capitalize), word
+            assert Ledger::Commands.named(word), word
         end
     end
 

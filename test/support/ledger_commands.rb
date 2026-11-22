@@ -21,7 +21,7 @@ module LedgerCommands
     def self.run(journal, word, *argv)
         out = StringIO.new
         err = StringIO.new
-        command = Ledger::Commands.const_get(word.capitalize)
+        command = Ledger::Commands.named(word)
                                   .new(argv, out:, err:)
         command.instance_variable_set(:@journal, Lent.new(journal))
         code = command.call
