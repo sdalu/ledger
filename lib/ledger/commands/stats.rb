@@ -3,6 +3,7 @@
 require "json"
 
 require "ledger/abandon"
+require "ledger/commands/stats_assessed"
 require "ledger/stats"
 
 module Ledger
@@ -11,12 +12,15 @@ module Ledger
         # group, over every ledger, live and closed, or one ledger: a live
         # one by its address, any one by L<id>; over every ledger, a last
         # line counts the closed ones, finished and abandoned (Abandon).
+        # The dispatches announced get a section of their own, `by
+        # assessment` (StatsAssessed).
         # Reads only: no event, no beat.
         class Stats < CLI::Command
             USAGE = "[PATH]"
             SUMMARY = "a track record per route over every ledger or one: " \
                       "pieces, first-pass verified, blocked, ready and " \
-                      "unsent, median time out, returns by cause"
+                      "unsent, median time out, returns by cause; and by " \
+                      "assessment, the dispatches by highest axis and model"
             LEDGER = /\AL([1-9]\d*)\z/
             HEAD = ["route", "pieces", "first-pass", "blocked", "unsent",
                     "out, median", "returns"].freeze
@@ -28,11 +32,16 @@ module Ledger
             end
 
             def run(path = nil)
-                groups = Ledger::Stats.read(journal.db, ledgers(path))
+                ids = ledgers(path)
+                stats = Ledger::Stats.new(journal.db, ids)
+                assessed = StatsAssessed.new(
+                    Ledger::Stats::Assessments.new(journal.db, ids,
+                                                   stats.tracks)
+                )
                 closed = path ? nil : closed_counts
-                @out.puts @opts[:json] ? json(groups, closed) : text(groups)
-                @out.puts closed_line(closed) if closed && !@opts[:json]
-                0
+                return json(stats.groups, assessed, closed) if @opts[:json]
+
+                text(stats.groups, assessed, closed)
             end
 
             # Over every ledger, the closed ones: {finished:, abandoned:}.
@@ -57,10 +66,23 @@ module Ledger
             end
 
             # `closed` only over every ledger.
-            def json(groups, closed)
-                JSON.generate(schema: Render::Json::SCHEMA, kind: "stats",
-                              groups: groups.map { group(it) },
-                              **({ closed: } if closed))
+            def json(groups, assessed, closed)
+                @out.puts JSON.generate(
+                    schema: Render::Json::SCHEMA, kind: "stats",
+                    groups: groups.map { group(it) },
+                    assessments: assessed.json, **({ closed: } if closed)
+                )
+                0
+            end
+
+            # The route table, the section by assessment, the closed
+            # ledgers last.
+            def text(groups, assessed, closed)
+                @out.puts table(groups)
+                section = assessed.text
+                @out.puts "", section if section
+                @out.puts closed_line(closed) if closed
+                0
             end
 
             def group(group)
@@ -71,25 +93,17 @@ module Ledger
                   returns: group.returns }
             end
 
-            # The groups as a table, its columns as wide as their widest
-            # cell, the counts right-aligned.
-            def text(groups)
-                rows = [HEAD, *groups.map { cells(it) }]
-                widths = rows.transpose.map { |column| column.map(&:size).max }
-                rows.map { line(it, widths) }.join("\n")
-            end
-
-            def line(cells, widths)
-                cells.zip(widths).each_with_index.map do |(cell, width), index|
-                    index == 1 ? cell.rjust(width) : cell.ljust(width)
-                end.join("  ").rstrip
+            # The groups as a table (StatsTable).
+            def table(groups)
+                StatsTable.text([HEAD, *groups.map { cells(it) }])
             end
 
             def cells(group)
                 [group.route, group.pieces.to_s, first_pass(group),
                  "#{group.blocked} #{percent(group.blocked_share)}",
                  group.unsent.to_s,
-                 out(group.median_out_minutes), returns(group.returns)]
+                 out(group.median_out_minutes),
+                 StatsTable.returns(group.returns)]
             end
 
             def out(minutes) = minutes ? format("%.1f min", minutes) : "-"
@@ -101,12 +115,6 @@ module Ledger
             end
 
             def percent(share) = "#{(share * 100).round}%"
-
-            def returns(counts)
-                return "-" if counts.empty?
-
-                counts.map { |cause, count| "#{cause} #{count}" }.join(", ")
-            end
         end
     end
 end

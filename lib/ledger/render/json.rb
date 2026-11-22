@@ -309,12 +309,14 @@ module Ledger
                     @briefs = snapshot.piece_briefs.group_by { it[:piece_id] }
                     @criteria = Refs.group(snapshot.piece_criteria, :piece_id)
                     @returns = Refs.group(snapshot.piece_returns, :piece_id)
+                    @assessments = Assessments.new(snapshot, context)
                 end
 
                 def call(piece)
                     { id: "P#{piece[:n]}", **head(piece), **links(piece),
                       **prose(piece), **state(piece), brief: brief(piece),
                       criteria: criteria(piece), returns: returns(piece),
+                      assessments: @assessments.call(piece),
                       pictures: @derive.pictures(piece).map do |row|
                           row.slice(:role, :name)
                       end,
@@ -406,6 +408,37 @@ module Ledger
                         { cause: row[:cause], from: row[:from_status],
                           at: Json.time(event[:at]), actor: event[:actor] }
                     end
+                end
+            end
+        end
+
+        class Json
+            # The dispatches announced on each piece (piece --announce),
+            # oldest first: each block parsed, with its event's time and
+            # actor.
+            class Assessments
+                def initialize(snapshot, context)
+                    @context = context
+                    @rows = Refs.group(snapshot.piece_assessments, :piece_id)
+                end
+
+                def call(piece)
+                    @rows.fetch(piece[:id], []).map do |row|
+                        event = @context.events.fetch(row[:event_id])
+                        { at: Json.time(event[:at]), actor: event[:actor],
+                          **assessment(row) }
+                    end
+                end
+
+                private
+
+                def assessment(row)
+                    { session: row[:session], what: row[:what], why: row[:why],
+                      model: row[:model], effort: row[:effort],
+                      axis: row[:axis], axis_level: row[:axis_level],
+                      risk: { rating: row[:risk_rating],
+                              text: row[:risk_text] },
+                      mode: row[:mode], mode_attended: row[:mode_attended] }
                 end
             end
         end

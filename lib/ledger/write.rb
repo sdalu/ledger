@@ -150,7 +150,8 @@ module Ledger
                    "A" => :assumptions }.freeze
         # Columns filled from the write when the row leaves them out.
         WITH_LEDGER = (Snapshot::LEDGER_TABLES + [:pictures]).freeze
-        WITH_EVENT = %i[links pictures piece_briefs piece_returns].freeze
+        WITH_EVENT = %i[links pictures piece_briefs piece_returns
+                        piece_assessments].freeze
         # The shape of a visible id.
         REF = /\A(?<kind>[PODCFNXGA])(?<n>[1-9]\d*)\z/
 

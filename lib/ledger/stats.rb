@@ -44,6 +44,13 @@ module Ledger
 
         def self.read(db, ledger_ids, **) = new(db, ledger_ids, **).groups
 
+        # The causes counted, the named ones by name, unrecorded last.
+        def self.tally(causes)
+            causes.tally.sort_by do |cause, _|
+                [cause == UNRECORDED ? 1 : 0, cause]
+            end.to_h
+        end
+
         # NOW (ms) dates the pieces unsent.
         def initialize(db, ledger_ids, now: Write.now)
             @db = db
@@ -95,7 +102,7 @@ module Ledger
                       blocked: tracks.count(&:blocked?),
                       unsent: pieces.count { unsent.include?(it[:id]) },
                       median_out_ms: median(tracks.flat_map(&:spans)),
-                      returns: tally(tracks.flat_map(&:causes)))
+                      returns: Stats.tally(tracks.flat_map(&:causes)))
         end
 
         def track(piece)
@@ -122,13 +129,6 @@ module Ledger
             return sorted[middle] if sorted.size.odd?
 
             (sorted[middle - 1] + sorted[middle]).fdiv(2)
-        end
-
-        # The causes counted, the named ones by name, unrecorded last.
-        def tally(causes)
-            causes.tally.sort_by do |cause, _|
-                [cause == UNRECORDED ? 1 : 0, cause]
-            end.to_h
         end
 
         # The status changes of the pieces, oldest first: event_rows on
@@ -163,5 +163,6 @@ module Ledger
     end
 end
 
+require "ledger/stats/assessments"
 require "ledger/stats/in_force"
 require "ledger/stats/track"

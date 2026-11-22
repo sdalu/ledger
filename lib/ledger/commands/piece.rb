@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "ledger/commands/piece_announce"
 require "ledger/text/awaits"
 require "ledger/text/risk"
 require "ledger/text/title"
@@ -18,7 +19,8 @@ module Ledger
         # before/after, `--picture-pending WHY` that its picture is being
         # redrawn (the next `mockup --piece` clears it, as does ''),
         # `--picture-holds WHY` that the picture still shows it after a
-        # change, as of this write.
+        # change, as of this write; `--announce FILE` records a
+        # dispatch's ANNOUNCE block (PieceAnnounce).
         class Piece < CLI::Command
             USAGE = "PATH TARGET"
             SYNOPSIS = "PATH new|P<n> [--FIELD VALUE...]"
@@ -63,6 +65,7 @@ module Ledger
                     parser.on("--#{name} VALUE", what) { @opts[name] = it }
                 end
                 no_picture_flag(parser)
+                announce_flag(parser)
                 parser.on("--claim", "take over an out piece's claim for " \
                                      "this session; the status stays") do
                     @opts["claim"] = true
@@ -79,12 +82,32 @@ module Ledger
                 end
             end
 
+            def announce_flag(parser)
+                parser.on("--announce FILE",
+                          "a dispatch's ANNOUNCE block, from FILE or - " \
+                          "for stdin") do |file|
+                    @opts["announce"] = file
+                end
+            end
+
             def run(path, target)
+                return announce(path, target) if @opts.key?("announce")
+
                 refuse("the target is `new` or P<n>") unless
                     target == "new" || ID.match?(target)
                 result = save(path, target, session)
                 lines = [Render::Markdown.line(result.after, result.value)]
                 emit(result, path, first: first(target, result), lines:)
+                0
+            end
+
+            # One dispatch's assessment: no checked item changes, so the
+            # write names none and a failure the piece had already stands.
+            def announce(path, target)
+                record = PieceAnnounce.new(@opts, target, session)
+                record.block
+                write(path) { record.call(it, path) }
+                @out.puts "assessment recorded on #{path} #{target}"
                 0
             end
 

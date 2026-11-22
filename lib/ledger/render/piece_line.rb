@@ -8,13 +8,15 @@ module Ledger
         # A piece as its line in the Markdown: `- P7 [status] route —
         # title: detail`, then the fields in the order `piece` writes
         # them, `— picture: being redrawn (WHY)` and `— picture: holds
-        # (WHY)` last.
+        # (WHY)`, then `— dispatched: N× (last: …)` when a dispatch was
+        # announced (piece --announce).
         class PieceLine
             def initialize(snapshot, refs)
                 @refs = refs
                 @links = Refs.group(snapshot.piece_links, :piece_id)
                 @awaits = Refs.group(snapshot.piece_awaits, :piece_id)
                 @scopes = Refs.group(snapshot.piece_scopes, :piece_id)
+                @assessed = Refs.group(snapshot.piece_assessments, :piece_id)
             end
 
             def call(piece)
@@ -56,8 +58,26 @@ module Ledger
                  ["plan", piece[:plan]], ["scope", scope(piece)],
                  ["done when", piece[:done_when]], *links(piece),
                  ["awaits", awaits(piece)], ["evidence", piece[:evidence]],
-                 ["picture", redrawn(piece)], ["picture", holds(piece)]]
+                 ["picture", redrawn(piece)], ["picture", holds(piece)],
+                 ["dispatched", dispatched(piece)]]
                     .reject { |_, value,| value.nil? || value.empty? }
+            end
+
+            # "2\u00D7 (last: sonnet, medium, stakes low, risk 2/10)": the
+            # dispatches announced and the last one's assessment, what it
+            # left out left out.
+            def dispatched(piece)
+                rows = @assessed.fetch(piece[:id], [])
+                last = rows.last or return
+
+                "#{rows.size}\u00D7 (last: #{assessment(last)})"
+            end
+
+            def assessment(row)
+                axis = row[:axis] && [row[:axis], row[:axis_level]].compact
+                risk = row[:risk_rating]&.then { "risk #{it}/10" }
+                parts = [row[:model], row[:effort], axis&.join(" "), risk]
+                parts.compact.join(", ")
             end
 
             def redrawn(piece)

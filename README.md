@@ -121,7 +121,11 @@ record per route (model and effort, each peer, kept) over every ledger,
 live and closed, or one (`L<id>` reaches a closed one): pieces, the
 share verified without a return, the share ever blocked, the pieces
 ready and unsent now, the median
-time out, the returns by cause, and over every ledger a last line
+time out, the returns by cause; then, once a dispatch was announced, a
+section `by assessment`, one table by highest axis and one by model:
+the dispatches, the pieces first dispatched there, those of them
+verified with no return, and each return by cause, laid on the piece's
+last dispatch before it; and over every ledger a last line
 `closed ledgers: N finished, M abandoned`; it writes nothing. `--json` on `check`,
 `status`, `show` and `stats` prints JSON v1: one object whose first key
 is `"schema": 1`, which the viewer and any other reader take and refuse
@@ -148,7 +152,7 @@ Every item has a writer, and no ledger is edited by hand. `piece
 PATH new|P<n>` adds a piece with the next free id or changes one
 (`--title`, `--what` for the detail, `--status`, `--route`,
 `--done-when`, `--evidence`, `--after`, `--for`, `--by`, `--verified-by`,
-`--cause`, `--no-picture WHY`, `--picture-pending WHY`, `--picture-holds WHY`; an empty value clears a link); a piece not done that
+`--cause`, `--no-picture WHY`, `--picture-pending WHY`, `--picture-holds WHY`, `--announce FILE`; an empty value clears a link); a piece not done that
 waits on an event to come, not on the user, is `--status deferred
 --until CONDITION`, the event kept on its line (`— until: three
 closures`) and in the viewer's remains until another status clears
@@ -232,7 +236,18 @@ too low, the delegate broke the escalation contract, the environment
 failed), refused without one and on any other change; `show PATH P<n>`
 lists the returns, one a line. A session that takes over a piece another
 left out runs `piece PATH P<n> --claim`: the claim moves to it, the
-status stays out, and no return is recorded. `undo PATH` puts back the last event that changed the
+status stays out, and no return is recorded. Each dispatch of a piece
+is announced with its ANNOUNCE block (the delegation skill's hook does
+it): `piece PATH P<n> --announce FILE` (`-` reads stdin) stores the
+block parsed (model, effort, highest axis and its level, the risk with
+its `N/10` when the RISK line gives one, the mode and whether attended)
+as a row of its own, a retry or an identical fan-out block included,
+and prints `assessment recorded on PATH P<n>`; a block without the
+ANNOUNCE line or one of WHAT, WHY, WHICH, RISK, MODE is refused, exit
+2, the reason a sentence on the last line. The piece's line gains
+`— dispatched: 2× (last: sonnet, medium, stakes low, risk 2/10)`,
+`show PATH P<n>` lists each one with its time, and `undo` takes one
+back like any write. `undo PATH` puts back the last event that changed the
 ledger's items, in an event of its own, one level, refused once a row
 changed since; the inbox's takes are never undone. `restore PATH --to
 E<n>` puts back every item-changing event after `E<n>`; without `--to`

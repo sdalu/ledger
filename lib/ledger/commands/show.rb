@@ -87,16 +87,16 @@ module Ledger
 
             # Scalars as `key: value`, lists joined by ` | `, a link kind
             # as its own line (`rests-on: F2, C3`), a piece's return as
-            # its own line (`return: env, from back, TIME`).
+            # its own line (`return: env, from back, TIME`), and each
+            # dispatch announced (`assessment: TIME, sonnet, …`).
             def text(item)
                 links = item[:links] || {}
-                [*item.except(:links, :returns).map do |key, value|
-                    "#{key}: #{value(value)}"
-                end,
+                scalars = item.except(:links, :returns, :assessments)
+                [*scalars.map { |key, value| "#{key}: #{value(value)}" },
                  *links.map do |kind, ids|
                      "#{kind.tr("_", "-")}: #{ids.join(", ")}"
                  end,
-                 *returns(item)]
+                 *returns(item), *assessments(item)]
                     .join("\n")
             end
 
@@ -104,6 +104,22 @@ module Ledger
                 item.fetch(:returns, []).map do |row|
                     "return: #{row[:cause]}, from #{row[:from]}, #{row[:at]}"
                 end
+            end
+
+            # `assessment: TIME, sonnet, effort: medium, axis: stakes
+            # (low), risk: 2/10, attended`, what the block left out left out.
+            def assessments(item)
+                item.fetch(:assessments, []).map do |row|
+                    "assessment: #{[row[:at], *assessed(row)].join(", ")}"
+                end
+            end
+
+            def assessed(row)
+                rating = row.dig(:risk, :rating)
+                [row[:model], row[:effort]&.then { "effort: #{it}" },
+                 row[:axis]&.then { "axis: #{it} (#{row[:axis_level]})" },
+                 "risk: #{rating ? "#{rating}/10" : "unrated"}",
+                 row[:mode_attended] ? "attended" : "unattended"].compact
             end
 
             def value(value)

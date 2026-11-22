@@ -35,10 +35,14 @@ module Ledger
 
             # The cause of each return: the piece_returns rows, and
             # `unrecorded` for a return with none.
-            def causes
+            def causes = caused.map(&:last)
+
+            # [event_id, cause] of each return, as #causes counts them.
+            def caused
                 events = @recorded.map { it[1] }
                 unrecorded = returns.reject { events.include?(it.event_id) }
-                @recorded.map(&:last) + unrecorded.map { UNRECORDED }
+                @recorded.map { it.drop(1) } +
+                    unrecorded.map { [it.event_id, UNRECORDED] }
             end
 
             private
