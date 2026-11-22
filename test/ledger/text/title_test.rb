@@ -35,6 +35,16 @@ class TitleTest < Minitest::Test
         assert_equal mostly, Title.problem("O13 D1")
     end
 
+    def test_one_word_without_an_id_passes
+        assert_nil Title.problem("Thing")
+        assert_nil Title.problem("Thing's")
+    end
+
+    def test_one_word_with_an_id_and_no_word_are_refused
+        refute_nil Title.problem("C1 header")
+        refute_nil Title.problem("42")
+    end
+
     def test_ids_among_words_passes
         assert_nil Title.problem("Mock the S1 S2 header")
         assert_nil Title.problem("F1 header items")

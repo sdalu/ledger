@@ -6,7 +6,8 @@ require_relative "helper"
 class NoticedTest < CommandCase
     def test_a_line_is_added_and_printed
         out = ok("noticed", BETA, " a side thing ")
-        assert_equal "- a side thing\n", out.lines.first
+        id = db[:noticed].get(:id)
+        assert_equal ["Z#{id}\n", "- a side thing\n"], out.lines.first(2)
         assert_equal ["- a side thing"], db[:noticed].select_map(:line)
         assert_includes markdown, "Out of scope, noticed:\n- a side thing\n"
     end

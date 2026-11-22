@@ -28,13 +28,16 @@ module Ledger
                          "Facts" => "F", "Assumptions" => "A",
                          "Decisions" => "X" }.freeze
 
-            def self.render(snapshot) = new(snapshot).render
+            # IDS true ends each noticed line with its Z<n>, the id edit and
+            # show take; the file's own text has none.
+            def self.render(snapshot, ids: false) = new(snapshot, ids:).render
 
             # The line of the item REF names (P, O, D, C, F, A or X).
             def self.line(snapshot, ref) = new(snapshot).line(ref)
 
-            def initialize(snapshot)
+            def initialize(snapshot, ids: false)
                 @snapshot = snapshot
+                @ids = ids
                 refs = Refs.new(snapshot)
                 @piece = PieceLine.new(snapshot, refs)
                 @question = QuestionLine.new(snapshot, refs)
@@ -63,13 +66,17 @@ module Ledger
                  labelled("Pieces", @snapshot.pieces.map { @piece.call(it) }),
                  labelled("Open", open_questions.map { @question.call(it) }),
                  labelled("Out of scope, noticed",
-                          @snapshot.noticed.map { it[:line] })]
+                          @snapshot.noticed.map { noticed(it) })]
             end
 
             def goals
                 @snapshot.goals.map do |row|
                     [Items.goal_label(row), *Items.goal(row)]
                 end
+            end
+
+            def noticed(row)
+                @ids ? "#{row[:line]} (Z#{row[:id]})" : row[:line]
             end
 
             def labelled(label, lines) = ["#{label}:", *lines]

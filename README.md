@@ -195,7 +195,7 @@ T)` marks a criterion `[x]` with evidence or `[-]` with why, takes the
 mark back to `[ ]` (`--unmark`, its evidence or why cleared), or
 rewords it, and
 `criterion PATH new --text T` adds one; `edit PATH ID --text T` rewords
-a fact (its pointer with `--pointer`), constraint, decision, question detail or noticed line (`Z<n>`),
+a fact (its pointer with `--pointer`), assumption (its text), constraint, decision, question detail or noticed line (`Z<n>`),
 or the latest Goal's title, In short and Context (`edit PATH goal
 --text T --short S --context C`, any of them; the quote stays the
 user's); a piece's detail is
@@ -222,8 +222,8 @@ it prints the line and the status line, `Status (TITLE) — criteria …`,
 TITLE the latest Goal block's title (the ledger's address when none is
 set), so that two live ledgers in one session are told apart. A second
 writer waits for the lock and gives up with exit 2 after 10 seconds.
-`--dry-run` on every writer but `new`, `take`, `close` and `mockup`
-prints a unified diff of the `show` text and the status line the
+`--dry-run` on every writer but `new`, `take`, `close`, `mockup`, `waker`
+and `purge` prints a unified diff of the `show` text and the status line the
 change would give and writes nothing (exit 2 with the refusal when it
 would refuse).
 

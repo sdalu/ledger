@@ -32,8 +32,9 @@ module Ledger
             include Card
 
             USAGE = "PATH QUESTION"
-            SYNOPSIS = "PATH QUESTION --title T --mockup N|--pending " \
-                       "P<n>|--no-picture WHY"
+            SYNOPSIS = "PATH QUESTION --title T --problem P --risk N/10 " \
+                       "--recommend R --mockup N|--pending P<n>|" \
+                       "--no-picture WHY"
             SUMMARY = "a question for the user under Open, with its case, " \
                       "options and picture"
             # Each flag and what its value is, as the help says it.

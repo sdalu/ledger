@@ -51,7 +51,7 @@ module Ledger
                 if @opts[:json]
                     @out.puts Render::Json.generate(Read.ledger(journal, id))
                 else
-                    @out.print Render::Markdown.render(snapshot)
+                    @out.print Render::Markdown.render(snapshot, ids: true)
                     closed = Abandon.line(journal.db, snapshot.ledger)
                     @out.puts "\n#{closed}" if closed
                 end

@@ -46,6 +46,13 @@ class ShowTest < CommandCase
         assert_includes ok("show", BETA, "Z#{id}"), "line: - side thing"
     end
 
+    def test_the_whole_ledger_shows_each_noticed_line_with_its_id
+        ok("noticed", BETA, "side thing")
+        id = db[:noticed].get(:id)
+        assert_includes ok("show", BETA),
+                        "Out of scope, noticed:\n- side thing (Z#{id})\n"
+    end
+
     def test_an_unknown_id_is_refused
         assert_refused("show", BETA, "P9", "P9 is no piece, question")
         assert_refused("show", BETA, "Z99", "Z99 is no piece, question")

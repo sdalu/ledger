@@ -2,7 +2,8 @@
 
 module Ledger
     module Commands
-        # `noticed PATH TEXT`: a line under `Out of scope, noticed`.
+        # `noticed PATH TEXT`: a line under `Out of scope, noticed`; its
+        # id, Z<n>, is the first line printed.
         class Noticed < CLI::Command
             USAGE = "PATH TEXT"
             SUMMARY = "a line under Out of scope, noticed"
@@ -14,9 +15,9 @@ module Ledger
             def run(path, text)
                 text = line(text, "the text")
                 result = write(path, own: text) do |change|
-                    change.insert(:noticed, line: "- #{text}")
+                    "Z#{change.insert(:noticed, line: "- #{text}")}"
                 end
-                emit(result, path, lines: ["- #{text}"])
+                emit(result, path, first: result.value, lines: ["- #{text}"])
                 0
             end
         end

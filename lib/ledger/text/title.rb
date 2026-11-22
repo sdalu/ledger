@@ -66,7 +66,9 @@ module Ledger
 
             def ids?(text)
                 ids, words = count(text)
-                words < 2 || ids > words
+                return true if words.zero?
+
+                ids > words || (ids.positive? && words < 2)
             end
 
             # -> [ids, words] among the tokens of TEXT: a word has at least
