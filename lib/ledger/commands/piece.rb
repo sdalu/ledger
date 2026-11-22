@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "ledger/commands/piece_announce"
+require "ledger/commands/piece_flags"
 require "ledger/text/awaits"
 require "ledger/text/risk"
 require "ledger/text/title"
@@ -23,6 +24,8 @@ module Ledger
         # deliberately left uncommitted ('' clears it); `--announce FILE`
         # records a dispatch's ANNOUNCE block (PieceAnnounce).
         class Piece < CLI::Command
+            include PieceFlags
+
             USAGE = "PATH TARGET"
             SYNOPSIS = "PATH new|P<n> [--FIELD VALUE...]"
             SUMMARY = "add a piece or change one: status, route, links, the " \
@@ -65,41 +68,8 @@ module Ledger
                 FLAGS.each do |name, what|
                     parser.on("--#{name} VALUE", what) { @opts[name] = it }
                 end
-                no_picture_flag(parser)
-                announce_flag(parser)
-                no_commit_flag(parser)
-                parser.on("--claim", "take over an out piece's claim for " \
-                                     "this session; the status stays") do
-                    @opts["claim"] = true
-                end
+                special_flags(parser)
                 dry_run(parser)
-            end
-
-            # Spelled "--no-picture WHY", OptionParser would read the
-            # negation of a --picture switch and leave WHY behind.
-            def no_picture_flag(parser)
-                parser.on("--no-picture", "=WHY", String,
-                          "why the piece needs no before/after") do |why|
-                    @opts["no-picture"] = why
-                end
-            end
-
-            # Spelled "--no-commit WHY", for the reason --no-picture is.
-            def no_commit_flag(parser)
-                # The pattern, not String: String refuses the empty WHY.
-                parser.on("--no-commit", "=WHY", /\A.*\z/m,
-                          "why the piece's work stays uncommitted; " \
-                          "'' clears it") do |why|
-                    @opts["no-commit"] = why
-                end
-            end
-
-            def announce_flag(parser)
-                parser.on("--announce FILE",
-                          "a dispatch's ANNOUNCE block, from FILE or - " \
-                          "for stdin") do |file|
-                    @opts["announce"] = file
-                end
             end
 
             def run(path, target)
