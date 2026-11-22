@@ -1158,7 +1158,8 @@ t('an open row draws its drop icon in its head line, as far from the edge as a c
   }));
   // V8: a ledger page watches its own ledger: a write to another ledger
   // moves neither its stamp nor the page, which is not fetched again
-  const other = path.join(path.dirname(ledger), '..', '..', 'other', '.claude', 'LEDGER.md');
+  // one per browser: the second browser's run meets the first's ledger, and new refuses to overwrite it
+  const other = path.join(path.dirname(ledger), '..', '..', 'shared-other-' + which, '.claude', 'LEDGER.md');
   const runOn = (file, ...words) => execFileSync(path.join(__dirname, '../../bin/ledger'), [words[0], file, ...words.slice(1)],
     {env: process.env, stdio: ['ignore', 'ignore', 'inherit']});
   runOn(other, 'new', '--goal', 'a second ledger for the stamp check', '--title', 'Second ledger',
@@ -1228,7 +1229,7 @@ t('an open row draws its drop icon in its head line, as far from the edge as a c
   t('D3: with the waker switched off again the head line is back', await p.evaluate(() => !!document.querySelector('.ledger-head > .waker-unread')));
   // D4: the last answer of a ledger says nothing is left waiting, politely, takes the focus and keeps
   // "not read by the session yet" visible
-  const lone = path.join(path.dirname(ledger), '..', '..', 'lone', '.claude', 'LEDGER.md');
+  const lone = path.join(path.dirname(ledger), '..', '..', 'shared-lone-' + which, '.claude', 'LEDGER.md');
   runOn(lone, 'new', '--goal', 'a ledger with one question', '--title', 'Lone ledger', '--short', 'one question', '--date', '2026-11-19');
   runOn(lone, 'ask', 'which one?', '--title', 'Only question', '--problem', 'two', '--risk', '3/10 — rework',
     '--choices', 'A = one | B = two', '--recommend', 'A, simple', '--no-picture', 'text only');
@@ -1245,7 +1246,7 @@ t('an open row draws its drop icon in its head line, as far from the edge as a c
   }));
   // V1 and V2 on a ledger of their own: a piece whose plan gives one word, rated high, and
   // questions rated low and mid
-  const shown = path.join(path.dirname(ledger), '..', '..', 'shown', '.claude', 'LEDGER.md');
+  const shown = path.join(path.dirname(ledger), '..', '..', 'shared-shown-' + which, '.claude', 'LEDGER.md');
   runOn(shown, 'new', '--goal', 'a ledger for the visual checks', '--title', 'Shown ledger', '--short', 'visual checks', '--date', '2026-11-19');
   runOn(shown, 'piece', 'new', '--route', 'sonnet, effort: low', '--title', 'one word', '--problem', 'ready',
     '--risk', '8/10 — it ships', '--plan', 'commit it', '--status', 'verified', '--verified-by', 'me', '--evidence', 'green');
@@ -1324,7 +1325,7 @@ t('an open row draws its drop icon in its head line, as far from the edge as a c
   await p.goto('about:blank');
   await p.setViewportSize({width: 1300, height: 900});
   // P21: a piece whose picture is being redrawn shows a muted line where its before/after sat
-  const redraw = path.join(path.dirname(ledger), '..', '..', 'redraw', '.claude', 'LEDGER.md');
+  const redraw = path.join(path.dirname(ledger), '..', '..', 'shared-redraw-' + which, '.claude', 'LEDGER.md');
   const fs = require('fs');
   fs.mkdirSync(path.dirname(redraw), {recursive: true});
   runOn(redraw, 'new', '--goal', 'a ledger for the redraw line', '--title', 'Redraw ledger', '--short', 'redraw line', '--date', '2026-11-19');
@@ -1360,11 +1361,13 @@ t('an open row draws its drop icon in its head line, as far from the edge as a c
   }, commented) && since(before) > 0);
   rewind(before);
   // D2: a question held by a deferred piece says what it waits for, not that it is preparing options;
-  // last, because a piece and a question are not taken back
+  // last, because a piece and a question are not taken back; its options name the browser, since two open
+  // questions may not offer the same ones and the next browser's checks ask theirs on the same ledger
   run('piece', 'new', '--route', 'sonnet, effort: low', '--title', 'Wait for the API');
   run('piece', 'P5', '--status', 'deferred', '--until', 'the API ships');
   run('ask', 'which client?', '--title', 'Client choice', '--problem', 'two clients', '--risk', '3/10 — rework',
-    '--choices', 'A = a | B = b', '--recommend', 'A, fine', '--by', 'P5', '--no-picture', 'text only');
+    '--choices', `Web ${which} = w | Native ${which} = n`, '--recommend', `Web ${which}, fine`, '--by', 'P5',
+    '--no-picture', 'text only');
   await p.goto(base + page);
   t('D2: a question held by a deferred piece says "Waits for P5, deferred until the API ships"', await p.evaluate(() => {
     const m = [...document.querySelectorAll('li.is-card .meta')].map(x => x.textContent).find(x => /Waits for P5/.test(x)) || '';
