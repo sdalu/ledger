@@ -59,7 +59,7 @@ module LedgerViewer
 
             # The meter and the risk, then the item it is the risk of.
             def risk(rating, item, rest)
-                meter = @scope.partial("ledger/rating", rating:)
+                meter = @scope.partial("ledger/rating", rating:, label: "risk")
                 title = @scope.inline("#{link(item["id"])} #{item["title"]}")
                 %(<li class="#{Helpers.risk_band(rating)}">#{meter} ) +
                     %(<span class="text">#{@scope.inline(rest)}</span>) +

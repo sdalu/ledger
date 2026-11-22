@@ -37,6 +37,7 @@ require_relative "support/choices_fixture"
 require_relative "support/groups_fixture"
 require_relative "support/long_fixture"
 require_relative "support/loop_fixture"
+require_relative "support/meters_fixture"
 require_relative "support/risk_fixture"
 require_relative "support/ties_fixture"
 
@@ -199,6 +200,7 @@ module BrowserRun
         COMMENT = File.join(__dir__, "browser", "comment_only.cjs")
         SHOWN = File.join(__dir__, "browser", "groups_shown.cjs")
         TIES = File.join(__dir__, "browser", "ties.cjs")
+        METERS = File.join(__dir__, "browser", "meters.cjs")
         # [tag, fixture, script] of the checks that each run on a ledger
         # of their own, once per browser, after the shared checks, which
         # read the index's first queue entry and must not meet them; the
@@ -210,6 +212,7 @@ module BrowserRun
                ["comment", ChoicesFixture, COMMENT],
                ["shown", GroupsFixture, SHOWN],
                ["ties", TiesFixture, TIES],
+               ["meters", MetersFixture, METERS],
                ["risk", RiskFixture, RISK],
                ["builds", BuildsFixture, BUILDS]].freeze
 
@@ -231,6 +234,7 @@ module BrowserRun
         end
 
         private
+
 
         # The key-renewal check alone, in each browser, against a viewer
         # booted with the short key lifetime (KEYS=1 starts it so).

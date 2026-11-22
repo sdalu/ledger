@@ -897,7 +897,7 @@
       }
     }
   }
-  :is(.raid-part.risk, .raid-list > li) {
+  :is(.raid-part.risk, .raid-list > li, .word-choice > .step) {
     &.is-low { --risk: var(--risk-low); }
     &.is-mid { --risk: var(--risk-mid); }
     &.is-high { --risk: var(--risk-high); }
@@ -1752,6 +1752,9 @@
         &:hover { filter: none; background: var(--inset); }
       }
       & .what { font-size: var(--text-xs); line-height: 1.4; color: var(--muted); }
+      /* the step risk of the button's word, under it: what the word itself
+         puts at stake, beside the card's work risk */
+      & .step { display: flex; }
     }
     /* the comment folds with its own send and quote inside it */
     & .comment-box {

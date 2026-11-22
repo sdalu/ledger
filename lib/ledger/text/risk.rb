@@ -19,6 +19,14 @@ module Ledger
                 [match[1].to_i, text[match.end(0)..].strip]
             end
 
+            # The work risk, [rating, text]: a dispatch's rated RISK
+            # (DISPATCHED, the last one's [rating, text], nil when none was
+            # announced) rates the work handed out; otherwise the piece's
+            # own (OWN), a kept piece's among them.
+            def work(own, dispatched)
+                dispatched&.first ? dispatched : own
+            end
+
             # What a case lacks, or nil: a problem, and a risk rated out
             # of ten.
             def case_problem(problem, risk)

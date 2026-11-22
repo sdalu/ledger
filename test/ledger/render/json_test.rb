@@ -134,7 +134,8 @@ class JsonTest < JsonCase
     PIECE = %i[id status kept_reason until route route_text title detail
                done_when evidence commits after for awaits scope
                rests_on_assumptions
-               problem risk plan verified_by claim ready ready_since unsent
+               problem risk plan verified_by claim irreversible step_risk
+               work_risk ready ready_since unsent
                stalled touched_at settled brief criteria returns assessments
                pictures no_picture picture_pending builds obsoleted_by
                line].freeze

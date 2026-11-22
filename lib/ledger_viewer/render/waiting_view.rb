@@ -11,8 +11,11 @@ module LedgerViewer
         module WaitingView
             module_function
 
-            # The rating of an item waiting on the user, or nil.
+            # The rating of an item waiting on the user, or nil: a piece's
+            # work risk, the number its card shows, a question's risk.
             def rating(item)
+                return item["work_risk"] if item.key?("work_risk")
+
                 Text.risk_rating(item.dig("risk", "text").to_s).first
             end
 

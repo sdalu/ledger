@@ -5,6 +5,7 @@ require "json"
 
 require "ledger/derive"
 require "ledger/render/json_builds"
+require "ledger/render/json_risks"
 require "ledger/render/markdown"
 require "ledger/text/pointer"
 
@@ -312,11 +313,13 @@ module Ledger
                     @returns = Refs.group(snapshot.piece_returns, :piece_id)
                     @assessments = Assessments.new(snapshot, context)
                     @builds = Builds.new(snapshot)
+                    @risks = Risks.new(snapshot, derive)
                 end
 
                 def call(piece)
                     { id: "P#{piece[:n]}", **head(piece), **links(piece),
-                      **prose(piece), **state(piece), brief: brief(piece),
+                      **prose(piece), **@risks.call(piece), **state(piece),
+                      brief: brief(piece),
                       criteria: criteria(piece), returns: returns(piece),
                       assessments: @assessments.call(piece),
                       **pictures(piece), **@builds.call(piece),

@@ -1,2 +1,2 @@
-<%# <%== carries the button's icon and label, and the line drawn by inline(). %>
-<div class="<%= cls %>"><button type="submit" name="word" value="<%= value %>"<% unless line.empty? %> aria-describedby="<%= wid %>"<% end %>><%== inner %></button><% unless line.empty? %><span class="what" id="<%= wid %>"><%== inline(line) %></span><% end %></div>
+<%# <%== carries the button's icon and label, its step meter, and the line drawn by inline(). %>
+<div class="<%= cls %>"><button type="submit" name="word" value="<%= value %>"<% unless line.empty? %> aria-describedby="<%= wid %>"<% end %>><%== inner %></button><%== step %><% unless line.empty? %><span class="what" id="<%= wid %>"><%== inline(line) %></span><% end %></div>

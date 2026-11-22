@@ -153,7 +153,7 @@ PATH new|P<n>` adds a piece with the next free id or changes one
 (`--title`, `--what` for the detail, `--status`, `--route`,
 `--done-when`, `--evidence`, `--after`, `--for`, `--by`, `--verified-by`,
 `--cause`, `--no-picture WHY`, `--picture-pending WHY`, `--picture-holds WHY`, `--no-commit WHY`, `--announce FILE`, `--status back --handback`, `--builds O<n>`,
-`--status obsolete --obsoleted-by P<n>`, `--commits SHA[,SHA...]` (appends the commits that landed it); an empty value clears a link); a piece not done that
+`--status obsolete --obsoleted-by P<n>`, `--commits SHA[,SHA...]` (appends the commits that landed it), `--[no-]irreversible` (its step cannot be taken back: 3 more on the step risk of each word it awaits, `— irreversible` on its line); an empty value clears a link); a piece not done that
 waits on an event to come, not on the user, is `--status deferred
 --until CONDITION`, the event kept on its line (`— until: three
 closures`) and in the viewer's remains until another status clears
@@ -465,7 +465,10 @@ back and blocked pieces, and any with something to say, stay cards; a
 blocked piece says what blocks it straight under its title.
 Every piece card (in flight, waiting on a word, on record) and every
 question card carries a RAID line under its case, each part left out
-when it has nothing to say: the risk (its ten-step meter, or *no risk
+when it has nothing to say: the risk (its ten-step meter; on a piece
+the work risk, `work N/10`, the rated RISK of its last dispatch once
+it was dispatched, else its own `--risk`, a kept piece's among them,
+the number Waiting on you sorts and filters by; or *no risk
 rated* for a piece in flight, unless it is planned or deferred and
 awaits no word), the assumptions it rests on (`rests on
 A1 (open), A2 (refuted)`, each chip leading to its row), its issues
@@ -624,7 +627,11 @@ What the page takes, all as inbox entries, of the four kinds
   is the wait); the entry carries `word`, and the server refuses a word
   the piece does not await. A piece may carry `— scope: commit = what it
   authorises | deploy = …` (`piece --scope`, only for words it awaits,
-  pruned as words are given), shown under each word's button. The
+  pruned as words are given), shown under each word's button. Each
+  button carries its step risk, a meter `step N/10` under it: what the
+  word itself puts at stake, start 0, commit 1, merge 2, push 4,
+  deploy 5, 3 more on a piece `--irreversible`, capped at 10; the
+  combined button the highest of its words, `other (what)` none. The
   piece's evidence, when it has one, sits just above the buttons, with
   a link to its row in the record. The
   comment folds below the words with its own *Send comment* and

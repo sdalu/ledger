@@ -16,7 +16,7 @@ module Ledger
         # --evidence --after --for --problem --risk --plan --scope --awaits
         # --verified-by --session --by --cause --until --no-picture
         # --picture-pending --picture-holds --no-commit --builds
-        # --obsoleted-by --commits]`:
+        # --obsoleted-by --commits --[no-]irreversible]`:
         # add a piece or change one; `--status deferred --until
         # CONDITION` defers it; `--by X<n>` writes the decision's
         # led_to edge to it, `--status out` claims it for the session
@@ -30,9 +30,11 @@ module Ledger
         # that it builds an open question, `--status obsolete
         # --obsoleted-by P<n>` that another piece replaces it
         # (PieceBuilds); `--commits SHA[,SHA...]` appends the commits
-        # that landed it (PieceCommits); `--announce FILE`
-        # records a dispatch's ANNOUNCE block (PieceAnnounce), `--status
-        # back --handback` a delegate's hand-back (PieceHandback).
+        # that landed it (PieceCommits); `--irreversible` that its step
+        # cannot be taken back (`--no-irreversible` clears it);
+        # `--announce FILE` records a dispatch's ANNOUNCE block
+        # (PieceAnnounce), `--status back --handback` a delegate's
+        # hand-back (PieceHandback).
         class Piece < CLI::Command
             include PieceFlags
             include PieceHandback
@@ -421,6 +423,13 @@ module Ledger
                                      Text::Risk.rating(@row[:risk]).first
             end
 
+            # Whether the piece's step cannot be taken back.
+            def irreversible
+                return unless @opts.key?("irreversible")
+
+                @row[:irreversible] = @opts["irreversible"]
+            end
+
             def route
                 value = @opts["route"]&.strip or return
                 @row.merge!(NO_ROUTE)
@@ -566,10 +575,11 @@ module Ledger
             include PiecePicture
 
             COLUMNS = (%i[status kept_reason until dash title detail
-                          risk_rating no_picture] +
+                          risk_rating no_picture irreversible] +
                        NO_ROUTE.keys + PROSE.values).freeze
             NEW = COLUMNS.to_h { [it, nil] }
-                         .merge(status: "planned", dash: true).freeze
+                         .merge(status: "planned", dash: true,
+                                irreversible: false).freeze
             VERIFIED = "--status verified needs --verified-by WHO: me, " \
                        "the route that checked it, or peer: SESSION"
 
@@ -580,7 +590,8 @@ module Ledger
                 @opts = opts
                 @row = (old || NEW).slice(*COLUMNS)
                 [method(:what), method(:prose), method(:route),
-                 method(:status), method(:no_picture)].each(&:call)
+                 method(:status), method(:no_picture),
+                 method(:irreversible)].each(&:call)
                 words(awaits, scopes)
                 complete
             end

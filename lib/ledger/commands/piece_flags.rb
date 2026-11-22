@@ -12,6 +12,7 @@ module Ledger
                 announce_flag(parser)
                 handback_flag(parser)
                 no_commit_flag(parser)
+                irreversible_flag(parser)
                 parser.on("--claim", "take over an out piece's claim for " \
                                      "this session; the status stays") do
                     @opts["claim"] = true
@@ -34,6 +35,15 @@ module Ledger
                           "why the piece's work stays uncommitted; " \
                           "'' clears it") do |why|
                     @opts["no-commit"] = why
+                end
+            end
+
+            # Whether the piece's step cannot be taken back: 3 more on the
+            # step risk of each word it awaits.
+            def irreversible_flag(parser)
+                said = "its step cannot be taken back: the step risk +3"
+                parser.on("--[no-]irreversible", said) do |set|
+                    @opts["irreversible"] = set
                 end
             end
 

@@ -3,6 +3,7 @@
 require_relative "helpers"
 require_relative "links"
 require_relative "text"
+require_relative "work_risk"
 
 module LedgerViewer
     module Render
@@ -26,12 +27,14 @@ module LedgerViewer
             def piece(piece, flight: false)
                 unrated = flight && (!UNSTAKED.include?(piece["status"]) ||
                                      piece["awaits"].any?)
-                line([risk(piece, unrated), assumed(piece), issues(piece),
+                line([risk(WorkRisk.text(piece), unrated, "work"),
+                      assumed(piece), issues(piece),
                       depends(Links.forward(piece, @reading)), decided(piece)])
             end
 
             def question(question)
-                line([risk(question, false), assumed(question),
+                line([risk(question.dig("risk", "text").to_s, false, "risk"),
+                      assumed(question),
                       question_issues(question),
                       depends(question_links(question)), decided(question)])
             end
@@ -73,14 +76,13 @@ module LedgerViewer
                 %(<span class="raid-part #{key}">#{html}</span>)
             end
 
-            # The meter and what is at stake; with UNRATED, a risk not
-            # rated is said.
-            def risk(item, unrated)
-                text = item.dig("risk", "text").to_s
+            # The meter, LABEL N/10, and what is at stake; with UNRATED, a
+            # risk not rated is said.
+            def risk(text, unrated, label)
                 rating, rest = Text.risk_rating(text)
                 return unrated(text, unrated) unless rating
 
-                meter = @scope.partial("ledger/rating", rating:)
+                meter = @scope.partial("ledger/rating", rating:, label:)
                 said = rest.empty? ? "" : " #{@scope.inline(rest)}"
                 part("risk #{Helpers.risk_band(rating)}", "#{meter}#{said}")
             end
