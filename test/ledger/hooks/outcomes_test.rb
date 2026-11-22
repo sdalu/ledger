@@ -90,6 +90,22 @@ class HookOutcomesTest < HookTest
                      columns(:rule, :detail)
     end
 
+    def test_a_let_through_is_written_only_when_it_changes
+        write("import") { piece(it) }
+        2.times { hook("status-stop", session_id: "s1") }
+        hook("status-stop", session_id: "s2")
+
+        assert_equal [%w[s1 status-stop], %w[s2 status-stop]],
+                     columns(:session, :rule)
+    end
+
+    def test_a_sent_back_is_written_every_time
+        finished
+        2.times { hook("finish", session_id: "s1") }
+
+        assert_equal [%w[s1 finish]] * 2, columns(:session, :rule)
+    end
+
     def test_a_stop_away_from_any_ledger_records_nothing
         Ledger::Hooks.answer("finish",
                              JSON.generate({ cwd: "/elsewhere" }))

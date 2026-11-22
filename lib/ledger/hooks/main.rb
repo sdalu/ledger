@@ -76,17 +76,23 @@ module Ledger
         # its reason the detail; the recorder never raises nor prints
         # here, so the answer stays the hook's.
         def denied(name, payload, answer)
+            reason = deny_reason(answer) or return
+
+            require "ledger/outcomes"
+            Outcomes.record(kind: "refusal", rule: name, detail: reason,
+                            places: Places.of(payload),
+                            session: Outcomes.session(payload), err: nil)
+        rescue StandardError, ScriptError
+            nil
+        end
+
+        # The reason of an answer that denies; nil for any other.
+        def deny_reason(answer)
             output = answer.out && JSON.parse(answer.out)["hookSpecificOutput"]
             return unless output.is_a?(Hash) &&
                           output["permissionDecision"] == "deny"
 
-            require "ledger/outcomes"
-            Outcomes.record(kind: "refusal", rule: name,
-                            places: Places.of(payload),
-                            detail: output["permissionDecisionReason"],
-                            err: nil)
-        rescue StandardError, ScriptError
-            nil
+            output["permissionDecisionReason"].to_s
         end
     end
 end

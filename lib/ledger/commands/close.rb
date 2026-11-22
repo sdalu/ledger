@@ -52,8 +52,15 @@ module Ledger
                 carry(noticed)
                 0
             rescue Unfinished => e
-                e.lines.each { @out.puts it }
-                @err.puts "#{path}: #{e.message}"
+                unfinished(path, e)
+            end
+
+            # The finish gate's refusal printed and recorded (each FAIL
+            # line a refusal `final`); exit 1.
+            def unfinished(path, error)
+                error.lines.each { @out.puts it }
+                @err.puts "#{path}: #{error.message}"
+                RefusalOutcomes.new(@words, err: @err).final(error.lines)
                 1
             end
 

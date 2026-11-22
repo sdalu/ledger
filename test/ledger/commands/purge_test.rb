@@ -6,14 +6,14 @@ require_relative "purge_case"
 # until --confirmed.
 class PurgeTest < PurgeCase
     def test_a_dry_run_lists_the_counts_and_writes_nothing
-        before = kept
+        before = totals
         code, out, err = cli("purge", "L#{@beta}")
         assert_equal 2, code
         assert_includes out, "would remove L#{@beta}: /work/beta, closed "
         assert_includes out, "  pieces: 1"
         assert_includes out, "  events: #{@beta_counts[:events]}"
         assert_includes err, "--confirmed"
-        assert_equal before, kept
+        assert_equal before, totals
         assert_empty backups
     end
 

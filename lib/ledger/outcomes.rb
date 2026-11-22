@@ -21,7 +21,9 @@ module Ledger
     # A row's ledger is its `ledger_id`, else the live ledger at its
     # `address` (place, name), else the one live ledger at its `places`
     # (none when there are several); `live: true` writes it only when a
-    # live ledger sits at its places.
+    # live ledger sits at its places, `changed: true` only when its detail
+    # differs from the last row of its kind and rule for its session and
+    # ledger. Its session is `session:`, else CLAUDE_CODE_SESSION_ID.
     module Outcomes
         # The program; LEDGER_SQLITE overrides.
         SQLITE = "/usr/local/bin/sqlite3"
@@ -46,11 +48,15 @@ module Ledger
             false
         end
 
-        # The rule of a hook's run (Stop): VERDICT (sent-back,
-        # let-through) and why, when a live ledger sits at its places.
+        # A Stop hook's verdict, VERDICT (sent-back, let-through) and why,
+        # when a live ledger sits at its places; a let-through only when
+        # it differs from the hook's last row for the session and ledger,
+        # so a quiet session writes nothing per turn.
         def hook(name, payload, verdict, why)
             record(kind: "hook", rule: name, places: Hooks::Places.of(payload),
-                   live: true, detail: "#{verdict}: #{why}", err: nil)
+                   session: session(payload), live: true,
+                   changed: verdict == "let-through",
+                   detail: "#{verdict}: #{why}", err: nil)
         end
 
         def run(path, statements)
@@ -76,14 +82,27 @@ module Ledger
 
         def insert(row)
             sql = "INSERT INTO outcomes (#{COLUMNS}) SELECT #{values(row)}"
-            return "#{sql};" unless row[:live]
+            only = [("EXISTS (SELECT 1 #{live(row[:places])})" if row[:live]),
+                    (changed(row) if row[:changed])].compact
+            return "#{sql};" if only.empty?
 
-            "#{sql} WHERE EXISTS (SELECT 1 #{live(row[:places])});"
+            "#{sql} WHERE #{only.join(" AND ")};"
         end
+
+        # The row's detail is not that of the last row of its kind and
+        # rule for its session and ledger.
+        def changed(row)
+            "(SELECT detail FROM outcomes WHERE kind = #{text(row[:kind])} " \
+                "AND rule = #{text(row[:rule])} AND session IS " \
+                "#{text(row_session(row))} AND ledger_id IS #{ledger(row)} " \
+                "ORDER BY id DESC LIMIT 1) IS NOT #{text(row[:detail])}"
+        end
+
+        def row_session(row) = row.fetch(:session) { session }
 
         # The row's values as SQL, in COLUMNS' order.
         def values(row)
-            [ledger(row), text(session), Integer(row[:at] || now),
+            [ledger(row), text(row_session(row)), Integer(row[:at] || now),
              *row.fetch_values(:kind, :rule).map { text(it) },
              *row.values_at(:ref, :detail).map { text(it) }].join(", ")
         end
@@ -117,8 +136,11 @@ module Ledger
             value.nil? ? "NULL" : "'#{value.to_s.gsub("'", "''")}'"
         end
 
-        def session
-            id = ENV.fetch("CLAUDE_CODE_SESSION_ID", "").strip
+        # A hook PAYLOAD's session_id, else CLAUDE_CODE_SESSION_ID; nil
+        # when neither names one.
+        def session(payload = {})
+            id = payload["session_id"].to_s.strip
+            id = ENV.fetch("CLAUDE_CODE_SESSION_ID", "").strip if id.empty?
             id.empty? ? nil : id
         end
 

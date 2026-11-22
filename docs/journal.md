@@ -699,19 +699,25 @@ under the refusal's own rule: `second-ledger` (`new` beside a live
 ledger without `--confirmed`), `word-gate` (a word with no message of
 the user's since it was asked), `usage`, `unknown`, `claimed`,
 `locked`, `constraint` (a row the schema refused), `refused` for the
-rest; its ledger the live one at the first word naming an address, its
+rest; `final`, one per FAIL line, for a `close` the finish gate refused
+(exit 1); none for `purge` without `--confirmed`, a preview; its ledger the live one at the first word naming an address, its
 `ref` the first word naming a piece or question, its `detail` the
 refusal's words. A PreToolUse hook's deny is a `refusal` too, `rule`
 the hook's name, `detail` its reason. `flag_on`, `flag_off`: written by
 `check` without `--peek` when a piece's flag (`unsent`, `stalled`,
-`pictures-fresh`, a piece being redrawn not stale) differs from the last
-row for that piece and flag (none: off). `hook`: a Stop hook's verdict
+`pictures-fresh`, a piece being redrawn not stale) or an open
+question's `pictures-fresh` (`ref` `O<n>`) differs from the last row
+for that item and flag (none: off). `hook`: a Stop hook's verdict
 (`finish`, `status-stop`, `inbox`, `uncommitted`), `detail`
 `sent-back: WHY` or `let-through: WHY` (retry, work not over, final
 passes, deferred-only, nothing in flight, status unchanged, status
 shown, nothing pending, nothing uncommitted, already named), written
-only when a live ledger sits at the payload's places. A hook's ledger is
-the one live ledger at those places (none when several). The rows are
+only when a live ledger sits at the payload's places: a sent-back every
+time, a let-through only when its detail differs from that hook's last
+row for the same session and ledger, so a quiet session writes nothing
+per turn. A hook's ledger is the one live ledger at those places (none
+when several), its session the payload's `session_id`, else
+`CLAUDE_CODE_SESSION_ID`. The rows are
 written by `Ledger::Outcomes` (`lib/ledger/outcomes.rb`) in their own
 short transaction, after a refused write rolled back; the recorder
 never raises: a failure is one line on stderr for a command, nothing

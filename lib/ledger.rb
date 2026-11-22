@@ -13,14 +13,17 @@ module Ledger
     # A write refused before anything was written (the command's exit 2).
     # Its rule names it in the outcomes a writer's refusal records: the
     # one given, else the class's own word (refused, unknown, claimed,
-    # locked).
+    # locked). A preview that exits as a refusal (purge without
+    # --confirmed) is not one and is not recorded.
     class Refused < Error
-        def initialize(message = nil, rule: nil)
+        def initialize(message = nil, rule: nil, recorded: true)
             super(message)
             @rule = rule
+            @recorded = recorded
         end
 
         def rule = @rule || self.class.name.split("::").last.downcase
+        def recorded? = @recorded
     end
 
     # The write lock was not given within the busy timeout.

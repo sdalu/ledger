@@ -5,14 +5,16 @@ require "ledger/outcomes"
 
 module Ledger
     # The flags a check shows on each piece (unsent, stalled,
-    # pictures-fresh) recorded in outcomes when they move: flag_on when
-    # one appears on a piece, flag_off when it clears. A piece's last
-    # state for a flag is the last such row; none yet is off. A piece
-    # whose picture is being redrawn is not stale, as a plain check says.
+    # pictures-fresh) and on each open question (pictures-fresh)
+    # recorded in outcomes when they move: flag_on when one appears on an
+    # item, flag_off when it clears. An item's last state for a flag is
+    # the last such row; none yet is off. A piece whose picture is being
+    # redrawn is not stale, as a plain check says.
     #
     #     Ledger::FlagOutcomes.new(db, derive).record(err: $stderr)
     class FlagOutcomes
         KINDS = %w[flag_on flag_off].freeze
+        FRESH = "pictures-fresh"
 
         def initialize(db, derive)
             @db = db
@@ -36,18 +38,29 @@ module Ledger
 
         def ledger_id = @derive.snapshot.ledger_id
 
-        # {[ref, flag] => shown} of every piece and flag.
+        # {[ref, flag] => shown} of every piece and flag, and of every
+        # question's picture (stale only while the question is open).
         def current
-            @derive.pieces.each_with_object({}) do |piece, flags|
+            flags = @derive.pieces.each_with_object({}) do |piece, all|
                 ref = @derive.ref(piece)
-                shown(piece).each { |flag, on| flags[[ref, flag]] = on }
+                shown(piece).each { |flag, on| all[[ref, flag]] = on }
             end
+            @derive.snapshot.questions.each do |question|
+                ref = @derive.qref(question)
+                flags[[ref, FRESH]] = stale_question?(question)
+            end
+            flags
+        end
+
+        def stale_question?(question)
+            question[:closed_at].nil? &&
+                !Checks::Fresh.question_line(@derive, question).nil?
         end
 
         def shown(piece)
             { "unsent" => @derive.unsent?(piece),
               "stalled" => @derive.stalled?(piece),
-              "pictures-fresh" => stale?(piece) }
+              FRESH => stale?(piece) }
         end
 
         def stale?(piece)

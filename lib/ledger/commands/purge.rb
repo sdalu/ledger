@@ -34,7 +34,8 @@ module Ledger
                 return confirmed(row, purge) if @opts[:confirmed]
 
                 describe(row, purge.counts)
-                refuse("nothing removed; --confirmed removes it")
+                raise Refused.new("nothing removed; --confirmed removes it",
+                                  recorded: false)
             end
 
             # The closed ledger L<n> names; refused when it does not exist
