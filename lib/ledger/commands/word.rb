@@ -2,6 +2,7 @@
 
 require "ledger/commands/answer"
 require "ledger/commands/decide"
+require "ledger/commands/word_start"
 require "ledger/text/awaits"
 
 module Ledger
@@ -10,8 +11,11 @@ module Ledger
         # a piece becomes a decision by user with a led_to edge to it, and
         # the piece changes: `drop` drops it, any other word must be one it
         # awaits and stops being awaited, its scope line going with it.
+        # A piece that builds a question still open takes no start: the
+        # answer comes first (WordStart).
         class Word < CLI::Command
             include Taking
+            include WordStart
 
             USAGE = "PATH ID"
             SYNOPSIS = "PATH P<n> --word W"
@@ -50,6 +54,7 @@ module Ledger
 
             def give(change, piece, given, ids)
                 refuse("--word is empty") if given.empty?
+                built!(piece, given)
                 remove(change, piece, left(change, piece, given))
                 take(change, ids)
                 ref = decision(change, piece, given, ids)

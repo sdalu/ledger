@@ -1146,6 +1146,21 @@
       next.classList.add('is-pulse');
       next.addEventListener('animationend', () => next.classList.remove('is-pulse'), {once: true});
     };
+    // Answer and start: once the answer is accepted, the start of the
+    // piece building the question goes as a post of its own, after it;
+    // an answer refused sends nothing more
+    const starts = doc && e.submitter && e.submitter.dataset.start;
+    if (starts) {
+      try {
+        const s = await fetch(f.action, {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+          body: new URLSearchParams({token: f.elements.token.value, ref: starts, word: 'start'}),
+        });
+        if (s.ok && s.redirected) { doc = new DOMParser().parseFromString(await s.text(), 'text/html'); r = s; }
+      } catch (err) { /* the answer landed: its page is drawn */ }
+    }
     if (!doc) return r && r.status >= 400 && r.status < 500 ? plain() : unconfirmed();
     return land(doc, r.url);
   });

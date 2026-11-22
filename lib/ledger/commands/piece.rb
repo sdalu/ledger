@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "ledger/commands/piece_announce"
+require "ledger/commands/piece_builds"
 require "ledger/commands/piece_flags"
 require "ledger/commands/piece_handback"
 require "ledger/text/awaits"
@@ -12,7 +13,8 @@ module Ledger
         # `piece PATH new|P<n> [--status --route --title --what --done-when
         # --evidence --after --for --problem --risk --plan --scope --awaits
         # --verified-by --session --by --cause --until --no-picture
-        # --picture-pending --picture-holds --no-commit]`:
+        # --picture-pending --picture-holds --no-commit --builds
+        # --obsoleted-by]`:
         # add a piece or change one; `--status deferred --until
         # CONDITION` defers it; `--by X<n>` writes the decision's
         # led_to edge to it, `--status out` claims it for the session
@@ -22,7 +24,10 @@ module Ledger
         # redrawn (the next `mockup --piece` clears it, as does ''),
         # `--picture-holds WHY` that the picture still shows it after a
         # change, as of this write, `--no-commit WHY` that its work is
-        # deliberately left uncommitted ('' clears it); `--announce FILE`
+        # deliberately left uncommitted ('' clears it); `--builds O<n>`
+        # that it builds an open question, `--status obsolete
+        # --obsoleted-by P<n>` that another piece replaces it
+        # (PieceBuilds); `--announce FILE`
         # records a dispatch's ANNOUNCE block (PieceAnnounce), `--status
         # back --handback` a delegate's hand-back (PieceHandback).
         class Piece < CLI::Command
@@ -37,7 +42,7 @@ module Ledger
             # Each flag and what its value is, as the help says it.
             FLAGS = {
                 "status" => "planned, out, back, verified, blocked, dropped, " \
-                            "deferred or kept: REASON",
+                            "deferred, obsolete or kept: REASON",
                 "route" => "who does it: MODEL, effort: E[, skills: S], " \
                            "or peer: SESSION",
                 "title" => "a short name, at most 60 characters",
@@ -62,7 +67,10 @@ module Ledger
                 "picture-pending" => "why its picture is being redrawn; " \
                                      "'' clears it",
                 "picture-holds" => "why its picture still shows it after " \
-                                   "a change; '' clears it"
+                                   "a change; '' clears it",
+                "builds" => "O<n>, the open question it builds; none clears",
+                "obsoleted-by" => "P<n>, the piece that replaces it, with " \
+                                  "--status obsolete"
             }.freeze
 
             private
@@ -178,6 +186,8 @@ module Ledger
 
             def save(old, row)
                 columns = row.columns(at: @change.at)
+                builds = PieceBuilds.new(@change, @db, old, @opts)
+                columns.merge!(builds.columns)
                 return update(old, columns) if old
 
                 n = @change.next_id("P")
@@ -360,10 +370,13 @@ module Ledger
         # refused.
         module PieceFlags
             STATUSES = %w[planned out back verified blocked dropped
-                          deferred].freeze
+                          deferred obsolete].freeze
             UNTIL = "--status deferred needs --until CONDITION: the event " \
                     "the piece waits on"
             UNTIL_ALONE = "--until goes with --status deferred"
+            OBSOLETE = "--status obsolete needs --obsoleted-by P<n>: the " \
+                       "piece that replaces it"
+            OBSOLETED_ALONE = "--obsoleted-by goes with --status obsolete"
             SKILL = '[\p{Word}.:-]+'
             MODEL = Regexp.new(
                 "\\A(haiku|sonnet|opus|fable), " \
@@ -445,7 +458,17 @@ module Ledger
             def stated
                 word = @opts["status"]&.strip
                 refuse(UNTIL_ALONE) if @opts.key?("until") && word != "deferred"
+                obsoleted(word)
                 word
+            end
+
+            # --status obsolete and --obsoleted-by go together; the piece
+            # it names is resolved in the write (PieceBuilds).
+            def obsoleted(word)
+                given = @opts.key?("obsoleted-by")
+                refuse(OBSOLETED_ALONE) if given && word != "obsolete"
+                refuse(OBSOLETE) if word == "obsolete" &&
+                                    @opts["obsoleted-by"].to_s.strip.empty?
             end
 
             def kept(reason)
@@ -563,8 +586,7 @@ module Ledger
                 @row = (old || NEW).slice(*COLUMNS)
                 [method(:what), method(:prose), method(:route),
                  method(:status), method(:no_picture)].each(&:call)
-                @awaits = awaits_of(awaits)
-                @scopes = scopes_of(scopes)
+                words(awaits, scopes)
                 complete
             end
 
@@ -588,6 +610,14 @@ module Ledger
             private
 
             def kept?(row) = row[:status] == "kept"
+            def obsolete? = @row[:status] == "obsolete"
+
+            # The awaited words and their scope; an obsolete piece awaits
+            # none: its replacement does.
+            def words(awaits, scopes)
+                @awaits = obsolete? ? [] : awaits_of(awaits)
+                @scopes = obsolete? ? [] : scopes_of(scopes)
+            end
 
             def awaits_of(stored)
                 return stored unless @opts.key?("awaits")

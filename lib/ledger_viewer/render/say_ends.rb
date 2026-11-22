@@ -26,7 +26,7 @@ module LedgerViewer
             def submit
                 ref = @spec.ref
                 case Terms.kind(ref)
-                when "answer" then "#{verb} answer to #{ref}"
+                when "answer" then answer(ref)
                 when "comment" then "Send comment on #{ref}"
                 when "order" then "Send this order"
                 when "note" then "Send note"
@@ -35,6 +35,15 @@ module LedgerViewer
             end
 
             def verb = @spec.replaces.empty? ? "Send" : "Replace"
+
+            # One button answers and starts the piece building the
+            # question.
+            def answer(ref)
+                starts = @spec.starts
+                return "#{verb} answer to #{ref}" if starts.empty?
+
+                "Answer and start #{starts}"
+            end
 
             def after
                 nxt = @spec.next_id

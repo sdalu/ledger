@@ -4,6 +4,7 @@ require "digest"
 require "json"
 
 require "ledger/derive"
+require "ledger/render/json_builds"
 require "ledger/render/markdown"
 require "ledger/text/pointer"
 
@@ -310,6 +311,7 @@ module Ledger
                     @criteria = Refs.group(snapshot.piece_criteria, :piece_id)
                     @returns = Refs.group(snapshot.piece_returns, :piece_id)
                     @assessments = Assessments.new(snapshot, context)
+                    @builds = Builds.new(snapshot)
                 end
 
                 def call(piece)
@@ -317,15 +319,19 @@ module Ledger
                       **prose(piece), **state(piece), brief: brief(piece),
                       criteria: criteria(piece), returns: returns(piece),
                       assessments: @assessments.call(piece),
-                      pictures: @derive.pictures(piece).map do |row|
-                          row.slice(:role, :name)
-                      end,
-                      no_picture: piece[:no_picture],
-                      picture_pending: piece[:picture_pending],
+                      **pictures(piece), **@builds.call(piece),
                       line: @markdown.line("P#{piece[:n]}") }
                 end
 
                 private
+
+                def pictures(piece)
+                    { pictures: @derive.pictures(piece).map do |row|
+                        row.slice(:role, :name)
+                    end,
+                      no_picture: piece[:no_picture],
+                      picture_pending: piece[:picture_pending] }
+                end
 
                 def head(piece)
                     { status: piece[:status], kept_reason: piece[:kept_reason],

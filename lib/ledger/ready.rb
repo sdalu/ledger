@@ -10,7 +10,7 @@ module Ledger
     # (`@ready_ms`).
     module Ready
         # What an after: piece may be for its follower to be sent.
-        ENDED = %w[verified kept dropped].freeze
+        ENDED = %w[verified kept dropped obsolete].freeze
         # How long a ready piece may stay planned, in minutes, before it
         # is unsent (S2); LEDGER_READY_LIMIT overrides.
         LIMIT = 120
@@ -26,7 +26,7 @@ module Ledger
         def self.parse(value) = Derive.minutes(LIMIT_ENV, value, LIMIT)
 
         # A planned piece awaiting no word whose `after` pieces are all
-        # verified, kept or dropped.
+        # verified, kept, dropped or obsolete.
         def ready?(piece)
             piece[:status] == "planned" && awaits_rows(piece).empty? &&
                 after(piece).all? { ENDED.include?(it[:status]) }

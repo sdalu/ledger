@@ -14,6 +14,8 @@ module LedgerViewer
                                   :planned, :deferred, :flying, :crit_met,
                                   :crit, :verified, :pieces, :kept, :waits)
             WORD_LEAD = "your word: "
+            # What no count of the live pieces holds: dropped, or replaced.
+            GONE = %w[dropped obsolete].freeze
             ITEM_BREAK = /, (?=P\d+ \()/
 
             def goals = @data.fetch("goals")
@@ -102,7 +104,7 @@ module LedgerViewer
             def unread = inbox.count { !it["taken"] }
 
             def figures
-                live = pieces.reject { it["status"] == "dropped" }
+                live = pieces.reject { GONE.include?(it["status"]) }
                 kept = live.count { it["status"] == "kept" }
                 Figures.new(**asking, **flight_counts, **criteria_count,
                             verified: status_count("verified"),

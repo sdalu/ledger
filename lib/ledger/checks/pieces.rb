@@ -46,8 +46,8 @@ module Ledger
                 end
             end
 
-            # A piece waiting for a dropped one; a piece out, back or
-            # verified before what it waits for is settled.
+            # A piece waiting for a dropped or obsolete one; a piece out,
+            # back or verified before what it waits for is settled.
             def order(derive)
                 derive.pieces.flat_map do |piece|
                     after = derive.after(piece)
@@ -57,9 +57,12 @@ module Ledger
             end
 
             def dropped(derive, piece, after)
-                gone = after.select { it[:status] == "dropped" }
-                return if gone.empty? || piece[:status] == "dropped"
-                "#{derive.ref(piece)} waits for dropped #{refs(derive, gone)}"
+                gone = after.select { Derive::GONE.include?(it[:status]) }
+                return if gone.empty? || Derive::GONE.include?(piece[:status])
+                said = gone.group_by { it[:status] }.map do |status, list|
+                    "#{status} #{refs(derive, list)}"
+                end
+                "#{derive.ref(piece)} waits for #{said.join(" and ")}"
             end
 
             def early(derive, piece, after)

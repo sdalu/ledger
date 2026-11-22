@@ -50,8 +50,11 @@ module Ledger
         end
 
         # Deletes every row counted, in one transaction the caller holds;
-        # -> the counts.
+        # -> the counts. A piece's builds_id points at a question, which
+        # goes before the pieces: cleared first, the cycle is broken.
         def delete
+            @db[:pieces].where(ledger_id: @id).exclude(builds_id: nil)
+                        .update(builds_id: nil)
             TABLES.to_h do |table, *spec|
                 [table, rows(table, *spec).delete]
             end

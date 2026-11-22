@@ -16,7 +16,9 @@ module LedgerViewer
                              "on the line",
                 "dropped" => "abandoned, the reason in a Decision",
                 "deferred" => "not done, waiting on an event to come, not " \
-                              "on you: the event after until"
+                              "on you: the event after until",
+                "obsolete" => "replaced by a newer piece, named after " \
+                              "obsoleted by"
             }.freeze
 
             module_function

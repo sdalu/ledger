@@ -572,6 +572,24 @@ the rebuild keeps only those it is given. It runs outside a migration
 transaction, so that Sequel can turn the foreign keys off and the
 tables naming `pieces` keep naming it.
 
+**A piece that builds a question, a piece made obsolete.** Migration
+012 adds `pieces.builds_id` (a question, `piece P<n> --builds O<n>`,
+`none` clears it) under a unique index: one piece at most builds a
+question, which must be open when the link is set. While that question
+is open, `word P<n> --word start` on the piece is refused (`answer O<n>
+first`), and the viewer draws the piece on the question's card, its
+one button sending the answer then the start (section 6). It adds
+`pieces.obsoleted_by_id` (a piece) and the status `obsolete`, set only
+together: `piece P<n> --status obsolete --obsoleted-by P<m>`, refused
+when P<m> is obsolete or dropped or P<n> itself, or when P<n> is out.
+An obsolete piece awaits no word (its awaits and scope rows go) and,
+like a dropped one, is terminal: out of the live counts, an `after` it
+ends, a piece still waiting for it refused by `pieces-order`, and not
+unfinished for `--final`; `stats` counts it neither as blocked nor as a
+return. Any other status clears `obsoleted_by_id`. The status `CHECK`
+changes as in 004: the table is rebuilt with every `CHECK` given again,
+the unique index added after the rebuild.
+
 The `CHECK` constraints the migrations add, each one a check rule the
 schema makes impossible (section 5):
 
@@ -581,7 +599,8 @@ schema makes impossible (section 5):
 | criteria | `mark IN (' ','x','-')`; not both `evidence` and `why` |
 | facts | `pointer <> ''` |
 | decisions | `by IN ('user','me')`; `date` matches `____-__-__` |
-| pieces | `status IN (planned,out,back,verified,blocked,dropped,kept,deferred)` (004) |
+| pieces | `status IN (planned,out,back,verified,blocked,dropped,kept,deferred,obsolete)` (012) |
+| pieces | `status = 'obsolete'` exactly when `obsoleted_by_id` is set (012) |
 | pieces | kept: `kept_reason <> ''` and no route; else `model`+`effort` or `peer` |
 | pieces | `model`, `effort` in their lists; `done_when` NULL or `<> ''` |
 | pieces | `status <> 'verified'` or `evidence <> ''` and `verified_by` set |
@@ -722,7 +741,8 @@ last ten events (`E<n>  time  actor  command  summary`) and exits 2.
 ## 3. Derived states (U2, U14)
 
 Stored: `planned`, `out`, `back`, `verified`, `blocked`, `dropped`,
-`kept` (with its reason), `deferred` (with its `until`). Everything
+`kept` (with its reason), `deferred` (with its `until`), `obsolete`
+(with its `obsoleted_by`). Everything
 below is computed per read from the snapshot and the events, never
 stored.
 
@@ -731,8 +751,8 @@ stored.
 | settled | `verified` or `kept` |
 | unfinished | `planned`, `out`, `back` or `deferred` (`--final` fails on these) |
 | in flight | `blocked`, `back`, `out`, `planned`, `deferred`, in that urgency |
-| ready | `planned`, no `piece_awaits` row, and every `after` piece `verified`, `kept` or `dropped` (a piece with no `after` is ready) |
-| ready since | the later of the last event row touching the piece and the event that last set each `after` piece `verified`, `kept` or `dropped` |
+| ready | `planned`, no `piece_awaits` row, and every `after` piece `verified`, `kept`, `dropped` or `obsolete` (a piece with no `after` is ready) |
+| ready since | the later of the last event row touching the piece and the event that last set each `after` piece `verified`, `kept`, `dropped` or `obsolete` |
 | unsent | ready for longer than the ready limit: 120 minutes, `LEDGER_READY_LIMIT` (minutes) overrides (S2); the age is the time since it became ready |
 | awaiting | its `piece_awaits` rows, in position order |
 | stalled (U14) | `out`, and no event row touching it for more than the stall budget: 60 minutes, `LEDGER_STALL_MINUTES` overrides (S2) |
@@ -809,11 +829,11 @@ command's refusal, exit 2, nothing written.
 | `inbox PATH [--wait [--timeout S] \| --follow [--quiet S]]` | the pending entries, or "inbox: nothing pending", each headed `N<n> (TIME, KIND):` with KIND one of `answer to O3`, `comment on question O3, not an answer`, `picture asked for O3 (svg)` (on O<n> or P<n>), `comment on piece P4`, `word on P4: commit`, `proposed order of the planned pieces`, the close or abandon word, `note` (`lib/ledger/hooks/entry.rb`, `KINDS`); polls the ledger's newest event id each second | `--wait` timeout exit 1 |
 | `take PATH N<n>…` | `taken: …; pending: …`; one `take` event setting `taken_id` | unknown id; "already taken at TIME: another session filed it" |
 | `waker PATH on\|off` | `waker on: ADDRESS`, status line; one `waker` event setting `ledgers.waker` (section 8) | a word but on or off |
-| `piece PATH new\|P<n> [--status --route --title --what --done-when --evidence --after --for --problem --risk --plan --scope --awaits --verified-by --session --by X<n> --cause C --until CONDITION --claim --no-picture WHY --picture-pending WHY --picture-holds WHY --no-commit WHY --dry-run]`, `piece PATH P<n> --announce FILE [--session S]`, `piece PATH P<n> --status back --handback` | the new id (new), `claimed: P<n> from HOLDER` (`--claim`), the piece line (a deferred one with `— until: CONDITION`), status line; `--announce`: the one line `assessment recorded on PATH P<n>` (a `piece_assessments` row, section 1); `--handback`: on a piece out, status back and the one line `hand-back recorded on PATH P<n>`, on any other status nothing written and the one line `P<n> is STATUS; the hand-back changes nothing`, both exit 0 | target shape; no such piece; title, detail; scope grammar or a word not awaited; new without title; awaiting without problem and rated risk; no route and not kept; a return (`--status planned` from out or back) without `--cause` or with a cause not in `brief`, `split`, `depth`, `contract`, `env`; `--cause` on any other change; `--status deferred` without `--until` or with it empty, `--until` without `--status deferred` (any other status clears `until`); out without a session, or out under another holder; `--claim` on a new piece, with `--status`, without a session, or on a piece not out; verified without `--verified-by`; `--announce` on `new`, with any flag but `--session`, FILE unreadable, or a block refused (section 1), the reason a sentence; `--handback` on `new`, without `--status back`, with any other flag, or on no such piece, the reason a sentence; an empty `--no-picture`; (`--no-commit ''` clears it, shown as `— no commit: WHY`, stored in `pieces.no_commit`, migration 011); `--picture-pending` with `--picture-holds`; checks (`pictures`: awaiting commit, deploy, push or merge without a before and an after or a reason; `pictures-fresh`: awaiting commit, deploy, push or merge, not `--picture-pending`, with a plan, detail or problem reworded since its latest picture) |
+| `piece PATH new\|P<n> [--status --route --title --what --done-when --evidence --after --for --problem --risk --plan --scope --awaits --verified-by --session --by X<n> --cause C --until CONDITION --claim --no-picture WHY --picture-pending WHY --picture-holds WHY --no-commit WHY --builds O<n>\|none --obsoleted-by P<n> --dry-run]`, `piece PATH P<n> --announce FILE [--session S]`, `piece PATH P<n> --status back --handback` | the new id (new), `claimed: P<n> from HOLDER` (`--claim`), the piece line (a deferred one with `— until: CONDITION`, an obsolete one with `— obsoleted by P<n>` after its title), status line; `--announce`: the one line `assessment recorded on PATH P<n>` (a `piece_assessments` row, section 1); `--handback`: on a piece out, status back and the one line `hand-back recorded on PATH P<n>`, on any other status nothing written and the one line `P<n> is STATUS; the hand-back changes nothing`, both exit 0 | target shape; no such piece; title, detail; scope grammar or a word not awaited; new without title; awaiting without problem and rated risk; no route and not kept; a return (`--status planned` from out or back) without `--cause` or with a cause not in `brief`, `split`, `depth`, `contract`, `env`; `--cause` on any other change; `--status deferred` without `--until` or with it empty, `--until` without `--status deferred` (any other status clears `until`); out without a session, or out under another holder; `--claim` on a new piece, with `--status`, without a session, or on a piece not out; verified without `--verified-by`; `--announce` on `new`, with any flag but `--session`, FILE unreadable, or a block refused (section 1), the reason a sentence; `--handback` on `new`, without `--status back`, with any other flag, or on no such piece, the reason a sentence; `--builds` not `O<n>` or `none`, on no such question, on one answered, or on one another piece builds; `--status obsolete` without `--obsoleted-by`, `--obsoleted-by` without it, a replacement not `P<n>`, unknown, obsolete, dropped or the piece itself, or a piece out made obsolete (migration 012, section 1); an empty `--no-picture`; (`--no-commit ''` clears it, shown as `— no commit: WHY`, stored in `pieces.no_commit`, migration 011); `--picture-pending` with `--picture-holds`; checks (`pictures`: awaiting commit, deploy, push or merge without a before and an after or a reason; `pictures-fresh`: awaiting commit, deploy, push or merge, not `--picture-pending`, with a plan, detail or problem reworded since its latest picture) |
 | `ask PATH O<n> --by P<n>\|none [--dry-run]` | the id, the question's line, status line: the `by` link of an open question set, changed or cleared (`none`), a write with its event, undone by `undo`; it takes no other flag | not `O<n>` of this ledger or not open; no `--by`; another flag; `--by` dropped or not a piece; checks (`question-loop`) |
 | `ask PATH QUESTION --title [--choices --by --items --see --problem --risk --recommend] (--mockup N \| --pending P \| --no-picture WHY) [--replaces O<n>] [--dry-run]` | the id, the line, a warning at 7–8 options, the picker card (dry run), status line | title, detail; problem and rated risk; empty question; not exactly one picture decision; pending piece missing or dropped; no picture of that name in the journal; `--by` dropped; option grammar; `--items` without `--choices`; `--replaces` not open or with an untaken entry; checks |
 | `answer PATH O<n> --decision [--date] [--take N…] [--replaces X<n>] [--dry-run]` | the id (`X<n>`), the decision line, the take line, status line | not open; empty decision; unknown or already taken entry; checks |
-| `word PATH P<n> --word W [--date] [--take N…] [--dry-run]` | the id (`X<n>`), the decision line, the piece line, the take line, status line | not P<n>; no piece; empty; awaits no word; a word not awaited; unknown or taken entry; checks |
+| `word PATH P<n> --word W [--date] [--take N…] [--dry-run]` | the id (`X<n>`), the decision line, the piece line, the take line, status line | not P<n>; no piece; empty; `start` on a piece whose `--builds` question is open (`P<n> builds O<m>: answer O<m> first`); awaits no word; a word not awaited; unknown or taken entry; checks |
 | `mockup PATH FILE\|DIR… --question O<n> [--name] [--replace]` | `placed …` per file, the question line, `viewer: /l/ID (…/m/ID/FILE)` (`the mockups at …`, one URL per name, with several); every name of the call is shown on the question, a DIR by its pick (`index.html` at its top, else its single page, else its single image or SVG; `FILE` is that file under the DIR) | neither `--question` nor `--piece`; `--before` or `--after` with `--question`; symlink; missing; nothing; a name `mockup:` cannot spell; a type not served; not open; a name already placed; `--name` with several FILEs, or not placed; a single file that is not a page, image or text; a DIR with no `index.html`, single page or single image |
 | `mockup PATH FILE --piece P<n> --before\|--after [--replace]` | `placed FILE as P<n> ROLE`, status line; `--replace` takes the piece's earlier picture of that side away (its blob stays) | with `--question`; not P<n>; no such piece; not exactly one of `--before`, `--after`; more than one FILE (`--before` or `--after` takes one), or a directory; that side already placed, without `--replace`; symlink; missing; a name `mockup:` cannot spell; a type not served; a name already placed |
 | `mockup PATH FILE --question O<n> --choice LABEL [--replace]` | `placed FILE`, the question line (the option followed by `— picture: NAME`), `viewer: …`; `--replace` swaps the option's picture (its blob stays) | no `--question`; with `--piece` or `--name`; not open; a question with `--items` ("answered item by item"); no `choices:`; a label the question has not (the labels are named); the option already has its picture, without `--replace`; more than one picture (a call places one name); and the refusals of a placed file (symlink, missing, a type not served, a name already placed) |
@@ -944,7 +964,7 @@ other reader through `--json`; the hooks read the `Snapshot` and the
 | links | `[{kind, from, to}]`, visible ids at both ends |
 | closed_questions | the `questions` shape plus `closed_at`, the rows with `closed_at` set, oldest first (the graph page reads them) |
 | pictures | `[{name, files: [{path, type, size}]}]` |
-| pieces | `[{id, status, kept_reason, until, route: {model, effort, skills, peer} \| null, route_text, title, detail, done_when, evidence, after: [P], for: [D], awaits: [{word, what}], scope: [{word, text}], rests_on_assumptions: [A], problem, risk: {rating, text}, plan, verified_by, claim: {session, since} \| null, ready, ready_since, unsent, stalled, touched_at, settled, brief: {version, at} \| null, criteria: [{text, mark, evidence}], returns: [{cause, from, at, actor}], assessments: [{at, actor, session, what, why, model, effort, axis, axis_level, risk: {rating, text}, mode, mode_attended}], pictures: [{role, name}], no_picture, picture_pending, line}]` (`returns` and `assessments` oldest first, `pictures` before first) |
+| pieces | `[{id, status, kept_reason, until, route: {model, effort, skills, peer} \| null, route_text, title, detail, done_when, evidence, after: [P], for: [D], awaits: [{word, what}], scope: [{word, text}], rests_on_assumptions: [A], problem, risk: {rating, text}, plan, verified_by, claim: {session, since} \| null, ready, ready_since, unsent, stalled, touched_at, settled, brief: {version, at} \| null, criteria: [{text, mark, evidence}], returns: [{cause, from, at, actor}], assessments: [{at, actor, session, what, why, model, effort, axis, axis_level, risk: {rating, text}, mode, mode_attended}], pictures: [{role, name}], no_picture, picture_pending, builds: {question, decision, text} \| null, obsoleted_by, line}]` (`returns` and `assessments` oldest first, `pictures` before first; `builds` the question the piece builds, `decision` the `X<n>` that answered it and `text` its body, both null while it is open; `obsoleted_by` the `P<n>` replacing an obsolete piece, else null) |
 | questions | `[{id, title, detail, problem, risk: {rating, text}, recommend, choices: [{label, effect, cost, text, picture?}], items, by, see: [ids], pictures: [{name} \| {pending}], rests_on_assumptions: [A], preparing: P \| null, preparing_status, held_by: P \| null, asked_since, line}]` |
 | refs | `{id: {kind, line}}` for C, D, F, P and X |
 | noticed | `[line]` |

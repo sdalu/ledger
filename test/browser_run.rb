@@ -32,6 +32,7 @@ $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 require "ledger_viewer"
 
 require_relative "support/browser_fixture"
+require_relative "support/builds_fixture"
 require_relative "support/choices_fixture"
 require_relative "support/groups_fixture"
 require_relative "support/long_fixture"
@@ -193,15 +194,17 @@ module BrowserRun
         LOOP = File.join(__dir__, "browser", "loop.cjs")
         KEYS = File.join(__dir__, "browser", "keys.cjs")
         PANE = File.join(__dir__, "browser", "pane.cjs")
+        BUILDS = File.join(__dir__, "browser", "builds.cjs")
         # [tag, fixture, script] of the checks that each run on a ledger
         # of their own, once per browser, after the shared checks, which
         # read the index's first queue entry and must not meet them; the
-        # risk check sends words, which the next must not meet, so it is
-        # last.
+        # risk and builds checks send words, which the next must not meet,
+        # so they are last, builds reading only its own ledger.
         OWN = [["long", LongFixture, LONG], ["groups", GroupsFixture, GROUPS],
                ["choices", ChoicesFixture, CHOICES],
                ["loop", LoopFixture, LOOP],
-               ["risk", RiskFixture, RISK]].freeze
+               ["risk", RiskFixture, RISK],
+               ["builds", BuildsFixture, BUILDS]].freeze
 
         def initialize(core, browsers)
             @core = core

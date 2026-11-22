@@ -16,14 +16,18 @@ module LedgerViewer
             # replaces the ids of the answer it replaces; prev that
             # answer, which the form opens holding; next_id the question
             # after this one; inside {item => its pictures}; shots
-            # {option => its picture}.
+            # {option => its picture}; starts the piece building the
+            # question, whose start the one button sends after the
+            # answer, and built that piece's part of the card.
             include SayEnds
 
             Spec = Data.define(:ref, :label, :choices, :items, :order, :rec,
-                               :replaces, :prev, :next_id, :inside, :shots)
+                               :replaces, :prev, :next_id, :inside, :shots,
+                               :starts, :built)
             BLANK = Spec.new(ref: nil, label: "", choices: [], items: [],
                              order: [], rec: {}, replaces: [], prev: nil,
-                             next_id: nil, inside: {}, shots: {})
+                             next_id: nil, inside: {}, shots: {}, starts: "",
+                             built: "")
 
             def initialize(scope, lid, token, cases)
                 @scope = scope
@@ -40,7 +44,7 @@ module LedgerViewer
                     "ledger/say",
                     { lid: @lid, token: @token, ref: spec.ref.to_s,
                       replaces: spec.replaces.join(", "), middle:, box:,
-                      submit:, after: }
+                      built: spec.built, starts: spec.starts, submit:, after: }
                 )
             end
 

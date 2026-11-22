@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require_relative "builds_part"
 require_relative "clock"
 require_relative "helpers"
 require_relative "question_meta"
@@ -24,12 +25,14 @@ module LedgerViewer
             end
 
             # A question the user can answer, with what they asked about
-            # it, or one they answered and the session has not filed.
+            # it, or one they answered and the session has not filed; a
+            # piece building it (piece --builds) is drawn inside it, its
+            # start sent with the answer.
             def ask(question)
                 id = question["id"]
                 asked, said = sent_on(id)
                 shown, inside = pictures(question)
-                form = @kit.say.html(spec(question, said, inside))
+                form = answer_form(spec(question, said, inside))
                 kase = case_of(question) + shown
                 if said.empty?
                     return waiting_card(question, kase,
@@ -93,6 +96,12 @@ module LedgerViewer
                     replaces: said.map { it["id"] }, prev: said.last,
                     next_id: after, shots: @kit.mockups.shots(question)
                 )
+            end
+
+            # The answer's form, with the piece building the question
+            # while the answer is not sent.
+            def answer_form(spec)
+                @kit.say.html(BuildsPart.new(@kit).spec(spec))
             end
 
             def recommended(question)

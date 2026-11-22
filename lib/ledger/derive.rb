@@ -29,6 +29,8 @@ module Ledger
         # The stall budget in minutes (S2); LEDGER_STALL_MINUTES overrides.
         STALL_MINUTES = 60
         SETTLED    = %w[verified kept].freeze
+        # What no count of the live pieces holds: dropped, or replaced.
+        GONE       = %w[dropped obsolete].freeze
         UNFINISHED = %w[planned out back deferred].freeze
         # What is in flight, most urgent first: a deferred piece waits on
         # an event to come, so it comes last.
@@ -296,7 +298,7 @@ module Ledger
             end
 
             def pieces
-                live = @derive.pieces.reject { it[:status] == "dropped" }
+                live = @derive.pieces.reject { GONE.include?(it[:status]) }
                 kept = live.count { it[:status] == "kept" }
                 verified = live.count { it[:status] == "verified" }
                 text = "pieces #{verified}/#{live.size - kept} verified"

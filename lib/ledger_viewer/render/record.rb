@@ -119,7 +119,16 @@ module LedgerViewer
                             anchor: "piece-#{piece["id"]}",
                             why: Why.icon(@lid, piece["id"]),
                             fold: @raid.piece(piece),
-                            **Links.fields(piece))
+                            **Links.fields(piece).merge(meta: meta(piece)))
+            end
+
+            # The route, and an obsolete piece's replacement as a link to
+            # its row.
+            def meta(piece)
+                by = piece["obsoleted_by"]
+                [piece["route_text"],
+                 by && "obsoleted by #{Links.ids([by], "piece")}"]
+                    .reject { it.to_s.empty? }.join(" · ")
             end
         end
     end

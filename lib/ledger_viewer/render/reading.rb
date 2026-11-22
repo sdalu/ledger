@@ -3,6 +3,7 @@
 require "json"
 require "time"
 
+require_relative "building"
 require_relative "helpers"
 require_relative "standing"
 require_relative "terms"
@@ -22,6 +23,7 @@ module LedgerViewer
             # How many criteria, pieces and kept pieces a ledger counts.
             Counts = Data.define(:crit_met, :crit, :verified, :pieces, :kept)
 
+            include Building
             include Standing
             include WaitingOrder
 
@@ -90,9 +92,6 @@ module LedgerViewer
                                        .to_h { [it["ref"], it] }
             end
 
-            # The pieces that cannot move without the user's word.
-            def owed = pieces.reject { it["awaits"].empty? }
-
             # When a piece's longest-awaited word was first seen, or "".
             def word_since(piece)
                 keys = piece["awaits"].map { "#{piece["id"]}:#{it["word"]}" }
@@ -110,7 +109,7 @@ module LedgerViewer
             end
 
             def counts
-                live = pieces.reject { it["status"] == "dropped" }
+                live = pieces.reject { GONE.include?(it["status"]) }
                 kept = live.count { it["status"] == "kept" }
                 Counts.new(kept:, pieces: live.length - kept, **criteria_count,
                            verified: status_count("verified"))

@@ -6,9 +6,10 @@ require "ledger/text/awaits"
 module Ledger
     module Render
         # A piece as its line in the Markdown: `- P7 [status] route —
-        # title: detail`, then the fields in the order `piece` writes
-        # them, `— no commit: WHY`, `— picture: being redrawn (WHY)` and
-        # `— picture: holds (WHY)`, then `— dispatched: N× (last: …)` when
+        # title: detail`, an obsolete one's `— obsoleted by P<n>`, then
+        # the fields in the order `piece` writes them, `— no commit:
+        # WHY`, `— picture: being redrawn (WHY)` and `— picture: holds
+        # (WHY)`, then `— dispatched: N× (last: …)` when
         # a dispatch was announced (piece --announce).
         class PieceLine
             def initialize(snapshot, refs)
@@ -20,7 +21,8 @@ module Ledger
             end
 
             def call(piece)
-                line = "- P#{piece[:n]} [#{status(piece)}] #{head(piece)}"
+                line = "- P#{piece[:n]} [#{status(piece)}] #{head(piece)}" \
+                       "#{obsoleted(piece)}"
                 fields(piece).reduce(line) do |text, (name, value, tail)|
                     "#{text} — #{name}: #{value}#{tail}"
                 end
@@ -32,6 +34,12 @@ module Ledger
                 return piece[:status] unless piece[:status] == "kept"
 
                 "kept: #{piece[:kept_reason]}"
+            end
+
+            def obsoleted(piece)
+                id = piece[:obsoleted_by_id] or return
+
+                " — obsoleted by #{@refs["P", id]}"
             end
 
             def head(piece)

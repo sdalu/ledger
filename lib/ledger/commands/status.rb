@@ -33,7 +33,7 @@ module Ledger
             end
 
             def counts(derive)
-                live = derive.pieces.reject { it[:status] == "dropped" }
+                live = derive.pieces.reject { Derive::GONE.include?(it[:status]) }
                 kept = live.count { it[:status] == "kept" }
                 { criteria: [derive.criteria.count { it[:mark] != " " },
                              derive.criteria.size],

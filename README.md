@@ -152,7 +152,8 @@ Every item has a writer, and no ledger is edited by hand. `piece
 PATH new|P<n>` adds a piece with the next free id or changes one
 (`--title`, `--what` for the detail, `--status`, `--route`,
 `--done-when`, `--evidence`, `--after`, `--for`, `--by`, `--verified-by`,
-`--cause`, `--no-picture WHY`, `--picture-pending WHY`, `--picture-holds WHY`, `--no-commit WHY`, `--announce FILE`, `--status back --handback`; an empty value clears a link); a piece not done that
+`--cause`, `--no-picture WHY`, `--picture-pending WHY`, `--picture-holds WHY`, `--no-commit WHY`, `--announce FILE`, `--status back --handback`, `--builds O<n>`,
+`--status obsolete --obsoleted-by P<n>`; an empty value clears a link); a piece not done that
 waits on an event to come, not on the user, is `--status deferred
 --until CONDITION`, the event kept on its line (`— until: three
 closures`) and in the viewer's remains until another status clears
@@ -256,7 +257,20 @@ the one line `hand-back recorded on PATH P<n>` is printed; a piece in
 any other status stays as it is, `P<n> is verified; the hand-back
 changes nothing`, exit 0, so the ledger shows back, never further,
 until the orchestrator verifies it; `--handback` with another status
-or another flag is refused, exit 2. `undo PATH` puts back the last event that changed the
+or another flag is refused, exit 2. A piece built from the answer to a
+question names it: `piece PATH P<n> --builds O<m>` (an open question,
+one piece a question, `--builds none` clears it); its start is refused
+while O<m> is open (`answer O<m> first`), and the viewer draws it on
+the question's card, under the picker, its plan, risk and pictures
+there and one button, `Answer and start P<n>`, which sends the answer
+and, once it is accepted, the start; the piece has no card of its own
+while the question is open. The piece it replaces goes `piece PATH
+P<k> --status obsolete --obsoleted-by P<n>` (refused on a piece out,
+or when P<n> is obsolete or dropped): terminal like dropped, its line
+ending its head with `— obsoleted by P<n>`, out of the live counts and
+of `check --final`, in the viewer's record with `obsoleted by P<n>` as
+a link. `show --json` gives each piece `builds` (`{question, decision,
+text}`, the last two null while open) and `obsoleted_by`. `undo PATH` puts back the last event that changed the
 ledger's items, in an event of its own, one level, refused once a row
 changed since; the inbox's takes are never undone. `restore PATH --to
 E<n>` puts back every item-changing event after `E<n>`; without `--to`
