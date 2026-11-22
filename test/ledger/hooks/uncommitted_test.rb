@@ -49,6 +49,17 @@ class UncommittedTest < HookTest
         assert_equal Ledger::Hooks::Answer.pass, stop
     end
 
+    def test_a_glob_character_in_a_path_is_taken_literally
+        starred = File.join(@repo, "a*.txt")
+        File.write(starred, "x\n")
+        git("add", "a*.txt")
+        git("commit", "-q", "-m", "star")
+        File.write(@file, "two\n")
+        edit(starred)
+
+        assert_equal Ledger::Hooks::Answer.pass, stop
+    end
+
     def test_a_file_outside_a_repository_is_ignored
         outside = File.join(@dir, "loose.txt")
         File.write(outside, "x\n")

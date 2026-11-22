@@ -18,6 +18,7 @@
 # safe to pipe.
 
 require "fileutils"
+require "open3"
 require "shellwords"
 require "socket"
 
@@ -416,8 +417,10 @@ module Preflight
     end
 
     # The running pid, or nil. A pidfile outlives the process it
-    # named, so the file existing is not the question -- whether
-    # signal 0 reaches anything is.
+    # named, and its number may belong to another program by now, so
+    # the file existing is not the question: signal 0 must reach the
+    # process (EPERM means another user's, not ours) and its command
+    # line must be this service's puma.
     def running_pid
         return nil unless File.exist?(PIDFILE)
 
@@ -425,11 +428,21 @@ module Preflight
         return nil unless value
 
         Process.kill(0, value)
-        value
-    rescue Errno::ESRCH
+        ours?(value) ? value : nil
+    rescue Errno::ESRCH, Errno::EPERM
         nil
-    rescue Errno::EPERM
-        value
+    end
+
+    # Whether PID's command line is a puma, titled for this checkout's
+    # directory when puma has retitled itself
+    # (`puma 8.0.2 (unix:///...) [dir]`).
+    def ours?(pid)
+        out, _, status = Open3.capture3("ps", "-o", "command=", "-p",
+                                        pid.to_s)
+        return false unless status.success? && out.match?(/\bpuma\b/)
+
+        tag = out[/puma\s+\S+\s+\([^)]*\)\s+\[([^\]]*)\]/, 1]
+        tag.nil? || tag == File.basename(Dir.pwd)
     end
 
     # Bind addresses currently held by something. Asked by start when

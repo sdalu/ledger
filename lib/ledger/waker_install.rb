@@ -97,11 +97,21 @@ module Ledger
             end
         end
 
+        # The wrapper's path as the command writes it: bare, or in double
+        # or single quotes, a leading ~ the home directory.
         def wrapper?(command, word)
-            script = command[%r{(\S+/ledger-hook\.sh)\s+#{word}\b}, 1]
-            script && File.read(script).include?('exec ledger hook "$1"')
+            script = wrapper_path(command, word)
+            script &&
+                File.read(File.expand_path(script))
+                    .include?('exec ledger hook "$1"')
         rescue SystemCallError
             false
+        end
+
+        def wrapper_path(command, word)
+            found = %r{(?:"([^"]*/ledger-hook\.sh)"|'([^']*/ledger-hook\.sh)'|
+                       ([^\s"']*/ledger-hook\.sh))\s+#{word}\b}x.match(command)
+            found.captures.compact.first if found
         end
 
         def commands(settings, event)
@@ -113,7 +123,10 @@ module Ledger
             Array(group["hooks"]).any? { it["statusMessage"] == status }
         end
 
+        # A settings file that is a symlink is written where it points:
+        # the rename would otherwise replace the link itself.
         def write(path, settings)
+            path = File.realpath(path)
             mode = File.stat(path).mode
             FileUtils.cp(path, "#{path}.bak-waker", preserve: true)
             tmp = "#{path}.tmp#{Process.pid}"

@@ -46,6 +46,50 @@ class WakerInstallTest < Minitest::Test
         assert_path_exists "#{@path}.bak-waker"
     end
 
+    def test_a_symlinked_settings_file_stays_a_link
+        real = File.join(@dir, "real.json")
+        File.rename(@path, real)
+        File.symlink(real, @path)
+        W.install(@path)
+
+        assert File.symlink?(@path)
+        assert_equal "dark", JSON.parse(File.read(real))["theme"]
+        assert_path_exists "#{real}.bak-waker"
+    end
+
+    def test_a_quoted_or_home_relative_wrapper_is_recognised
+        wrapper = File.join(@dir, "ledger-hook.sh")
+        File.write(wrapper, "#!/bin/sh\nexec ledger hook \"$1\"\n")
+        [%("#{wrapper}" session-start), %('#{wrapper}' session-start),
+         "sh #{wrapper} session-start"].each do |command|
+            assert_empty install_with(command), command
+        end
+        assert_empty home_install("~/ledger-hook.sh session-start", wrapper)
+    end
+
+    # Installing over a settings file whose SessionStart runs COMMAND:
+    # the lines saying what was added to SessionStart.
+    def install_with(command)
+        File.write(@path, JSON.generate(
+                              "hooks" => { "SessionStart" => [{ "hooks" => [
+                                  { "type" => "command", "command" => command }
+                              ] }] }
+                          ))
+        W.install(@path).grep(/SessionStart/)
+    end
+
+    # COMMAND names the wrapper through ~, a home holding a copy of it.
+    def home_install(command, wrapper)
+        home = Dir.mktmpdir("home")
+        FileUtils.cp(wrapper, File.join(home, "ledger-hook.sh"))
+        saved = Dir.home
+        ENV["HOME"] = home
+        install_with(command)
+    ensure
+        ENV["HOME"] = saved
+        FileUtils.rm_rf(home)
+    end
+
     def test_install_twice_changes_nothing
         W.install(@path)
         before = File.read(@path)

@@ -92,8 +92,10 @@ module Ledger
             end
 
             def dirty?(top, path)
-                out, _, status = Open3.capture3("git", "-C", top, "status",
-                                                "--porcelain", "--", path)
+                out, _, status = Open3.capture3(
+                    "git", "--literal-pathspecs", "-C", top, "status",
+                    "--porcelain", "--", path
+                )
                 status.success? && !out.strip.empty?
             end
 
