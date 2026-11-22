@@ -236,7 +236,18 @@ status stays out, and no return is recorded. `undo PATH` puts back the last even
 ledger's items, in an event of its own, one level, refused once a row
 changed since; the inbox's takes are never undone. `restore PATH --to
 E<n>` puts back every item-changing event after `E<n>`; without `--to`
-it lists the last ten events and refuses. The `self-routed` check fails
+it lists the last ten events and refuses. `purge L<n> --confirmed`
+removes a closed ledger made by mistake, its events and every row of its
+items, from the journal: `L<n>` is the id `close` prints (and the dry run
+shows), the only word that names a ledger that way for a write. The journal is
+first copied with SQLite's online backup to
+`journal.db.before-purge-L<n>-YYYYMMDD-HHMMSS` beside it (refused if that name
+exists), then the rows go in one transaction; it prints the counts and the
+backup path. Without `--confirmed` it prints the ledger's place, name, closed
+time and the row counts per table and exits 2, writing nothing; a live ledger
+or an unknown id is refused. It is irreversible: the purge is no event of any
+ledger, so `undo` and `restore` cannot bring the ledger back; the backup is
+the way back. The `self-routed` check fails
 a piece in flight, awaiting no word, routed `peer:` to the ledger's own
 project (the session that holds the ledger): keep it or route it to a
 delegate.

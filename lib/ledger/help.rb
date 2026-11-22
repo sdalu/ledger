@@ -17,7 +17,7 @@ module Ledger
                           edit],
             "Pieces and questions" => %w[piece ask choice mockup],
             "The user's word" => %w[inbox take answer word waker],
-            "History" => %w[renumber undo restore]
+            "History" => %w[renumber undo restore purge]
         }.freeze
 
         NOTES = <<~TEXT

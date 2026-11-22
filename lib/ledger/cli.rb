@@ -21,7 +21,7 @@ module Ledger
         WORDS = %w[new goal check show status close fact assume constraint
                    decide noticed criterion edit piece ask answer word choice
                    renumber undo restore inbox take mockup survey stats
-                   waker].freeze
+                   waker purge].freeze
         # Words of other pieces of the build: refused as not built yet.
         NOT_BUILT = [].freeze
 
@@ -277,3 +277,4 @@ require "ledger/commands/mockup"
 require "ledger/commands/survey"
 require "ledger/commands/stats"
 require "ledger/commands/waker"
+require "ledger/commands/purge"
