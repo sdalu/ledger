@@ -748,6 +748,9 @@
       gap: 0.35em;
       min-block-size: 1.5rem;
       min-inline-size: 1.5rem;
+      /* the 24 px target reaches past the pill, which keeps the height of
+         the chips beside it */
+      margin-block: calc((1lh - 1.5rem) / 2);
       list-style: none;
       &::-webkit-details-marker { display: none; }
       /* the chevron says the pill opens; it turns when it has */

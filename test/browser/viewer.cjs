@@ -70,6 +70,10 @@ t('A2: the status pill\'s summary is at least 24 px', await p.evaluate(() => {
   const sums = [...document.querySelectorAll('.status-fold > summary')];
   return sums.length > 0 && sums.every(x => { const r = x.getBoundingClientRect(); return r.width >= 24 && r.height >= 24; });
 }));
+t('the status pill is as tall as the id chip beside it', await p.evaluate(() => {
+  const pairs = [...document.querySelectorAll('.head-tags')].map(h => [h.querySelector('.status-fold'), h.querySelector('.tag.is-split')]).filter(([a, b]) => a && b);
+  return pairs.length > 0 && pairs.every(([a, b]) => Math.abs(a.getBoundingClientRect().height - b.getBoundingClientRect().height) <= 0.5);
+}));
   // U3: wide, the side list and the goal's words are open and the list stands beside the waiting section
   t('wide: the sections and the goal\'s words open, the list beside the page', await p.evaluate(() => {
     const sec = document.querySelector('details.sections'), w = document.querySelector('.ledger-main > .goal > .goal-words');
