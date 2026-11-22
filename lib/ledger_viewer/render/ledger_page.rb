@@ -13,6 +13,7 @@ require_relative "nav"
 require_relative "picture_fold"
 require_relative "next_waiting"
 require_relative "raid"
+require_relative "ties"
 require_relative "record"
 require_relative "reading"
 require_relative "refs"
@@ -111,6 +112,7 @@ module LedgerViewer
                 lid = entry.id
                 Kit.new(scope:, reading:, lid:, cases:,
                         raid: Raid.new(scope, reading),
+                        ties: Ties.new(scope, reading),
                         **forms(scope, lid, token, reading, cases),
                         refs: Refs.new(scope), blocks: Blocks.new(scope),
                         mockups: Mockups.new(scope, files_path(lid), reading,

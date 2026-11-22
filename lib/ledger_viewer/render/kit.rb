@@ -6,8 +6,8 @@ module LedgerViewer
         # scope, the reading of the ledger, and the builders that draw
         # its forms, cases, references, pictures and Markdown, the fold
         # that asks for a picture, and the RAID line of each piece and
-        # question.
+        # question, and the ties of each piece.
         Kit = Data.define(:scope, :reading, :lid, :say, :word, :picture,
-                          :cases, :refs, :mockups, :blocks, :raid)
+                          :cases, :refs, :mockups, :blocks, :raid, :ties)
     end
 end

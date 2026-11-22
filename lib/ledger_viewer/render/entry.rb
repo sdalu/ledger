@@ -9,16 +9,17 @@ module LedgerViewer
         # facets under a card's head, `fold` ready-made markup after its
         # meta, `state` a status tag of its own before the id tag,
         # `tag_tip` what the status (else the tag) means, said on hover, and
-        # `why` the icon to the links page, after the id tag.
+        # `why` the icon to the links page, after the id tag, and `by`
+        # the chip of an obsolete piece's successor, before it.
         class Entry
             Spec = Data.define(
                 :cls, :tag, :text, :meta, :evidence, :done, :card, :anchor,
-                :extra, :tag_tip, :detail, :state, :kase, :fold, :why
+                :extra, :tag_tip, :detail, :state, :kase, :fold, :why, :by
             )
             BLANK = Spec.new(
                 cls: "", tag: "", text: "", meta: "", evidence: "", done: "",
                 card: false, anchor: "", extra: "", tag_tip: "", detail: "",
-                state: "", kase: "", fold: "", why: ""
+                state: "", kase: "", fold: "", why: "", by: ""
             )
 
             def initialize(scope) = @scope = scope
@@ -28,7 +29,7 @@ module LedgerViewer
                 @scope.partial(
                     "ledger/entry",
                     { cls: spec.cls, card: spec.card, text: spec.text,
-                      anchor: anchor(spec), tags: "#{tags(spec)}#{spec.why}",
+                      anchor: anchor(spec), tags: heads(spec),
                       extra: spec.extra, kase: spec.kase,
                       detail: detail(spec), rest: rest(spec) }
                 )
@@ -46,6 +47,18 @@ module LedgerViewer
 
             def anchor(spec)
                 spec.anchor.empty? ? "" : %( id="#{spec.anchor}")
+            end
+
+            # The tags, the successor's chip `by` beside them, the why icon.
+            def heads(spec)
+                by = spec.by.empty? ? "" : succ(spec.by)
+                "#{tags(spec)}#{by}#{spec.why}"
+            end
+
+            def succ(chip)
+                ' <span class="succ"><span aria-hidden="true">→</span> ' \
+                    "<span class=\"visually-hidden\">obsoleted by</span> " \
+                    "#{chip}</span>"
             end
 
             # The id tag, with the status's tag before it.

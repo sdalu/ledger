@@ -112,7 +112,7 @@ class ChipTipTest < GiveAllTest
 
     def test_a_long_plan_line_is_cut_at_eighty
         plan = "a" * 120
-        line = LedgerViewer::Render::Groups.first_line("\n#{plan}\nmore")
+        line = LedgerViewer::Render::IdChip.first_line("\n#{plan}\nmore")
 
         assert_equal 80, line.length
         assert line.end_with?("…")

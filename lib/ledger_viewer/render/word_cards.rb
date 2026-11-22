@@ -53,7 +53,10 @@ module LedgerViewer
             # The fold that asks for a picture, on the word card.
             def picture(piece) = @kit.picture.piece(piece, "p")
 
-            def kase(piece) = @kit.cases.facets(piece) + @kit.raid.piece(piece)
+            def kase(piece)
+                @kit.ties.piece(piece) + @kit.cases.facets(piece) +
+                    @kit.raid.piece(piece)
+            end
 
             def meta(piece)
                 since = @reading.word_since(piece)

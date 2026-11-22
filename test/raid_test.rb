@@ -123,7 +123,8 @@ class RaidLineTest < ViewerTest
         p1 = card("piece-P1")
         assert_includes raid(p1), %(serves <a href="#crit-D2")
         refute_match(/class="meta">[^<]*for /, p1)
-        assert_includes raid(card("piece-P2")), "waits for"
+        refute_includes raid(card("piece-P2")), "waits for"
+        refute_includes raid(card("piece-P2")), "after"
     end
 
     def test_the_risk_leaves_the_facets_for_the_line
@@ -181,17 +182,9 @@ class RaidForwardTest < ViewerTest
         @page = nil
     end
 
-    def test_a_piece_says_which_pieces_wait_on_it_linked_to_their_cards
-        line = raid(card("piece-P1"))
-        assert_includes line, 'needed by <a href="#piece-P2"'
-        refute_includes raid(card("piece-P2")), "needed by"
-    end
-
-    def test_a_settled_piece_is_not_listed_as_waiting
-        ledger("piece", "new", *RaidFixture::ROUTE, "--title", "done soon",
-               "--after", "P3", "--status", "verified", "--verified-by", "me",
-               "--evidence", "it builds")
-        refute_includes raid(card("piece-P3")), "needed by"
+    def test_the_pieces_waiting_on_a_piece_are_its_ties_not_its_line
+        refute_includes raid(card("piece-P1")), "needed by"
+        assert_includes card("piece-P1"), "needed by"
     end
 
     def test_a_piece_says_the_question_it_prepares

@@ -921,6 +921,23 @@
     & a.raid-a { text-decoration: none; }
     & .tag { margin: 0; }
   }
+  /* a piece's ties: what it waits for, what waits on it, what it
+     obsoletes, its successor, the question it builds, as labelled chips */
+  .ties {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-xs) var(--space-m);
+    margin-block: var(--space-xs) 0;
+    font-size: var(--text-xs);
+    line-height: 1.6;
+    color: var(--muted);
+    & .tie { display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-xs); }
+    & .tie-label { font-weight: 600; }
+    & a.id-link { text-decoration: none; }
+    & .tag { margin: 0; }
+  }
+  .succ { display: inline-flex; align-items: baseline; gap: var(--space-xs); color: var(--muted); }
+  .succ .tag { margin: 0; }
   .raid-state {
     &.is-confirmed { color: var(--ok); }
     &.is-refuted { font-weight: 600; color: var(--fail); }

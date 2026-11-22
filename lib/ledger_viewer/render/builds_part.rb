@@ -37,7 +37,8 @@ module LedgerViewer
             end
 
             def facets(piece)
-                @kit.cases.facets(piece) + @kit.raid.piece(piece)
+                @kit.ties.piece(piece) + @kit.cases.facets(piece) +
+                    @kit.raid.piece(piece)
             end
         end
     end

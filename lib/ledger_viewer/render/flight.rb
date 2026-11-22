@@ -112,9 +112,9 @@ module LedgerViewer
                 lead + kase(piece)
             end
 
-            # The facets, then the RAID line.
+            # The ties, the facets, then the RAID line.
             def kase(piece)
-                facets = @kit.cases.facets(piece)
+                facets = @kit.ties.piece(piece) + @kit.cases.facets(piece)
                 facets + @kit.raid.piece(piece, flight: true) +
                     @kit.cases.commits(piece)
             end

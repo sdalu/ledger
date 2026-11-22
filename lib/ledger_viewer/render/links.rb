@@ -14,16 +14,6 @@ module LedgerViewer
                 ids.map { "[#{it}](##{kind}-#{it})" }.join(", ")
             end
 
-            # 'needed by P5, P10': the pieces not settled whose after names
-            # ID, in row order; nil when none.
-            def needed_by(id, pieces)
-                ids = pieces.filter_map do |piece|
-                    piece["id"] if piece["after"].include?(id) &&
-                                   !piece["settled"]
-                end
-                "needed by #{ids(ids, "piece")}" if ids.any?
-            end
-
             # 'prepares O3': the open questions whose by names ID; nil when
             # none.
             def prepares(id, questions)
@@ -78,35 +68,22 @@ module LedgerViewer
                 said.compact.join(" · ")
             end
 
-            # 'waits for P3' (or its after pieces settled), 'serves D2',
-            # 'needed by P5, P10', 'prepares O3': what a piece's RAID line
-            # says of the pieces and questions around it.
+            # 'serves D2', 'prepares O3': what a piece's RAID line says of
+            # the criteria and questions around it; the pieces it waits
+            # for and serves are its ties' (Ties).
             def forward(piece, reading)
-                [(waits(piece, reading.settled) if piece["after"].any?),
-                 ("serves #{ids(piece["for"], "crit")}" if
+                [("serves #{ids(piece["for"], "crit")}" if
                      piece["for"].any?),
-                 needed_by(piece["id"], reading.pieces),
                  prepares(piece["id"], reading.questions)].compact
             end
 
             # The meta, evidence and done fields of a piece's row: what it
-            # waits for and serves is its RAID line's (Raid).
+            # waits for is its ties line (Ties), what it serves its RAID
+            # line (Raid).
             def fields(piece)
                 { meta: piece["route_text"].to_s,
                   evidence: piece["evidence"].to_s,
                   done: piece["done_when"].to_s }
-            end
-
-            # 'waits for P3' while an after piece is not settled; `settled`
-            # is {id => whether that piece is settled}.
-            def waits(piece, settled)
-                after = piece["after"]
-                waiting = after.reject { settled.fetch(it, false) }
-                return "waits for #{ids(waiting, "piece")}" unless
-                    waiting.empty?
-
-                ready = piece["status"] == "planned" ? "ready: " : ""
-                "#{ready}after #{ids(after, "piece")}, settled"
             end
 
             # ['verified', 'kept'] -> '2 pieces: 1 verified, 1 kept': the

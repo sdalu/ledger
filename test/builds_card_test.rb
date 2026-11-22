@@ -56,7 +56,7 @@ class BuildsCardTest < ViewerTest
         record = page[/<h2 id="record".*/m]
 
         assert_includes record, 'href="#piece-P2"'
-        assert_match(/obsoleted by <a[^>]*href="#piece-P2"/, record)
+        assert_match(%r{obsoleted by</span> <a[^>]*href="#piece-P2"}, record)
     end
 
     def test_the_answer_then_the_start_are_two_entries

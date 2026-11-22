@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "answered"
+require_relative "id_chip"
 require_relative "reading"
 require_relative "remains"
 require_relative "sectioned"
@@ -94,9 +95,7 @@ module LedgerViewer
             def chips(pieces)
                 pieces.map do |piece|
                     id = piece["id"]
-                    attrs, box = @scope.tip(Groups.summary(piece))
-                    %(<a class="id-link" href="#p-#{id}"#{attrs}>) +
-                        "#{@scope.chip(id)}</a>#{box}"
+                    IdChip.link(@scope, id, "#p-#{id}", IdChip.summary(piece))
                 end.join(" ")
             end
 
@@ -132,22 +131,6 @@ module LedgerViewer
                 grouped.values.to_h do |pieces|
                     [Reading.words(pieces.first).map(&:first), pieces]
                 end
-            end
-
-            # What a group's chip tells on hover: the piece's title, its
-            # risk rating and the first line of its plan.
-            def summary(piece)
-                rating, = Text.risk_rating(piece.dig("risk", "text").to_s)
-                [piece["title"], ("risk #{rating}/10" if rating),
-                 (plan = first_line(piece["plan"])) && "plan: #{plan}"]
-                    .compact.join(" · ")
-            end
-
-            def first_line(text)
-                line = text.to_s.lines.map(&:strip).find { !it.empty? }
-                return unless line
-
-                line.length > 80 ? "#{line[0, 79]}…" : line
             end
         end
     end

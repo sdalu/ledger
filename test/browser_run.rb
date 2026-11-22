@@ -38,6 +38,7 @@ require_relative "support/groups_fixture"
 require_relative "support/long_fixture"
 require_relative "support/loop_fixture"
 require_relative "support/risk_fixture"
+require_relative "support/ties_fixture"
 
 module BrowserRun
     ROOT = File.expand_path("..", __dir__)
@@ -197,6 +198,7 @@ module BrowserRun
         BUILDS = File.join(__dir__, "browser", "builds.cjs")
         COMMENT = File.join(__dir__, "browser", "comment_only.cjs")
         SHOWN = File.join(__dir__, "browser", "groups_shown.cjs")
+        TIES = File.join(__dir__, "browser", "ties.cjs")
         # [tag, fixture, script] of the checks that each run on a ledger
         # of their own, once per browser, after the shared checks, which
         # read the index's first queue entry and must not meet them; the
@@ -207,6 +209,7 @@ module BrowserRun
                ["loop", LoopFixture, LOOP],
                ["comment", ChoicesFixture, COMMENT],
                ["shown", GroupsFixture, SHOWN],
+               ["ties", TiesFixture, TIES],
                ["risk", RiskFixture, RISK],
                ["builds", BuildsFixture, BUILDS]].freeze
 
