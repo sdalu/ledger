@@ -22,6 +22,11 @@ module Ledger
             "#{journal_path}.before-vacuum-#{at.strftime(STAMP)}"
         end
 
+        # The file a picture prune copies the journal to, beside it.
+        def prune_path(journal_path, at: Time.now)
+            "#{journal_path}.before-prune-#{at.strftime(STAMP)}"
+        end
+
         # DB's journal copied to PATH, which must not exist; the copy is
         # private (the journal holds password hashes). Exists when PATH is
         # there.

@@ -306,7 +306,17 @@ backup path. Without `--confirmed` it prints the ledger's place, name, closed
 time and the row counts per table and exits 2, writing nothing; a live ledger
 or an unknown id is refused. It is irreversible: the purge is no event of any
 ledger, so `undo` and `restore` cannot bring the ledger back; the backup is
-the way back. `vacuum [--dry-run]` compacts the journal file: the write lock is first taken for an
+the way back. `prune-pictures [L<n>] [--older DAYS] [--confirmed]` removes the
+pictures no piece, question or choice names any more (the rows a `--replace`
+or an `undo` left behind) that were placed more than DAYS ago (7 by default),
+and every stored content no picture points to. Without `--confirmed` it lists
+each one (ledger, last owner, name, size, placed date) and the totals, exit 0,
+writing nothing. With it the journal is first copied to
+`journal.db.before-prune-YYYYMMDD-HHMMSS` (refused if that name exists), then
+one transaction deletes them; it prints the counts, the bytes freed and the
+backup path, and says `ledger vacuum` shrinks the file. It is no event: an
+`undo` or `restore` that names a pruned picture still works, the name has no
+picture. `vacuum [--dry-run]` compacts the journal file: the write lock is first taken for an
 instant with a 5 s busy timeout (refused with `another session is writing the
 journal; try again` when it is not free, before anything is copied), the journal is
 then copied with the online backup to `journal.db.before-vacuum-YYYYMMDD-HHMMSS`

@@ -701,7 +701,7 @@ one row per outcome, `ledger_id` (NULL when none is known), `session`
 words that write: `new`, `goal`, `fact`, `assume`, `constraint`,
 `decide`, `noticed`, `criterion`, `edit`, `piece`, `ask`, `answer`,
 `word`, `choice`, `renumber`, `undo`, `restore`, `take`, `mockup`,
-`close`, `purge`, `vacuum`, `waker`; a read word's refusal is not
+`close`, `purge`, `vacuum`, `waker`, `prune-pictures`; a read word's refusal is not
 recorded), one row per rule a write made worse (`FAIL rule`), else
 under the refusal's own rule: `second-ledger` (`new` beside a live
 ledger without `--confirmed`), `word-gate` (a word with no message of
@@ -734,6 +734,18 @@ nothing written. Under the bundle it writes through Sequel; a fast-path
 hook through the `sqlite3` program, as `stamp` does. The rows are not
 events: `undo` and `restore` never touch them; `purge` deletes a
 purged ledger's.
+
+**A picture is in use while a row names it** (`prune-pictures`,
+`lib/ledger/prune_pictures.rb`): a `piece_pictures` row (before or
+after), a `question_pictures` row or a `question_choices.picture` of the
+same ledger, whatever the state of the piece or question, since
+`Read` lists all of them. `pictures` rows are not in `event_rows`, so a
+`--replace` or an `undo` of a `mockup` removes the naming row and leaves
+the picture row: that row, named by nothing, is the one an `undo` or
+`restore` could name again, and the only kind pruned. It goes when the
+event that placed it is older than the age given; the contents no
+remaining picture points to go with it. A restore that names a pruned
+picture reinstates the naming row, the name then has no `pictures` row.
 
 **A ledger's address** is the path its file had:
 `PLACE/LEDGER.md` or `PLACE/LEDGER-NAME.md`, resolved against the
@@ -959,6 +971,7 @@ command's refusal, exit 2, nothing written.
 | `undo PATH [--dry-run]` | `undone: ADDRESS is back as it was before E<n>`, status line | nothing to undo; a row changed since |
 | `restore PATH [--to E<n>] [--dry-run]` | `restored: ADDRESS is back as at E<n>`, status line; without `--to` the ledger's last ten events (`E<n>  time  actor  command  summary`) | no `--to` (it lists them); E<n> not this ledger's; nothing after it; a row changed since |
 | `purge L<n> [--confirmed]` | a closed ledger removed from the journal, irreversibly: the journal is first copied (SQLite online backup) to `journal.db.before-purge-L<n>-YYYYMMDD-HHMMSS` beside it, then one transaction deletes every row of the ledger in every table (`lib/ledger/purge.rb`, in child-first order; a test fails when a table pointing at a ledger is not listed), then the `picture_blobs` its pictures pointed to that no remaining picture points to (a content another ledger placed stays); prints `purged L<n>: PLACE NAME, closed TIME`, the row count per table and `backup: PATH`. No event is written (nothing remains to hold one) and `undo`, `restore` cannot take it back: the backup is the way back. Without `--confirmed`: `would remove L<n>: …` and the counts, exit 2, nothing written | not `L<n>`; no such ledger; a live ledger; the backup name exists; no `--confirmed` (exit 2 after the counts) |
+| `prune-pictures [L<n>] [--older DAYS] [--confirmed]` | the pictures nothing names, placed more than DAYS ago (7), listed as `L<n> OWNER NAME [(N files)] BYTES bytes placed DATE`, then `would remove N picture rows, N stored contents, N bytes`, exit 0, nothing written. With `--confirmed`: the journal copied (SQLite online backup) to `journal.db.before-prune-YYYYMMDD-HHMMSS`, then one transaction deletes those picture rows and every `picture_blobs` row no picture points to; prints `removed ...`, `backup: PATH` and that `ledger vacuum` shrinks the file; `nothing to prune` (no backup) when there is none. No event: `undo`, `restore` cannot take it back, the backup is the way back | the backup name exists (`nothing pruned`); L<n> unknown or not an id; a negative `--older` |
 | `vacuum [--dry-run]` | the journal file compacted: a write lock is first taken and released at once (5 s busy timeout, `lib/ledger/vacuum.rb`), then the journal is copied (SQLite online backup) to `journal.db.before-vacuum-YYYYMMDD-HHMMSS` beside it, then `VACUUM` and `PRAGMA wal_checkpoint(TRUNCATE)` run; prints `before:` and `after:` (bytes on disk, journal plus `-wal`, and the logical size) and `backup: PATH`. No event is written and `undo`, `restore` cannot take it back: the backup is the way back. With `--dry-run`: `page_count`, `freelist_count`, `page_size`, the logical size and the bytes on disk, nothing written | the backup name exists; another session holds the write lock (`another session is writing the journal; try again`; no backup is made) |
 
 | `gate-stamp [PATH] [--tree TREE]` | `stamped TREE`: the tree id of PATH's git index (the current directory by default) appended to `<journal dir>/stamps/<repo id>` (last 50 kept; repo id = first 16 hex digits of SHA-256 of the working tree's real path), when it equals TREE (taken by the gate before it ran; the index tree itself when omitted). When it does not, `nothing stamped` on stderr, exit 0, nothing written. Not a ledger word: no journal is opened (`lib/ledger/gate_stamp.rb`) | PATH not a git working tree |

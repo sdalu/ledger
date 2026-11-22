@@ -26,12 +26,14 @@ module Ledger
         WORDS = %w[new goal check show status close fact assume constraint
                    decide noticed criterion edit piece ask answer word choice
                    renumber undo restore inbox take mockup survey stats
-                   waker purge vacuum githook gate-stamp brief].freeze
+                   waker purge vacuum githook gate-stamp brief
+                   prune-pictures].freeze
         # The words that write to the journal: their refusals are the
         # practice's, recorded in outcomes (RefusalOutcomes).
         WRITERS = %w[new goal fact assume constraint decide noticed criterion
                      edit piece ask answer word choice renumber undo restore
-                     take mockup close purge vacuum waker].freeze
+                     take mockup close purge vacuum waker
+                     prune-pictures].freeze
         # Words of other pieces of the build: refused as not built yet.
         NOT_BUILT = [].freeze
 
@@ -302,6 +304,7 @@ require "ledger/commands/survey"
 require "ledger/commands/stats"
 require "ledger/commands/waker"
 require "ledger/commands/purge"
+require "ledger/commands/prune_pictures"
 require "ledger/commands/vacuum"
 require "ledger/commands/githook"
 require "ledger/commands/gate_stamp"
