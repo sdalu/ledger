@@ -324,8 +324,12 @@ also what the waker needs, registered by the user (The waker, below).
   refused, as is one naming a piece that is neither ready nor out and
   claimed by the dispatching session (a
   relative or non-`.md` path is refused naming what was found). `Piece:
-  none — WHY` lets a delegate that is no piece through. No live
-  ledger: it passes silently.
+  none — WHY` lets a delegate that is no piece through. A dispatch that
+  writes (unless its `Tools:` header is Read, Grep, Glob alone or its
+  `Permissions:` say read-only) and has no `isolation: worktree` is
+  refused, naming the piece, while another piece is out with a writing
+  dispatch this hook let through (kept in `dispatches/SESSION_ID` beside
+  the journal); readers always pass. No live ledger: it passes silently.
 - **journal-write** (PreToolUse, Bash): refuses a command that writes
   the journal file, or its `-wal` or `-shm` companion, by hand: `sqlite3`
   on it without `-readonly`, `>`, `>>`, `tee`, `cp`, `mv`, `rm`,

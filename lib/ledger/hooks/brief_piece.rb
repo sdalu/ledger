@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "ledger/hooks/dispatch_writers"
 require "ledger/hooks/ledgers"
 
 module Ledger
@@ -10,6 +11,9 @@ module Ledger
         # is denied, as is one naming a piece that is neither ready nor
         # out under the dispatching session (claimed by its session_id).
         # `Piece: none — WHY` lets a delegate that is no piece through.
+        # A dispatch that writes (see DispatchWriters) without isolation
+        # worktree is denied while another piece of the session is out
+        # with a writing dispatch; readers always pass.
         # With no live ledger the dispatch passes; the piece is never set
         # out here (the orchestrator does that).
         module BriefPiece
@@ -32,19 +36,26 @@ module Ledger
                 found = Ledgers.read(payload)
                 return Answer.pass if found.empty?
 
-                problem = problem(header(prompt), found,
-                                  payload["session_id"])
-                problem ? Answer.json(deny(problem)) : Answer.pass
+                reason = reason(payload, input, prompt, found)
+                reason ? Answer.json(deny(reason)) : Answer.pass
+            end
+
+            # Why the dispatch may not go, nil when it may.
+            def reason(payload, input, prompt, found)
+                value = header(prompt)
+                session = payload["session_id"]
+                problem = problem(value, found, session)
+                return brief(problem) if problem
+
+                clash = DispatchWriters.admit(input, prompt, found, session,
+                                              NAMED.match(value)&.captures)
+                "Dispatch refused: it #{clash}." if clash
             end
 
             # The value of the first Piece: line of the header block, nil
             # when there is none.
             def header(prompt)
-                lines = prompt.lines(chomp: true).map(&:strip)
-                start = lines.index { it.match?(/\ABRIEF\b/) }
-                return unless start
-
-                block = lines.drop(start + 1).take_while { !it.empty? }
+                block = DispatchWriters.block(prompt)
                 block.filter_map { HEADER.match(it)&.captures&.first }.first
             end
 
@@ -91,12 +102,14 @@ module Ledger
                 !session.to_s.empty? && piece[:claimed_by] == session
             end
 
-            def deny(problem)
+            def brief(problem)
+                "Dispatch refused: the brief #{problem}; #{ADD}."
+            end
+
+            def deny(reason)
                 { hookSpecificOutput: { hookEventName: "PreToolUse",
                                         permissionDecision: "deny",
-                                        permissionDecisionReason:
-                                            "Dispatch refused: the brief " \
-                                            "#{problem}; #{ADD}." } }
+                                        permissionDecisionReason: reason } }
             end
         end
     end
