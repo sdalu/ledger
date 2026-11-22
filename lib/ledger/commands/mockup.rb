@@ -2,6 +2,7 @@
 
 require "digest"
 
+require "ledger/commands/mockup_choice"
 require "ledger/pictures"
 
 module Ledger
@@ -45,8 +46,7 @@ module Ledger
             # [P<n>, before|after], refused unless they are whole.
             def piece_target(sources)
                 piece = @opts[:piece]
-                refuse("--question and --piece are exclusive") if
-                    @opts.key?(:question)
+                exclusive
                 refuse("--piece takes a piece id, P<n>") unless ID.match?(piece)
                 roles = @opts.fetch(:roles, []).uniq
                 refuse("--piece places one side: --before or --after") unless
@@ -54,6 +54,13 @@ module Ledger
                 refuse("--piece places one file, not several") unless
                     sources.one?
                 [piece, roles.first]
+            end
+
+            def exclusive
+                refuse("--question and --piece are exclusive") if
+                    @opts.key?(:question)
+                refuse("--choice is for --question, not --piece") if
+                    @opts.key?(:choice)
             end
 
             def place_side(change, piece, role, item, address)
@@ -80,14 +87,18 @@ module Ledger
         # and the question shows every name of them (a DIR
         # by the file it opens on, Pictures.pick). `mockup PATH FILE
         # --piece P<n> --before|--after [--replace]`: one file, placed as
-        # that side of the piece's before/after. Nothing is written on a
-        # disk. `--replace` takes the question's other pictures away, or
-        # the piece's earlier picture of that side; their blobs stay.
+        # that side of the piece's before/after. `mockup PATH FILE
+        # --question O<n> --choice LABEL`: one file, placed as that
+        # option's own picture. Nothing is written on a disk. `--replace`
+        # takes the question's other pictures away, or the piece's
+        # earlier picture of that side, or the option's; their blobs stay.
         class Mockup < CLI::Command
             include MockupPiece
+            include MockupChoice
 
             USAGE = "PATH FILE..."
             SYNOPSIS = "PATH FILE|DIR... --question O<n> | PATH FILE " \
+                       "--question O<n> --choice LABEL | PATH FILE " \
                        "--piece P<n> --before|--after"
             SUMMARY = "read pictures into the journal for an open question " \
                       "or a piece's before/after"
@@ -99,11 +110,17 @@ module Ledger
                     @opts[:question] = q.strip
                 end
                 piece_flags(parser)
+                choice_flags(parser)
                 parser.on("--name NAME", "the name the question shows") do |n|
                     @opts[:name] = n.strip
                 end
-                parser.on("--replace", "swap the question's pictures, or " \
-                                       "the piece's of that side") \
+                replace_flag(parser)
+            end
+
+            def replace_flag(parser)
+                parser.on("--replace", "swap the question's pictures, the " \
+                                       "piece's of that side, or the " \
+                                       "option's") \
                     { @opts[:replace] = true }
             end
 
@@ -115,7 +132,12 @@ module Ledger
 
             def run(path, *sources)
                 return piece_mockup(path, sources) if @opts.key?(:piece)
+                return choice_mockup(path, sources) if @opts.key?(:choice)
 
+                question_mockup(path, sources)
+            end
+
+            def question_mockup(path, sources)
                 question = question_id
                 refuse("--name names one FILE or DIR, not several") if
                     @opts.key?(:name) && sources.size > 1

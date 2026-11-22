@@ -52,11 +52,19 @@ module Ledger
             end
 
             def option(choice)
+                "#{words(choice)}#{picture_of(choice)}"
+            end
+
+            def words(choice)
                 label, effect, cost = choice.values_at(:label, :effect, :cost)
                 return label if effect.to_s.empty? && cost.to_s.empty?
 
                 cost = "; #{cost}" unless cost.to_s.empty?
                 "#{label} = #{effect}#{cost}"
+            end
+
+            def picture_of(choice)
+                " — picture: #{choice[:picture]}" if choice[:picture]
             end
 
             def sees(question)

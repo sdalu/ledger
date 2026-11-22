@@ -253,6 +253,7 @@ Sequel.migration do
             String :label, null: false   # P
             String :effect               # P
             String :cost                 # P
+            String :picture              # a pictures.name of this ledger (migration 009)
         end
         create_table(:question_items) do # — items: a | b
             primary_key :id
@@ -489,6 +490,17 @@ picture was placed, and what a field held then, are read
 from `event_rows` (`Ledger::Stamps`, carried by the Snapshot beside its
 rows): a picture row's last write, and the after of the field's row's
 last write by that time (a question's choices, the rows alive then).
+
+**An option's picture.** `mockup PATH FILE --question O<n> --choice
+LABEL` stores one picture as a `pictures` row and names it in the
+option's `question_choices.picture` (migration 009), one per option:
+a second is refused without `--replace`, which swaps the name (the
+old blob stays). The label is matched folded, as `choice --drop` does;
+an unknown one is refused with the question's labels. The picture goes
+with its row when the option is dropped. The write path records it, so
+`undo` takes it back. `show` and the Markdown line print
+`— picture: NAME` after the option, the JSON choice carries `picture`
+when set; pictures-fresh reads only the question's own pictures.
 
 **A goal's done mark.** Every Goal block is live until it is marked
 done: a ledger that takes each new request as a revised block keeps
@@ -783,6 +795,7 @@ command's refusal, exit 2, nothing written.
 | `word PATH P<n> --word W [--date] [--take N…] [--dry-run]` | the id (`X<n>`), the decision line, the piece line, the take line, status line | not P<n>; no piece; empty; awaits no word; a word not awaited; unknown or taken entry; checks |
 | `mockup PATH FILE\|DIR… --question O<n> [--name] [--replace]` | `placed …` per file, the question line, `viewer: /l/ID (…/m/ID/FILE)` (`the mockups at …`, one URL per name, with several); every name of the call is shown on the question, a DIR by its pick (`index.html` at its top, else its single page, else its single image or SVG; `FILE` is that file under the DIR) | neither `--question` nor `--piece`; `--before` or `--after` with `--question`; symlink; missing; nothing; a name `mockup:` cannot spell; a type not served; not open; a name already placed; `--name` with several FILEs, or not placed; a single file that is not a page, image or text; a DIR with no `index.html`, single page or single image |
 | `mockup PATH FILE --piece P<n> --before\|--after [--replace]` | `placed FILE as P<n> ROLE`, status line; `--replace` takes the piece's earlier picture of that side away (its blob stays) | with `--question`; not P<n>; no such piece; not exactly one of `--before`, `--after`; more than one FILE (`--before` or `--after` takes one), or a directory; that side already placed, without `--replace`; symlink; missing; a name `mockup:` cannot spell; a type not served; a name already placed |
+| `mockup PATH FILE --question O<n> --choice LABEL [--replace]` | `placed FILE`, the question line (the option followed by `— picture: NAME`), `viewer: …`; `--replace` swaps the option's picture (its blob stays) | no `--question`; with `--piece` or `--name`; not open; no `choices:`; a label the question has not (the labels are named); the option already has its picture, without `--replace`; more than one picture (a call places one name); and the refusals of a placed file (symlink, missing, a type not served, a name already placed) |
 | `choice PATH O<n> (--add \| --drop) [--dry-run]` | the question line, the card (dry run), status line | not O<n>; not open; no choices; `--add` without ` = `; `--drop` unknown; option grammar; checks |
 | `fact PATH TEXT [--dry-run]` | the id, the line, status line | no ` — pointer` (text and pointer split at the first ` — `); checks |
 | `assume PATH 'TEXT — CHECK' [--see C/D/F/P ids] [--for P<n>,O<n>…] [--dry-run]` | the id (`A<n>`, open), the line `- A1 [open] TEXT — check: CHECK — see: F2, C1 — for: P3, O2`, status line; an id given twice is linked once | no ` — check` (text and check split at the first ` — `); a `--see` id not a C, D, F or P of the ledger; a `--for` id not a P or O of the ledger; an empty `--see` or `--for`; `--confirmed-by`, `--refuted-by` or `--reopen` without an `A<n>`; checks |
@@ -844,6 +857,7 @@ per rule, its commands spelled for `bin/ledger`
 | pieces-awaits | `start` only on a planned or kept piece, a finishing word on a settled one, a scope only for a word awaited | `checks/pieces.rb` |
 | pictures | a piece awaiting commit, deploy, push or merge has a `before` and an `after` placed (`mockup --piece`) or a `no_picture` reason; `start` and `other` are exempt, a word given leaves with its awaits row; the detail is `no before/after: P4 (awaits commit; has before)` | `checks/sides.rb` |
 | pictures-fresh | no picture older than what it shows: a piece with a picture whose plan, detail or problem, an open question with a picture whose detail, problem or choices (added, dropped or reworded) differ from what they held when its latest picture was placed, a field then empty not counted; the detail is `P81: plan, problem changed after its last picture (2026-11-22 09:45)`; a warning only (`warn` line, the rule passing) on a plain check, a failure on `--final`; a piece with `picture_pending` is announced instead on a plain check, `P81: picture being redrawn (WHY)`, and still fails `--final` while stale; the write path compares only stale pieces awaiting commit, deploy, push or merge and not pending, `P81 (awaits commit): … — set --picture-pending WHY, --picture-holds WHY, or place a new picture first`; a piece's `picture_holds_at`, while `picture_holds` is set, stands for its last picture when later | `checks/fresh.rb`, times in `stamps.rb` |
+| pictures-options | an open question where some options have a `picture` and others none: `O19: no picture for options A, C`; always passing (a `warn` line on a plain check and on `--final`, never a failure), and never compared by the write path | `checks/option_pictures.rb` |
 | titles | pieces in flight and open questions: the title rule | `checks/pieces.rb`, `checks/open.rb` |
 | details | a detail not mostly ids | same |
 | codes | no code of one or two capitals and digits (W1, S4) standing alone whose letter is not a kind (P O D C F X N Z E L G A), unless an open question's `— see:` names an item whose words hold it; read in the latest Goal block's title, short and context (its id `G<n>` in the detail), pieces in flight (title, detail, problem, plan), open questions (title, detail, problem, risk, recommend), decisions (body, note), facts (text, pointer), constraints' where and noticed lines; not in the Goal quote, a constraint's quote, double quotes, `` `code` `` or a URL; the detail is `ID: CODE, …`; a write is refused only for a code it adds (section 2) | `checks/codes.rb`, tokens in `text/codes.rb` |
@@ -908,7 +922,7 @@ other reader through `--json`; the hooks read the `Snapshot` and the
 | closed_questions | the `questions` shape plus `closed_at`, the rows with `closed_at` set, oldest first (the graph page reads them) |
 | pictures | `[{name, files: [{path, type, size}]}]` |
 | pieces | `[{id, status, kept_reason, until, route: {model, effort, skills, peer} \| null, route_text, title, detail, done_when, evidence, after: [P], for: [D], awaits: [{word, what}], scope: [{word, text}], rests_on_assumptions: [A], problem, risk: {rating, text}, plan, verified_by, claim: {session, since} \| null, ready, ready_since, unsent, stalled, touched_at, settled, brief: {version, at} \| null, criteria: [{text, mark, evidence}], returns: [{cause, from, at, actor}], pictures: [{role, name}], no_picture, picture_pending, line}]` (`returns` oldest first, `pictures` before first) |
-| questions | `[{id, title, detail, problem, risk: {rating, text}, recommend, choices: [{label, effect, cost, text}], items, by, see: [ids], pictures: [{name} \| {pending}], rests_on_assumptions: [A], preparing: P \| null, preparing_status, asked_since, line}]` |
+| questions | `[{id, title, detail, problem, risk: {rating, text}, recommend, choices: [{label, effect, cost, text, picture?}], items, by, see: [ids], pictures: [{name} \| {pending}], rests_on_assumptions: [A], preparing: P \| null, preparing_status, asked_since, line}]` |
 | refs | `{id: {kind, line}}` for C, D, F, P and X |
 | noticed | `[line]` |
 | inbox | `[{id, at, ref, payload, malformed, taken, taken_at, taken_by}]` |

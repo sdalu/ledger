@@ -15,14 +15,15 @@ module LedgerViewer
             # planned pieces; rec its recommendation, {label => why};
             # replaces the ids of the answer it replaces; prev that
             # answer, which the form opens holding; next_id the question
-            # after this one; inside {item => its pictures}.
+            # after this one; inside {item => its pictures}; shots
+            # {option => its picture}.
             include SayEnds
 
             Spec = Data.define(:ref, :label, :choices, :items, :order, :rec,
-                               :replaces, :prev, :next_id, :inside)
+                               :replaces, :prev, :next_id, :inside, :shots)
             BLANK = Spec.new(ref: nil, label: "", choices: [], items: [],
                              order: [], rec: {}, replaces: [], prev: nil,
-                             next_id: nil, inside: {})
+                             next_id: nil, inside: {}, shots: {})
 
             def initialize(scope, lid, token, cases)
                 @scope = scope
@@ -104,6 +105,7 @@ module LedgerViewer
                 code = Terms.option_code(option)
                 { id:, option:, checked: @prev["choice"] == option,
                   shown: @cases.option(option, @spec.rec, why: true),
+                  shot: @spec.shots.fetch(option, ""),
                   note: note(option, code, "#{id}-needed") }
             end
 

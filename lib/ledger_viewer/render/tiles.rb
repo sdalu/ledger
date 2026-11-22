@@ -2,6 +2,7 @@
 
 require_relative "folder"
 require_relative "text"
+require_relative "text_tiles"
 
 module LedgerViewer
     module Render
@@ -11,9 +12,8 @@ module LedgerViewer
         # directory is drawn by the file Ledger::Pictures.pick names, its
         # other files served under it; one that picks none is flagged.
         class Tiles
-            TEXT_MAX = 64 * 1024
-            TILE_LINES = 15
-            THUMB_LINES = 12
+            include TextTiles
+
             # `tile` is false for what stands loose in the card.
             Part = Data.define(:name, :html, :tile)
 
@@ -112,35 +112,6 @@ module LedgerViewer
                 inner = thumb(url(name), kind, text) +
                         %(<span class="side-name">#{word}</span>)
                 button(name, kind, inner, text)
-            end
-
-            def text(name)
-                raw = @bytes.call(name)
-                cut = raw.bytesize > TEXT_MAX
-                body = raw.byteslice(0, TEXT_MAX).force_encoding("UTF-8")
-                          .scrub("�")
-                lines = Text.splitlines(body)
-                return figure(name, body, cut) if lines.length <= TILE_LINES
-
-                inner = thumb_text(lines.first(THUMB_LINES))
-                full = @scope.partial("ledger/mock_full", body:, cut:)
-                tile(name, button(name, "text", inner), full)
-            end
-
-            def thumb_text(lines)
-                @scope.partial("ledger/mock_thumb_text", text: lines.join("\n"))
-            end
-
-            # A short text figure is drawn in the card itself.
-            def figure(name, body, cut)
-                attrs, box = @scope.tip(
-                    "Open it beside the page (over it on a narrow screen)"
-                )
-                html = @scope.partial(
-                    "ledger/mock_figure",
-                    { body:, cut:, label: name, url: url(name), attrs:, box: }
-                )
-                Part.new(name, html, false)
             end
         end
     end

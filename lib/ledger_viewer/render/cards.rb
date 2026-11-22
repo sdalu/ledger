@@ -67,7 +67,20 @@ module LedgerViewer
             # item has its own.
             def pictures(question)
                 items = question["choices"].empty? ? [] : question["items"]
-                @kit.mockups.layout(question["pictures"], items)
+                shown, inside = @kit.mockups.layout(question["pictures"], items)
+                [before(question, shown), inside]
+            end
+
+            # The question's own pictures, said to be the Before when its
+            # options draw their own (a question answered per item draws
+            # none).
+            def before(question, shown)
+                named = question["pictures"].any? { it["name"] }
+                afters = question["items"].empty? &&
+                         question["choices"].any? { it["picture"] }
+                return shown unless named && afters
+
+                %(<p class="mock-label">Before</p>#{shown})
             end
 
             def spec(question, said, inside)
@@ -78,7 +91,7 @@ module LedgerViewer
                     items: question["items"],
                     rec: recommended(question), inside:,
                     replaces: said.map { it["id"] }, prev: said.last,
-                    next_id: after
+                    next_id: after, shots: @kit.mockups.shots(question)
                 )
             end
 

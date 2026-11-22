@@ -9,6 +9,7 @@ require "ledger/checks/goal"
 require "ledger/checks/hints"
 require "ledger/checks/links"
 require "ledger/checks/open"
+require "ledger/checks/option_pictures"
 require "ledger/checks/pieces"
 require "ledger/checks/sides"
 
@@ -72,6 +73,7 @@ module Ledger
             rule("pictures", Sides.method(:problems),
                  prefix: "no before/after: "),
             warning("pictures-fresh", Fresh),
+            warning("pictures-options", OptionPictures),
             rule("titles", ->(d) { Pieces.titles(d) + Open.titles(d) }),
             rule("details", ->(d) { Pieces.details(d) + Open.details(d) }),
             rule("codes", Codes.method(:problems)),

@@ -717,6 +717,24 @@ opaque origin, by a `sandbox` CSP that holds even when one is opened
 on its own, with no fetch, no form and no frame, so a mockup can
 neither read the viewer's token nor post to it.
 
+A question with several options can give each its own picture, an
+after for each choice: `bin/ledger mockup PATH FILE --question O<n>
+--choice LABEL` places one FILE (or DIR) as that option's picture, one
+per option, `--replace` swapping it. The label is folded as `choice
+--drop` folds it; one the question does not have is refused naming the
+labels it has, as is an option that already has its picture without
+`--replace`. An option's picture is drawn as a thumbnail inside its
+tile, under its text and above its comment fold, the whole thumbnail a
+button that opens it full size like any mockup; the question's own
+picture, when any option has one, is labelled *Before*. A question
+answered per item (`--items`) keeps its options as plain buttons and
+draws no option pictures. Dropping an option (`choice --drop`) takes
+its picture link away, the blob staying; `show` prints it after the
+option, `— picture: NAME`. `check` warns on a plain check, never on
+`--final` and never refusing a write, of an open question where some
+options have a picture and others none, `pictures-options`, `O19: no
+picture for options A, C`.
+
 A piece awaiting commit, deploy, push or merge shows what the word
 changes: `bin/ledger mockup PATH FILE --piece P<n> --before` (or
 `--after`) places one file as that side, and its card under Waiting on

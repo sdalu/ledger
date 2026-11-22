@@ -477,6 +477,7 @@ module Ledger
                     rows = @groups[:choices].fetch(question[:id], [])
                     rows.zip(@derive.options(question)).map do |row, text|
                         { **row.slice(:label, :effect, :cost), text: }
+                            .merge(row.slice(:picture).compact)
                     end
                 end
 

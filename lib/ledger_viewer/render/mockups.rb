@@ -2,6 +2,7 @@
 
 require_relative "text"
 require_relative "piece_tiles"
+require_relative "shots"
 
 module LedgerViewer
     module Render
@@ -15,6 +16,16 @@ module LedgerViewer
                 @scope = scope
                 @reading = reading
                 @tiles = PieceTiles.new(scope, base, files(reading), bytes)
+                @shots = Shots.new(scope, base, files(reading), bytes)
+            end
+
+            # {option line => its picture, as a tile} of a question's
+            # options that have one.
+            def shots(question)
+                question["choices"].each_with_object({}) do |choice, out|
+                    name = choice["picture"] or next
+                    out[choice["text"]] = @shots.shot(name)
+                end
             end
 
             # [the card's part, {item => the tiles for that item}] of a

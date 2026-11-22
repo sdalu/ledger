@@ -29,6 +29,7 @@ $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 require "ledger_viewer"
 
 require_relative "support/browser_fixture"
+require_relative "support/choices_fixture"
 require_relative "support/groups_fixture"
 require_relative "support/long_fixture"
 require_relative "support/risk_fixture"
@@ -177,7 +178,16 @@ module BrowserRun
         PAGES = File.join(__dir__, "browser_pages.cjs")
         GROUPS = File.join(__dir__, "browser", "groups.cjs")
         LONG = File.join(__dir__, "browser", "long.cjs")
+        CHOICES = File.join(__dir__, "browser", "choices.cjs")
         RISK = File.join(__dir__, "browser", "risk.cjs")
+        # [tag, fixture, script] of the checks that each run on a ledger
+        # of their own, once per browser, after the shared checks, which
+        # read the index's first queue entry and must not meet them; the
+        # risk check sends words, which the next must not meet, so it is
+        # last.
+        OWN = [["long", LongFixture, LONG], ["groups", GroupsFixture, GROUPS],
+               ["choices", ChoicesFixture, CHOICES],
+               ["risk", RiskFixture, RISK]].freeze
 
         def initialize(core, browsers)
             @core = core
@@ -188,76 +198,30 @@ module BrowserRun
             shared = @browsers.map do |name, exe|
                 check(sandbox, cookie, name, exe)
             end
-            shared.all? & long_passes?(sandbox, cookie) &
-                groups_pass?(sandbox, cookie) &
-                risk_passes?(sandbox, cookie)
+            own = OWN.map { own_passes?(sandbox, cookie, *it) }
+            shared.all? & own.all?
         end
 
         private
 
-        # The long page's check, once per browser, each on a ledger of its
-        # own made after the shared checks, which read the index's first
-        # queue entry and must not meet it.
-        def long_passes?(sandbox, cookie)
+        # One script's check, once per browser, on a ledger of its own
+        # made by FIXTURE: TAG names its directory.
+        def own_passes?(sandbox, cookie, tag, fixture, script)
             @browsers.map do |name, exe|
                 next true unless File.executable?(exe)
 
-                address = File.join(sandbox.dir, "long-#{name}", ".claude",
+                address = File.join(sandbox.dir, "#{tag}-#{name}", ".claude",
                                     "LEDGER.md")
-                build_long(sandbox, address)
+                build(sandbox, fixture, address)
                 lid = Digest::SHA1.hexdigest(address)[0, 10]
-                system(env(sandbox, cookie), "node", LONG,
+                system(env(sandbox, cookie), "node", script,
                        "#{sandbox.base}/l/#{lid}", name)
             end.all?
         end
 
-        # The group buttons check, once per browser, on a ledger of its
-        # own: two sets of three pieces awaiting the same words.
-        def groups_pass?(sandbox, cookie)
-            @browsers.map do |name, exe|
-                next true unless File.executable?(exe)
-
-                address = File.join(sandbox.dir, "groups-#{name}", ".claude",
-                                    "LEDGER.md")
-                build_groups(sandbox, address)
-                lid = Digest::SHA1.hexdigest(address)[0, 10]
-                system(env(sandbox, cookie), "node", GROUPS,
-                       "#{sandbox.base}/l/#{lid}", name)
-            end.all?
-        end
-
-        def build_groups(sandbox, address)
+        def build(sandbox, fixture, address)
             journal = Ledger::Journal.open(sandbox.journal)
-            GroupsFixture.build(journal, address)
-        ensure
-            journal&.close
-        end
-
-        def build_long(sandbox, address)
-            journal = Ledger::Journal.open(sandbox.journal)
-            LongFixture.build(journal, address)
-        ensure
-            journal&.close
-        end
-
-        # The risk order and filter's check, once per browser, each on a
-        # ledger of its own: it sends words, which the next must not meet.
-        def risk_passes?(sandbox, cookie)
-            @browsers.map do |name, exe|
-                next true unless File.executable?(exe)
-
-                address = File.join(sandbox.dir, "risk-#{name}", ".claude",
-                                    "LEDGER.md")
-                build_risk(sandbox, address)
-                lid = Digest::SHA1.hexdigest(address)[0, 10]
-                system(env(sandbox, cookie), "node", RISK,
-                       "#{sandbox.base}/l/#{lid}", name)
-            end.all?
-        end
-
-        def build_risk(sandbox, address)
-            journal = Ledger::Journal.open(sandbox.journal)
-            RiskFixture.build(journal, address)
+            fixture.build(journal, address)
         ensure
             journal&.close
         end

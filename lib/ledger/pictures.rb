@@ -152,12 +152,7 @@ module Ledger
             # takes the question's other pictures away, a pending one gives
             # way to the first.
             def call(question, items, names, replace:)
-                taken = items.map(&:name).uniq.select { placed?(it) }
-                if taken.any?
-                    refuse("#{taken.join(", ")}: already a picture of this " \
-                           "ledger; place it under another name")
-                end
-
+                unplaced!(items.map(&:name).uniq)
                 items.each { store(it) }
                 show(question[:id], names, replace)
             end
@@ -165,6 +160,15 @@ module Ledger
             private
 
             def refuse(message) = raise(Refused, message)
+
+            # NAMES refused when the ledger already has a picture by one.
+            def unplaced!(names)
+                taken = names.select { placed?(it) }
+                return if taken.empty?
+
+                refuse("#{taken.join(", ")}: already a picture of this " \
+                       "ledger; place it under another name")
+            end
 
             def placed?(name)
                 @db[:pictures].where(ledger_id: @change.ledger_id, name:).any?
@@ -218,11 +222,7 @@ module Ledger
             # without it a second ROLE is refused.
             def call(piece, role, item, replace:)
                 old = earlier(piece, role, replace)
-                if placed?(item.name)
-                    refuse("#{item.name}: already a picture of this " \
-                           "ledger; place it under another name")
-                end
-
+                unplaced!([item.name])
                 store(item)
                 old.each { @change.delete(:piece_pictures, it[:id]) }
                 @change.insert(:piece_pictures, piece_id: piece[:id],
@@ -245,6 +245,23 @@ module Ledger
 
             # before first, after second: the order the pair is drawn in.
             def position(role) = role == "before" ? 0 : 1
+        end
+
+        # The rows a `mockup --choice` writes through its change: the
+        # picture, and the option's row naming it.
+        class Choices < Placement
+            # Stores ITEMS and names NAME as the picture of CHOICE (a
+            # question_choices row); an option that has one keeps it
+            # unless `replace` swaps it.
+            def call(choice, items, name, replace:)
+                if choice[:picture] && !replace
+                    refuse("#{choice[:label]} has its picture " \
+                           "(#{choice[:picture]}); add --replace to swap it")
+                end
+                unplaced!(items.map(&:name).uniq)
+                items.each { store(it) }
+                @change.update(:question_choices, choice[:id], picture: name)
+            end
         end
     end
 end

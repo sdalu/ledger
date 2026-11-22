@@ -106,7 +106,8 @@ end
 class ChecksRunnerTest < CheckCase
     ALWAYS = %w[goal-titled goal-revision criteria open-choices
                 open-described open-picker self-routed links pieces-awaits
-                pictures pictures-fresh titles details codes pieces-order
+                pictures pictures-fresh pictures-options titles details
+                codes pieces-order
                 criteria-pieces case-rated verified-by assumptions-refuted
                 assumptions-settled].freeze
     FINAL = %w[final-pieces final-deferred final-awaits
