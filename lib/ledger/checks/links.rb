@@ -6,6 +6,13 @@ module Ledger
         # is in its `to_kind` table and in this ledger, and the pieces'
         # `after` never loops.
         module Links
+            # Their `check --fix-hints` lines, merged into HINTS.
+            HINTS = {
+                "links" =>
+                    "every link names a row of this ledger and `after` never " \
+                    "loops; `bin/ledger piece PATH P<n> --after P3,P5`"
+            }.freeze
+
             TABLES = { "X" => :decisions, "O" => :questions, "F" => :facts,
                        "C" => :constraints, "P" => :pieces }.freeze
 

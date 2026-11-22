@@ -12,6 +12,17 @@ module Ledger
         # it; words around the code are not a pointer. The Goal quote and
         # the constraint quotes are the user's words and not read.
         module Codes
+            # Their `check --fix-hints` lines, merged into HINTS.
+            HINTS = {
+                "codes" =>
+                    "say in words what a code that is not this ledger's " \
+                    "(W1, S4) stands for, instead of the code, or point a " \
+                    "question to where it is defined with `— see: F<n>`; " \
+                    "quoted user words and `code` are not read; `bin/ledger " \
+                    "piece PATH P<n> --what …`, `bin/ledger edit PATH F<n> " \
+                    "--text …`"
+            }.freeze
+
             # The text of each kind of item, as the columns that hold it.
             PIECE = %i[title detail problem plan].freeze
             QUESTION = %i[title detail problem risk recommend].freeze

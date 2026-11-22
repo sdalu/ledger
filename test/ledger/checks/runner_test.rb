@@ -2,6 +2,7 @@
 
 require_relative "../helper"
 
+require "digest"
 require "ledger/derive"
 
 # A ledger built row by row on the fixture journal, a criterion met and
@@ -133,6 +134,33 @@ class ChecksRunnerTest < CheckCase
     def test_every_rule_has_a_hint
         (ALWAYS + FINAL).each { refute_empty Ledger::Checks.hint(it) }
         assert_equal (ALWAYS + FINAL).sort, Ledger::Checks::HINTS.keys.sort
+    end
+
+    # The table as it stood before each module took its own hints:
+    # the rule names and a digest of every name and text, sorted.
+    HINT_KEYS = %w[
+        assumptions-refuted assumptions-settled case-rated codes criteria
+        criteria-pieces details final-awaits final-criteria final-deferred
+        final-pieces goal-revision goal-titled links open-choices
+        open-described open-picker pictures pictures-fresh pictures-options
+        pieces-awaits pieces-order question-loop self-routed titles
+        verified-by
+    ].freeze
+    HINT_DIGEST =
+        "7709829799348e9b102d464c45a98737894f2949ab3848da1c216b14cd1e8f4c"
+
+    def test_the_hints_cover_exactly_the_rules_runner_defines
+        hints = Ledger::Checks::HINTS
+
+        assert_equal Ledger::Checks::RULES.map(&:name).sort, hints.keys.sort
+    end
+
+    def test_the_merged_hints_are_the_table_from_before_the_split
+        hints = Ledger::Checks::HINTS
+        joined = hints.sort.map { |name, text| "#{name}\0#{text}" }.join("\n")
+
+        assert_equal HINT_KEYS, hints.keys.sort
+        assert_equal HINT_DIGEST, Digest::SHA256.hexdigest(joined)
     end
 
     def test_the_write_path_refuses_a_write_that_breaks_a_rule

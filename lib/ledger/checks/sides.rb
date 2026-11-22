@@ -10,6 +10,15 @@ module Ledger
         # --no-picture`). start and other are exempt; a word once given
         # leaves with its awaits row.
         module Sides
+            # Their `check --fix-hints` lines, merged into HINTS.
+            HINTS = {
+                "pictures" =>
+                    "a piece awaiting commit, deploy, push or merge shows " \
+                    "what it changes, a before and an after; `bin/ledger " \
+                    "mockup PATH FILE --piece P<n> --before` and `--after`, " \
+                    "or `bin/ledger piece PATH P<n> --no-picture WHY`"
+            }.freeze
+
             ROLES = %w[before after].freeze
 
             module_function

@@ -8,6 +8,24 @@ module Ledger
         # The rules on the pieces: self-routed, pieces-order, verified-by
         # (U11), and their part of titles, details and case-rated.
         module Pieces
+            # Their `check --fix-hints` lines, merged into HINTS.
+            HINTS = {
+                "self-routed" =>
+                    "a piece is not routed to this ledger's own session; " \
+                    '`bin/ledger piece PATH P<n> --status "kept: REASON"` or ' \
+                    '`--route "sonnet, effort: medium"`',
+                "pieces-order" =>
+                    "a piece leaves planned only once what it waits for is " \
+                    "verified or kept, and waits for none dropped; " \
+                    "`bin/ledger piece PATH P<n> --status planned` or " \
+                    "`--after …`",
+                "verified-by" =>
+                    "a piece is verified by someone other than its own " \
+                    "route; " \
+                    "`bin/ledger piece PATH P<n> --status verified " \
+                    "--verified-by me`"
+            }.freeze
+
             SELF = "%s is routed to this ledger's own session (%s): keep " \
                    "it (kept: reason) or route it to a delegate"
             AWAITING = "a piece awaiting the user's word without a "
@@ -107,6 +125,16 @@ module Ledger
         # pieces-awaits: the states a word may be awaited in, and a scope
         # only for a word awaited; the words themselves are the schema's.
         module Awaits
+            # Their `check --fix-hints` lines, merged into HINTS.
+            HINTS = {
+                "pieces-awaits" =>
+                    "start only on a planned or kept piece, commit, deploy, " \
+                    "push and merge on a piece done; `bin/ledger piece PATH " \
+                    'P<n> --awaits "commit, deploy"`; a scope names only ' \
+                    "words the piece awaits: " \
+                    '`--scope "commit = … | deploy = …"`'
+            }.freeze
+
             START = "%s [%s] awaits start, which begins a planned or kept " \
                     "piece"
             FINISH = "%s [%s] awaits %s, which only finish a piece that " \

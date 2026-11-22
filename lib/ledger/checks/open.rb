@@ -10,6 +10,30 @@ module Ledger
         # open-picker, their part of titles and details, and of
         # case-rated. A closed question is in none of them.
         module Open
+            # Their `check --fix-hints` lines, merged into HINTS.
+            HINTS = {
+                "open-choices" =>
+                    "an option holds no colon and is never drop or ignore; " \
+                    "per-item answers are `items: a | b` with `choices:`; " \
+                    "`bin/ledger choice PATH O<n> --drop LABEL`, or " \
+                    "`bin/ledger ask … --replaces O<n>` to redo it",
+                "open-described" =>
+                    "a question gives `— problem:` and `— risk:`, and once " \
+                    "it " \
+                    "can be answered `X = what it does` for each option and " \
+                    "`— recommend: X, why`; `bin/ledger ask PATH … --problem " \
+                    "… " \
+                    '--risk … --choices "A = … | B = …" --recommend "A, why" ' \
+                    "--replaces O<n>`",
+                "open-picker" =>
+                    "options are `label = effect; cost`, two to eight, no " \
+                    "`?` " \
+                    "in an effect, at most one in the question, a recommend " \
+                    "`label, why`, no two questions with the same options; " \
+                    "`bin/ledger choice PATH O<n> --add …` or `--drop …`, or " \
+                    "`bin/ledger ask … --replaces O<n>` to split or redo it"
+            }.freeze
+
             BARE = "what %s does (`X = what it does, what it costs`)"
             RECOMMEND = "`— recommend: X, why`"
             NO_RISK = "an open question without a `— risk: N/10 — …`"

@@ -5,6 +5,21 @@ module Ledger
         # criteria (at least one; each parses is the schema's) and
         # criteria-pieces.
         module Criteria
+            # Their `check --fix-hints` lines, merged into HINTS.
+            HINTS = {
+                "criteria" =>
+                    "at least one criterion under Done when, a check " \
+                    "something " \
+                    "other than opinion can pass; `bin/ledger criterion PATH " \
+                    "new --text …`",
+                "criteria-pieces" =>
+                    "a criterion is met only once the pieces serving it are " \
+                    "finished; `bin/ledger piece PATH P<n> --status verified " \
+                    "--verified-by me --evidence …`, or `bin/ledger " \
+                    "criterion " \
+                    "PATH D<n> --unmet WHY`"
+            }.freeze
+
             NONE = "need at least one `- [ ] D<n>: ...`"
             # The statuses of a piece that has not finished serving.
             SERVING = (Derive::UNFINISHED + ["blocked"]).freeze

@@ -5,6 +5,30 @@ module Ledger
         # The rules of `check --final`: what `close` and the proposal to
         # close ask of a finished ledger.
         module Final
+            # Their `check --fix-hints` lines, merged into HINTS.
+            HINTS = {
+                "final-pieces" =>
+                    "no piece planned, out or back; `bin/ledger piece PATH " \
+                    "P<n> " \
+                    "--status verified --verified-by me --evidence …` or " \
+                    "`--status dropped` with a Decision",
+                "final-deferred" =>
+                    "no piece deferred: the ledger waits for its event; once " \
+                    "it came, `bin/ledger piece PATH P<n> --status planned`, " \
+                    "or `--status dropped` with a Decision; meanwhile the " \
+                    "stop " \
+                    "passes, criteria unmarked too if each waits on deferred " \
+                    "pieces only or on no piece",
+                "final-awaits" =>
+                    "no piece waits for the user's word; `bin/ledger word " \
+                    "PATH " \
+                    "P<n> --word W` once given, or `--word drop`",
+                "final-criteria" =>
+                    "every criterion `[x]` with evidence or `[-]` with why; " \
+                    "`bin/ledger criterion PATH D<n> --met EVIDENCE` or " \
+                    "`--unmet WHY`"
+            }.freeze
+
             module_function
 
             # Each piece planned, out or back; a deferred one is said by

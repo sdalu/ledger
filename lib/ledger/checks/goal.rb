@@ -7,6 +7,18 @@ module Ledger
         # goal-titled, goal-revision and the Goal part of case-rated. An
         # empty In short or Context line is the schema's to refuse.
         module Goal
+            # Their `check --fix-hints` lines, merged into HINTS.
+            HINTS = {
+                "goal-titled" =>
+                    "a Title is a phrase in words, at most 60 characters; " \
+                    "`bin/ledger edit PATH goal --text …`, or `bin/ledger " \
+                    "goal " \
+                    "PATH --quote … --title … --short … [--context …]`",
+                "goal-revision" =>
+                    "a revised Goal quotes at least 4 words; a go-ahead is a " \
+                    'Decision: `bin/ledger decide PATH "TEXT" --by user`'
+            }.freeze
+
             TITLED = "a Goal's Title reads as a title and its In short " \
                      "and Context lines are not empty: "
             GO_AHEAD = 'a go-ahead ("do", "next") goes under Decisions, ' \
