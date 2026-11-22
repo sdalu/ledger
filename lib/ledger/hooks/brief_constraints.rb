@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "ledger/hooks/ledgers"
+require "ledger/text/fold"
 
 module Ledger
     module Hooks
@@ -58,10 +59,7 @@ module Ledger
                 text.scan(PATH).flatten.map { it.sub(/[.,;:]+\z/, "") }
             end
 
-            def fold(text)
-                text.split(/[[:space:]]+/).reject(&:empty?)
-                    .join(" ").downcase(:fold)
-            end
+            def fold(text) = Text::Fold.fold(text)
 
             def deny(missing)
                 { hookSpecificOutput: { hookEventName: "PreToolUse",

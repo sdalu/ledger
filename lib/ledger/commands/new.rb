@@ -6,8 +6,12 @@ module Ledger
     module Commands
         # `new PATH --goal --title --short [--context] [--date] [--carry
         # CLOSED]`: a live ledger at an address, its first Goal block, the
-        # placeholder criterion D1 and the carried noticed lines.
+        # placeholder criterion D1 and the carried noticed lines. A goal
+        # not in a message of the user's is warned of unless --said-in
+        # says where it was said (Heard).
         class New < CLI::Command
+            include Heard
+
             USAGE = "PATH"
             SYNOPSIS = "PATH --goal W --title T --short S"
             SUMMARY = "open a live ledger: the goal verbatim, its title, its " \
@@ -25,7 +29,8 @@ module Ledger
                         "noticed lines carry over"],
                 confirmed: ["--confirmed WORDS",
                             "the user's words allowing a second live " \
-                            "ledger in this place"]
+                            "ledger in this place"],
+                said_in: Heard::SAID_IN
             }.freeze
             PLACEHOLDER = "<a check something other than opinion can pass>"
             CLOSED = /\AL([1-9]\d*)\z/
@@ -40,7 +45,13 @@ module Ledger
                 beside = Beside.new(journal.db, address, @opts[:confirmed])
                 beside.check!
                 create(address, row, carried_lines(@opts[:carry]), beside)
+                report(address, row)
+            end
+
+            # The address written, then the quote's warning if any.
+            def report(address, row)
                 @out.puts address
+                quoted!(row[:quote])
                 0
             end
 

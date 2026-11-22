@@ -23,7 +23,8 @@ module Ledger
         class Json
             SCHEMA = 1
             # A Goal block's own columns, between its id and its done mark.
-            GOAL = %i[stamp date revised title short context quote].freeze
+            GOAL = %i[stamp date revised title short context quote
+                      said_in].freeze
 
             # What the rows alone do not say: UPDATED_AT (ms), SIZES
             # {picture id => bytes}, EVENTS {event id => {at:, actor:}}
@@ -150,6 +151,8 @@ module Ledger
             # and decisions, each its id, its columns, what it derives and
             # the line `show` prints.
             class Items
+                CONSTRAINT = %i[text quote said_in].freeze
+
                 def initialize(snapshot, derive, markdown)
                     @snapshot = snapshot
                     @derive = derive
@@ -159,7 +162,7 @@ module Ledger
                 def call
                     { criteria: lined("D", :criteria,
                                       %i[mark text evidence why]),
-                      constraints: lined("C", :constraints, %i[text quote],
+                      constraints: lined("C", :constraints, CONSTRAINT,
                                          &Text::Pointer.method(:of_constraint)),
                       facts: lined("F", :facts, %i[text pointer],
                                    &Text::Pointer.method(:of_fact)),

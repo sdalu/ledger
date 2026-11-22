@@ -12,7 +12,8 @@ module Ledger
         # the piece changes: `drop` drops it, any other word must be one it
         # awaits and stops being awaited, its scope line going with it.
         # A piece that builds a question still open takes no start: the
-        # answer comes first (WordStart).
+        # answer comes first (WordStart). Without --take the user must
+        # have written since the piece asked (Taking).
         class Word < CLI::Command
             include Taking
             include WordStart
@@ -56,7 +57,7 @@ module Ledger
                 refuse("--word is empty") if given.empty?
                 built!(piece, given)
                 remove(change, piece, left(change, piece, given))
-                take(change, ids)
+                take(change, ids, asked: [:pieces, piece[:id]])
                 ref = decision(change, piece, given, ids)
                 change.link("led_to", ref, "P#{piece[:n]}")
                 ref

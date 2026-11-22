@@ -151,8 +151,8 @@ class JsonTest < JsonCase
                   closed_at: nil },
         goals: [{ id: "G1", stamp: "2026-11-19, verbatim",
                   date: "2026-11-19", revised: false, title: nil, short: nil,
-                  context: nil, quote: "the user's words", done: false,
-                  done_evidence: nil }],
+                  context: nil, quote: "the user's words", said_in: nil,
+                  done: false, done_evidence: nil }],
         criteria: [], constraints: [], facts: [], assumptions: [],
         decisions: [], links: [],
         closed_questions: [], pictures: [], pieces: [], questions: [],
@@ -356,7 +356,8 @@ class JsonPointerTest < JsonCase
 
         assert_equal %i[id text pointer pointer_kind line], fact.keys
         assert_equal "path", fact[:pointer_kind]
-        assert_equal %i[id text quote where where_kind line], constraint.keys
+        assert_equal %i[id text quote said_in where where_kind line],
+                     constraint.keys
         assert_equal [nil, nil], constraint.values_at(:where, :where_kind)
     end
 end

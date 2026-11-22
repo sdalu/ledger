@@ -178,6 +178,16 @@ piece awaits and leaves its `awaits` once every awaited word is given);
 TEXT` add one line to Facts, Constraints, Decisions and Out of scope,
 noticed (`constraint` strips one pair of outer double quotes from
 QUOTE). A command that gives a new id prints it alone on its first line.
+The user's words are traced to the user's own messages in the running
+session's transcript (found from `$CLAUDE_CODE_SESSION_ID` under
+`~/.claude/projects/`): `word`, `answer` and `decide --by user` without
+`--take` are refused unless the user wrote after the item asked (a
+session cannot give itself the word it waits for; a peer session's or
+a delegate's message does not count), and the quote of `new --goal`,
+`goal --quote` and `constraint` not found in a message of the user's is
+warned of, exit 0, unless `--said-in WHERE` says where it was said
+(stored, shown on the line). No transcript found: a warning, nothing
+checked. `docs/journal.md`, section 4, has the rules.
 `assume PATH "TEXT — how it will be checked" [--see F<n>,C<n>…] [--for
 P<n>,O<n>…]` records an assumption, `A<n>` under *Assumptions:* after
 Facts: what the plan takes as true without having checked it (unlike a

@@ -1,12 +1,18 @@
 # frozen_string_literal: true
 
+require "ledger/asked_since"
 require "ledger/commands/decide"
+require "ledger/commands/heard"
 
 module Ledger
     module Commands
         # `--take N…` of `answer` and `word`: the viewer's entries that
         # carried the user's words, taken in the command's own event.
+        # Without them, the user's word must follow the ask in this
+        # session's transcript (Heard).
         module Taking
+            include Heard
+
             ENTRY = /\AN([1-9]\d*)\z/
             TIME = "%Y-%m-%dT%H:%M:%S"
 
@@ -47,7 +53,11 @@ module Ledger
                        "session filed it")
             end
 
-            def take(change, ids)
+            # ASKED, [table, row id] of the item asking the word, is
+            # checked when no entry is taken.
+            def take(change, ids, asked: nil)
+                heard!(AskedSince.row(journal.db, *asked)) if asked &&
+                                                              ids.empty?
                 entries(change, ids).each do |row|
                     change.update(:inbox_entries, row[:id],
                                   taken_id: change.event_id)
@@ -67,6 +77,8 @@ module Ledger
         # [--replaces X<n>]`: the user's answer becomes a decision by user,
         # the question leaves Open, the X answers O edge is written (and X
         # replaces X with `--replaces`), the entries are taken: one event.
+        # Without --take the user must have written since the question
+        # was asked (Taking).
         class Answer < CLI::Command
             include Taking
 
@@ -106,7 +118,7 @@ module Ledger
                 question = open_question(change, id) or
                     refuse("#{id} is not asked under Open in #{address}")
                 refuse("--decision is empty; quote the user") if body.empty?
-                take(change, ids)
+                take(change, ids, asked: [:questions, question[:id]])
                 ref = decision(change, id, body)
                 change.update(:questions, question[:id], closed_at: Write.now)
                 change.link("answers", ref, id)

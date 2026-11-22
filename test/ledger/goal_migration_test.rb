@@ -52,7 +52,8 @@ class GoalMigrationTest < Minitest::Test
         migrate
 
         after = @db[:goals].where(id:).first
-        assert_equal before, after.except(:n, :done_at, :done_evidence)
+        assert_equal before, after.except(:n, :done_at, :done_evidence,
+                                          :said_in)
         assert_nil after[:done_at]
         assert_nil after[:done_evidence]
     end

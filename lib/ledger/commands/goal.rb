@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "ledger/commands/heard"
 require "ledger/text/title"
 
 module Ledger
@@ -8,8 +9,11 @@ module Ledger
         # revised Goal block, the user's new words verbatim under the
         # session's Title, In short and Context, its id the next G<n>;
         # `goal PATH G<n> --done EVIDENCE | --undone`: the block marked
-        # done, or active again.
+        # done, or active again. A quote not in a message of the user's
+        # is warned of unless --said-in says where it was said (Heard).
         class Goal < CLI::Command
+            include Heard
+
             USAGE = "PATH [ID]"
             SYNOPSIS = "PATH --quote W --title T --short S | " \
                        "PATH G<n> --done E|--undone"
@@ -24,7 +28,8 @@ module Ledger
                           "the files and places it concerns"],
                 date: ["--date DATE", DATE],
                 done: ["--done EVIDENCE",
-                       "G<n>: mark it done, with the evidence"]
+                       "G<n>: mark it done, with the evidence"],
+                said_in: Heard::SAID_IN
             }.freeze
             DATE = /\A\d{4}-\d{2}-\d{2}\z/
 
@@ -36,7 +41,16 @@ module Ledger
 
                 label = revised ? "revised, verbatim" : "verbatim"
                 { stamp: "#{date}, #{label}", date:, revised:,
-                  **words(opts), quote: quote(given(opts, :quote)) }
+                  **words(opts), quote: quote(given(opts, :quote)),
+                  said_in: said_in(opts[:said_in]) }
+            end
+
+            # --said-in's WHERE on one line; nil when not given.
+            def self.said_in(text)
+                return if text.nil?
+                raise Refused, "--said-in is empty" if text.strip.empty?
+
+                flat(text)
             end
 
             def self.given(opts, name)
@@ -95,8 +109,14 @@ module Ledger
                 result = write(path, own: "#{row[:date]}, revised") do |change|
                     change.insert(:goals, n: change.next_id("G"), **row)
                 end
+                report(result, path, row)
+            end
+
+            # The block written, then the quote's warning if any.
+            def report(result, path, row)
                 emit(result, path,
                      lines: self.class.block(result.after.goals.last))
+                quoted!(row[:quote])
                 0
             end
 
@@ -112,7 +132,7 @@ module Ledger
         # mark, its time and evidence set together and cleared together.
         class GoalMark
             ID = /\AG[1-9]\d*\z/
-            BLOCK = %i[quote title short context date].freeze
+            BLOCK = %i[quote title short context date said_in].freeze
 
             def initialize(id, opts)
                 fail!("the target is G<n>, a Goal block's id") unless
@@ -138,7 +158,7 @@ module Ledger
                     [@done, @undone].one?
                 if opts.keys.intersect?(BLOCK)
                     fail!("--done and --undone go without --quote, --title, " \
-                          "--short, --context or --date")
+                          "--short, --context, --date or --said-in")
                 end
                 fail!("--done takes the evidence; it is empty") if
                     @done && @done.strip.empty?

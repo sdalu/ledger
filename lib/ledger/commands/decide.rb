@@ -1,11 +1,18 @@
 # frozen_string_literal: true
 
+require "ledger/asked_since"
+require "ledger/commands/heard"
+
 module Ledger
     module Commands
         # `decide PATH TEXT --by user|me [--note] [--date] [--rests-on]
         # [--led-to] [--replaces X<n>]`: a decision, with an edge to each
-        # item it rests on, led to or replaces.
+        # item it rests on, led to or replaces. A decision by user must
+        # follow a message of the user's (Heard), written after the
+        # question it answers and the pieces it led to asked.
         class Decide < CLI::Command
+            include Heard
+
             USAGE = "PATH TEXT"
             SYNOPSIS = "PATH TEXT --by user|me"
             SUMMARY = "a decision, who made it, and what it rests on, led to " \
@@ -46,6 +53,8 @@ module Ledger
                                                        me].include?(@opts[:by])
                 row = row(line(text, "the decision"))
                 links = edges
+                heard!(since(path, row[:subject], links)) if
+                    @opts[:by] == "user"
                 add_item(path, "X", :decisions, own: row[:body],
                                                 **row) do |change, ref|
                     links.each { |kind, to| change.link(kind, ref, to) }
@@ -73,6 +82,19 @@ module Ledger
                         [kind, ref]
                     end
                 end
+            end
+
+            # The newest ask among the question the body opens with and
+            # the pieces it led to; 0 with neither.
+            def since(path, subject, links)
+                ledger = journal.ledger(path)[:id]
+                refs = [subject, *links.filter_map do |kind, ref|
+                    ref if kind == "led_to" && ref.start_with?("P")
+                end]
+                asks = refs.compact.filter_map do |ref|
+                    AskedSince.ref(journal.db, ledger, ref)
+                end
+                asks.max || 0
             end
 
             def ids(value) = value.to_s.split(/[,\s]+/).reject(&:empty?)

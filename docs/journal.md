@@ -116,6 +116,7 @@ Sequel.migration do
             String :short                # P; NULL or non-empty
             String :context              # P; NULL or non-empty
             String :quote, null: false   # V; lines without "> ", non-empty
+            String :said_in              # P, --said-in WHERE (018); NULL or non-empty
         end
         create_table(:criteria) do       # Done when
             primary_key :id
@@ -133,6 +134,7 @@ Sequel.migration do
             Integer :n, null: false
             String :text, null: false    # V: the line after "C<n>: "
             String :quote, null: false   # V: the words a brief must carry
+            String :said_in              # P, --said-in WHERE (018); NULL or non-empty
             unique %i[ledger_id n]
         end
         create_table(:facts) do
@@ -842,9 +844,9 @@ command's refusal, exit 2, nothing written.
 
 | Command | Output | Refusals (exit 2) |
 |---|---|---|
-| `new PATH --goal --title --short [--context] [--date] [--carry CLOSED] [--confirmed WORDS]` | the address; with `--confirmed`, the new ledger holds a Decision by user quoting the words and naming the live ledgers it sits beside | address live; another live ledger in the same directory or its `.claude/` without `--confirmed` (the refusal names them: a second ledger there is a fork the user confirms); `--confirmed` with no live ledger there; title fails the title rule; empty `--short`; `--carry` names no closed ledger (it takes an address, its newest close, or `L<id>`) |
-| `goal PATH --quote --title --short [--context] [--date] [--dry-run]` | the new Goal block (its id the next `G<n>`), status line | title; empty short; quote under 4 words (a go-ahead); `--done` or `--undone` without a `G<n>`; checks |
-| `goal PATH G<n> (--done EVIDENCE \| --undone) [--dry-run]` | the Goal block, status line | not `G<n>`; no such block; neither or both of `--done`, `--undone`; empty evidence; `--done` on a block done, `--undone` on one active; with `--quote`, `--title`, `--short`, `--context` or `--date`; checks |
+| `new PATH --goal --title --short [--context] [--date] [--carry CLOSED] [--confirmed WORDS] [--said-in WHERE]` | the address, then the quote's warning (below); with `--confirmed`, the new ledger holds a Decision by user quoting the words and naming the live ledgers it sits beside | address live; another live ledger in the same directory or its `.claude/` without `--confirmed` (the refusal names them: a second ledger there is a fork the user confirms); `--confirmed` with no live ledger there; title fails the title rule; empty `--short`; `--carry` names no closed ledger (it takes an address, its newest close, or `L<id>`) |
+| `goal PATH --quote --title --short [--context] [--date] [--said-in WHERE] [--dry-run]` | the new Goal block (its id the next `G<n>`, a `Said in: WHERE` line before the quote with `--said-in`), status line; the quote's warning (below) | title; empty short; quote under 4 words (a go-ahead); `--done` or `--undone` without a `G<n>`; checks |
+| `goal PATH G<n> (--done EVIDENCE \| --undone) [--dry-run]` | the Goal block, status line | not `G<n>`; no such block; neither or both of `--done`, `--undone`; empty evidence; `--done` on a block done, `--undone` on one active; with `--quote`, `--title`, `--short`, `--context`, `--date` or `--said-in`; checks |
 | `check [--final] [--peek] [--fix-hints] [--json] PATH` | `ok  name` / `FAIL name -- detail` per rule, `  hint:` after a FAIL, status line (the beat, unless `--peek`); `--json` prints JSON v1 | exit 1 on any FAIL |
 | `show PATH [ID] [--json]` | PATH a live address or `L<id>`, live or closed; no ID: the whole ledger as Markdown, each noticed line ending with its `(Z<n>)`, a closed one's followed by a blank line and `closed: TIME` or `abandoned: TIME` (ISO 8601, `closed_at`); an ID (`P`, `O`, `D`, `C`, `F`, `A`, `X`, `G`, `Z`): its fields as `key: value` lines, links as `answers: O3`, `rests-on: F2, C3` lines, a piece's returns as `return: CAUSE, from STATUS, TIME` lines and its dispatches announced as `assessment: TIME, MODEL, effort: E, axis: AXIS (LEVEL), risk: N/10, attended` lines (what the block left out left out, `risk: unrated` without N/10), its gates as `gate: NAME STATE (DETAIL), TIME` lines and its report as `report: STATUS, TIME` followed by its lines, each indented two spaces; or JSON v1 | unknown id |
 | `status PATH [--json]` | the status line; JSON v1 | |
@@ -857,8 +859,8 @@ command's refusal, exit 2, nothing written.
 | `piece PATH new\|P<n> [--status --route --title --what --done-when --evidence --after --for --problem --risk --plan --scope --awaits --verified-by --session --by X<n> --cause C --until CONDITION --claim --no-picture WHY --picture-pending WHY --picture-holds WHY --no-commit WHY --builds O<n>\|none --obsoleted-by P<n> --commits SHA[,SHA…] --[no-]irreversible --gate "NAME: STATE (DETAIL)" --report FILE --dry-run]`, `piece PATH P<n> --announce FILE [--session S]`, `piece PATH P<n> --status back --handback [--report FILE]` | the new id (new), `claimed: P<n> from HOLDER` (`--claim`), the piece line (a deferred one with `— until: CONDITION`, an obsolete one with `— obsoleted by P<n>` after its title), status line; `--announce`: the one line `assessment recorded on PATH P<n>` (a `piece_assessments` row, section 1); `--handback`: on a piece out, status back and the one line `hand-back recorded on PATH P<n>`, on any other status nothing written and the one line `P<n> is STATUS; the hand-back changes nothing`, or with `--report` the report alone written and `P<n> is STATUS; report recorded, the status unchanged`, all exit 0 | target shape; no such piece; title, detail; scope grammar or a word not awaited; new without title; awaiting without problem and rated risk; no route and not kept; a return (`--status planned` from out or back) without `--cause` or with a cause not in `brief`, `split`, `depth`, `contract`, `env`; `--cause` on any other change; `--status deferred` without `--until` or with it empty, `--until` without `--status deferred` (any other status clears `until`); out without a session, or out under another holder; `--claim` on a new piece, with `--status`, without a session, or on a piece not out; verified without `--verified-by`; `--announce` on `new`, with any flag but `--session`, FILE unreadable, or a block refused (section 1), the reason a sentence; `--handback` on `new`, without `--status back`, with any other flag but `--report`, or on no such piece, the reason a sentence; `--builds` not `O<n>` or `none`, on no such question, on one answered, or on one another piece builds; `--status obsolete` without `--obsoleted-by`, `--obsoleted-by` without it, a replacement not `P<n>`, unknown, obsolete, dropped or the piece itself, or a piece out made obsolete (migration 012, section 1); an empty `--no-picture`; (`--no-commit ''` clears it, shown as `— no commit: WHY`, stored in `pieces.no_commit`, migration 011); `--commits SHA[,SHA…]` appends the commits that landed the piece to the ones it holds, never replacing them, shown as `— commits: a1b2c3d, e4f5a6b` after `no commit`, stored in `piece_commits` (migration 013), an id of 7 to 40 hex digits kept lower-case, one already held or repeated ignored, a bad id refused, the write undone by `undo`; (`--irreversible` sets `pieces.irreversible`, migration 014, shown as a bare `— irreversible` after `awaits`, `--no-irreversible` clears it); `--gate` not `NAME: STATE (DETAIL)` with STATE one of `queued`, `running`, `passed`, `failed` (one `piece_gates` row per name, a later state updating it and its `event_id`, shown as `— gates: NAME STATE (DETAIL), …`); `--report FILE` unreadable or its first line blank (one `piece_reports` row per piece, replaced by a later report: the first line as `status`, up to 12 lines after it as `body`, trailing blank lines dropped, shown as `— report: STATUS`; migration 015); `--picture-pending` with `--picture-holds`; checks (`pictures`: awaiting commit, deploy, push or merge without a before and an after or a reason; `pictures-fresh`: awaiting commit, deploy, push or merge, not `--picture-pending`, with a plan, detail or problem reworded since its latest picture) |
 | `ask PATH O<n> --by P<n>\|none [--dry-run]` | the id, the question's line, status line: the `by` link of an open question set, changed or cleared (`none`), a write with its event, undone by `undo`; it takes no other flag | not `O<n>` of this ledger or not open; no `--by`; another flag; `--by` dropped or not a piece; checks (`question-loop`) |
 | `ask PATH QUESTION --title [--choices --by --items --see --problem --risk --recommend] (--mockup N \| --pending P \| --no-picture WHY) [--replaces O<n>] [--dry-run]` | the id, the line, a warning at 7–8 options, the picker card (dry run), status line | title, detail; problem and rated risk; empty question; not exactly one picture decision; pending piece missing or dropped; no picture of that name in the journal; `--by` dropped; option grammar; `--items` without `--choices`; `--replaces` not open or with an untaken entry; checks |
-| `answer PATH O<n> --decision [--date] [--take N…] [--replaces X<n>] [--dry-run]` | the id (`X<n>`), the decision line, the take line, status line | not open; empty decision; unknown or already taken entry; checks |
-| `word PATH P<n> --word W [--date] [--take N…] [--dry-run]` | the id (`X<n>`), the decision line, the piece line, the take line, status line | not P<n>; no piece; empty; `start` on a piece whose `--builds` question is open (`P<n> builds O<m>: answer O<m> first`); awaits no word; a word not awaited; unknown or taken entry; checks |
+| `answer PATH O<n> --decision [--date] [--take N…] [--replaces X<n>] [--dry-run]` | the id (`X<n>`), the decision line, the take line, status line | not open; empty decision; without `--take`, no message of the user's since the question was asked (below); unknown or already taken entry; checks |
+| `word PATH P<n> --word W [--date] [--take N…] [--dry-run]` | the id (`X<n>`), the decision line, the piece line, the take line, status line | not P<n>; no piece; empty; `start` on a piece whose `--builds` question is open (`P<n> builds O<m>: answer O<m> first`); awaits no word; a word not awaited; without `--take`, no message of the user's since the piece's awaits were written (below); unknown or taken entry; checks |
 | `mockup PATH FILE\|DIR… --question O<n> [--name] [--replace]` | `placed …` per file, the question line, `viewer: /l/ID (…/m/ID/FILE)` (`the mockups at …`, one URL per name, with several); every name of the call is shown on the question, a DIR by its pick (`index.html` at its top, else its single page, else its single image or SVG; `FILE` is that file under the DIR) | neither `--question` nor `--piece`; `--before` or `--after` with `--question`; symlink; missing; nothing; a name `mockup:` cannot spell; a type not served; not open; a name already placed; `--name` with several FILEs, or not placed; a single file that is not a page, image or text; a DIR with no `index.html`, single page or single image |
 | `mockup PATH FILE --piece P<n> --before\|--after [--replace]` | `placed FILE as P<n> ROLE`, status line; `--replace` takes the piece's earlier picture of that side away (its blob stays) | with `--question`; not P<n>; no such piece; not exactly one of `--before`, `--after`; more than one FILE (`--before` or `--after` takes one), or a directory; that side already placed, without `--replace`; symlink; missing; a name `mockup:` cannot spell; a type not served; a name already placed |
 | `mockup PATH FILE --question O<n> --choice LABEL [--replace]` | `placed FILE`, the question line (the option followed by `— picture: NAME`), `viewer: …`; `--replace` swaps the option's picture (its blob stays) | no `--question`; with `--piece` or `--name`; not open; a question with `--items` ("answered item by item"); no `choices:`; a label the question has not (the labels are named); the option already has its picture, without `--replace`; more than one picture (a call places one name); and the refusals of a placed file (symlink, missing, a type not served, a name already placed) |
@@ -866,8 +868,8 @@ command's refusal, exit 2, nothing written.
 | `fact PATH TEXT [--dry-run]` | the id, the line, status line | no ` — pointer` (text and pointer split at the first ` — `); checks |
 | `assume PATH 'TEXT — CHECK' [--see C/D/F/P ids] [--for P<n>,O<n>…] [--dry-run]` | the id (`A<n>`, open), the line `- A1 [open] TEXT — check: CHECK — see: F2, C1 — for: P3, O2`, status line; an id given twice is linked once | no ` — check` (text and check split at the first ` — `); a `--see` id not a C, D, F or P of the ledger; a `--for` id not a P or O of the ledger; an empty `--see` or `--for`; `--confirmed-by`, `--refuted-by` or `--reopen` without an `A<n>`; checks |
 | `assume PATH A<n> (--confirmed-by F<n> \| --refuted-by F<n> \| --for IDS \| --reopen) [--dry-run]` | the line (`— by: F4` once settled), status line; `--for` replaces what rests on it, `--reopen` clears the fact | no such assumption; not exactly one of the four; an empty value; a fact not `F<n>` or not this ledger's; settling one already confirmed or refuted (`--reopen` it first); reopening one open; `--see`; a `--for` id not a P or O of the ledger; checks |
-| `constraint PATH QUOTE --where W [--dry-run]` | the id, the line, status line | empty quote; empty where |
-| `decide PATH TEXT --by user\|me [--note] [--date] [--rests-on F<n>,C<n>…] [--led-to P<n>,O<n>…] [--replaces X<n>] [--dry-run]` | the id (`X<n>`), the line, status line | by; empty; a target not this ledger's or of another kind; checks |
+| `constraint PATH QUOTE --where W [--said-in WHERE] [--dry-run]` | the id, the line (ending `(said in: WHERE)` with `--said-in`), status line; the quote's warning (below) | empty quote; empty where; empty `--said-in` |
+| `decide PATH TEXT --by user\|me [--note] [--date] [--rests-on F<n>,C<n>…] [--led-to P<n>,O<n>…] [--replaces X<n>] [--dry-run]` | the id (`X<n>`), the line, status line | by; empty; `--by user` with no message of the user's since the question its body opens with (`O<n>:`) was asked or the pieces it led to wrote their awaits (below); a target not this ledger's or of another kind; checks |
 | `noticed PATH TEXT [--dry-run]` | the id (`Z<n>`), the line, status line | empty |
 | `criterion PATH new --text T`, `criterion PATH D<n> (--met E \| --unmet W \| --unmark \| --text T) [--dry-run]` | the id (new), the line, status line; `--unmark` takes a mark `[x]` or `[-]` back to `[ ]`, its evidence or why cleared | not D<n>; empty value; no such criterion; not one of `--met`, `--unmet`, `--unmark`, `--text`; `--unmark` on a criterion not marked; checks (`criteria-pieces`) |
 | `edit PATH ID --text T [--dry-run]`, `edit PATH F<n> [--text T] [--pointer W]`, `edit PATH goal [--text T] [--short S] [--context C] [--dry-run]` | the line (an `A<n>`: its text reworded, its check kept), or each goal field changed (`Title:`, `In short:`, `Context:`), status line | unknown or other kind of id; a `P<n>` (its detail is `piece --what`'s); empty text; `goal` with none of its three; a fact with neither `--text` nor `--pointer`; `--short` or `--context` on another id, `--pointer` on another than a fact; checks |
@@ -888,6 +890,34 @@ output, exit 0, nothing read. An unknown word stays a usage error.
 
 Beside the ledger's own words, the launcher takes `bin/ledger hook
 NAME` (section 7).
+
+**The user's words come from the user's messages.** A command run by
+a session reads that session's transcript (`lib/ledger/transcript.rb`):
+`$CLAUDE_CODE_SESSION_ID`, its file `<session id>.jsonl` under
+`$CLAUDE_CONFIG_DIR/projects/` (`~/.claude/projects/` by default), in the
+directory the current one names with every character but a letter or
+digit made a dash, else in any project directory (a session started in
+the checkout runs its commands in a worktree; a delegate's commands
+carry its parent's id and read the parent's transcript). A message of
+the user's is a record of type `user` with no `isMeta`, `isSidechain` or
+`isCompactSummary`, no tool result, and an `origin` of kind `human`; a
+record without an origin counts unless it opens as a relayed one does
+(a reminder, a task notification, a peer session's message, an
+interruption, a summary). `word`, `answer` and `decide --by user` without
+`--take` are refused unless such a message is newer than the ask
+(`lib/ledger/asked_since.rb`): for `answer` and a decision whose body
+opens with `O<n>:`, the event that inserted the question; for `word` and
+each piece of `--led-to`, the newest event that wrote one of the piece's
+`piece_awaits` rows, else the event that added it; a decision with
+neither passes on any message of the user's. With `--take` the
+viewer's entry is the proof. The quote of `new --goal`, `goal --quote`
+and `constraint`, folded as `brief-constraints` folds it
+(`lib/ledger/text/fold.rb`), must stand in a message of the user's;
+otherwise a warning on standard error (`WORD: warning: the quote is in
+no message of the user's …`), the write done, exit 0, unless `--said-in
+WHERE` names where it was said: stored in `said_in` (018), shown on the
+line. No transcript found: `WORD: warning: no transcript of this session
+found …`, nothing checked, the command goes on.
 
 **Every prose item has a writer.** A journal has no hand edit, so each
 item is written by a command: `criterion new --text` and `criterion D<n>
@@ -1199,7 +1229,8 @@ a temporary directory per test.
 
 | Area | Files |
 |---|---|
-| journal, write path | `lib/ledger.rb` (the `Ledger::Error` family), `lib/ledger/journal.rb`, `migrations/001_journal.rb`, `migrations/002_piece_returns.rb`, `migrations/003_piece_pictures.rb`, `migrations/005_waker.rb`, `migrations/010_piece_assessments.rb`, `snapshot.rb`, `write.rb` |
+| journal, write path | `lib/ledger.rb` (the `Ledger::Error` family), `lib/ledger/journal.rb`, `migrations/001_journal.rb`, `migrations/002_piece_returns.rb`, `migrations/003_piece_pictures.rb`, `migrations/005_waker.rb`, `migrations/010_piece_assessments.rb`, `migrations/018_said_in.rb`, `snapshot.rb`, `write.rb` |
+| the user's words | `lib/ledger/transcript.rb` (the session's transcript), `asked_since.rb`, `commands/heard.rb`, `text/fold.rb` |
 | text rules | `lib/ledger/text/{title,picker,awaits,risk,options}.rb`, pure functions; `text/announce.rb` parses an ANNOUNCE block, refusing with a sentence |
 | stats | `lib/ledger/stats.rb`, `stats/{track,in_force,assessments}.rb`, `commands/stats_assessed.rb` (the section `by assessment`) |
 | render | `lib/ledger/render/markdown.rb` (`show`), `render/json.rb` and `read.rb` (JSON v1) |

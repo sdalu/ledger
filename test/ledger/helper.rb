@@ -17,6 +17,8 @@ class JournalTest < Minitest::Test
     def setup
         @dir = Dir.mktmpdir("ledger-journal-test")
         ENV["LEDGER_JOURNAL"] = File.join(@dir, "state", "journal.db")
+        # No real session's transcript is read: a test writes its own.
+        ENV["CLAUDE_CONFIG_DIR"] = File.join(@dir, "claude")
         @journal = Ledger::Journal.open
         @ledger = @journal.create_ledger(ADDRESS, project: "alpha")
     end
@@ -24,6 +26,7 @@ class JournalTest < Minitest::Test
     def teardown
         @journal.close
         ENV.delete("LEDGER_JOURNAL")
+        ENV.delete("CLAUDE_CONFIG_DIR")
         FileUtils.rm_rf(@dir)
     end
 

@@ -9,12 +9,13 @@ module Ledger
 
             # The lines under a Goal label: the session's Title and In
             # short, Done and its evidence when the block is done, Context,
-            # then the user's words quoted.
+            # where the user said them when given, then their words quoted.
             def goal(row)
                 [("Title: #{row[:title]}" if row[:title]),
                  ("In short: #{row[:short]}" if row[:short]),
                  ("Done: #{row[:done_evidence]}" if row[:done_at]),
                  ("Context: #{row[:context]}" if row[:context]),
+                 ("Said in: #{row[:said_in]}" if row[:said_in]),
                  *row[:quote].split("\n", -1).map { quoted(it) }].compact
             end
 
@@ -27,7 +28,10 @@ module Ledger
                     "#{criterion_reason(row)}"
             end
 
-            def constraint(row) = "- C#{row[:n]}: #{row[:text]}"
+            def constraint(row)
+                said = " (said in: #{row[:said_in]})" if row[:said_in]
+                "- C#{row[:n]}: #{row[:text]}#{said}"
+            end
 
             def fact(row) = "- F#{row[:n]}: #{row[:text]} — #{row[:pointer]}"
 
