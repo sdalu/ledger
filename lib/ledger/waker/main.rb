@@ -22,11 +22,11 @@ module Ledger
                 new(out:, err:).run(argv)
             end
 
-            def initialize(out:, err:, claude: Claude.new, record: RECORD,
+            def initialize(out:, err:, claude: nil, record: RECORD,
                            sleeper: Kernel.method(:sleep))
                 @out = out
                 @err = err
-                @claude = claude
+                @claude = claude || Claude.new(log: method(:log))
                 @record = record
                 @sleeper = sleeper
             end
@@ -60,14 +60,24 @@ module Ledger
 
             def cycle(pass, forever)
                 loop do
-                    pass.call.each { @out.puts said(it) }
-                    @out.flush
+                    once(pass)
                     break unless forever
 
                     @sleeper.call(EVERY)
                 end
                 0
             end
+
+            # One pass; a failed `claude agents` is logged and the pass
+            # ends, the next one a minute on.
+            def once(pass)
+                pass.call.each { @out.puts said(it) }
+                @out.flush
+            rescue Claude::Failed => e
+                log(e.message)
+            end
+
+            def log(message) = @err.puts("ledger-waker: #{message}")
 
             # The record's line, refused when Claude Code is not the
             # version it was established on.
@@ -102,7 +112,7 @@ module Ledger
             end
 
             def refuse(message)
-                @err.puts "ledger-waker: #{message}"
+                log(message)
                 2
             end
         end

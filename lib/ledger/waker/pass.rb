@@ -119,11 +119,18 @@ module Ledger
             # wake reaches the live one. Its stop is not carried: the copy
             # is idle once its own stamp says so.
             def copied(session_id, short)
-                full = @claude.agents.keys.find { it&.start_with?(short) }
+                full = listed_ids.find { it&.start_with?(short) }
                 return "copied #{short} (its full id not listed)" unless full
 
                 @journal.transaction { move(session_id, full) }
                 "copied #{full}"
+            end
+
+            # The ids `claude agents` lists, none when that call fails.
+            def listed_ids
+                @claude.agents.keys
+            rescue Claude::Failed
+                []
             end
 
             # A copy its own session-start recorded already keeps its row;

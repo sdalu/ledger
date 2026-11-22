@@ -178,7 +178,7 @@ class WakerClaudeTest < Minitest::Test
         @calls = []
         run = lambda do |argv, chdir|
             @calls << [argv, chdir]
-            [output, ok]
+            [output, ok, ""]
         end
         Ledger::Waker::Claude.new(run:)
     end
