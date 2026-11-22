@@ -963,15 +963,17 @@ t('an open row draws its drop icon in its head line, as far from the edge as a c
       const fold = document.querySelector('details.done-fold[id$="-raid"]');
       if (fold) fold.open = true;
       const line = document.querySelector('#piece-P2 .raid');
-      const row = document.getElementById('raid-A1');
+      // the assumption this check made: an undone one keeps its id, so a
+      // run in the second browser gets the next
+      const row = [...document.querySelectorAll('[id^="raid-A"]')].find(li => /the header fits one line/.test(li.textContent));
       return {line: !!line && line.getBoundingClientRect().height > 0 && /no risk rated/.test(line.textContent),
-              rests: !!document.querySelector('#q-O1 .raid a[href="#raid-A1"]') && !!row
+              rests: !!row && !!document.querySelector(`#q-O1 .raid a[href="#${row.id}"]`)
                 && row.getBoundingClientRect().height > 0,
               lists: fold ? [...fold.querySelectorAll('h3')].map(h => h.textContent.split(' (')[0]).join(', ') : '',
               fits: document.documentElement.scrollWidth <= document.documentElement.clientWidth};
     });
     t('P22 ' + w + ': a piece in flight says its risk is not rated on its RAID line', r.line);
-    t('P22 ' + w + ': a question\'s line names A1, which leads to its row in the RAID fold', r.rests);
+    t('P22 ' + w + ': a question\'s line names its assumption, which leads to its row in the RAID fold', r.rests);
     t('P22 ' + w + ': the RAID fold lists Risks, Assumptions, Issues, Dependencies',
       r.lists === 'Risks, Assumptions, Issues, Dependencies');
     t('P22 ' + w + ': no horizontal overflow with the RAID fold open', r.fits);
@@ -990,13 +992,13 @@ t('an open row draws its drop icon in its head line, as far from the edge as a c
         && document.getElementById(t).getBoundingClientRect().height > 0, target);
     };
     const said = await p.evaluate(() => ({
-      needed: /needed by/.test(document.querySelector('#piece-P1 .raid')?.textContent || ''),
+      needed: /needed by/.test(document.querySelector('#piece-P1 .ties')?.textContent || ''),
       prepares: /prepares/.test(document.querySelector('#piece-P2 .raid')?.textContent || ''),
       decided: /decided in/.test(document.querySelector('#piece-P1 .raid')?.textContent || ''),
       fits: document.documentElement.scrollWidth <= document.documentElement.clientWidth}));
     t('P14 ' + w + ': P1 says what waits on it, P2 the question it prepares, P1 the decision behind it',
       said.needed && said.prepares && said.decided);
-    t('P14 ' + w + ': a "needed by" link lands on the card', await land('#piece-P1 .raid a[href="#piece-P3"]', 'piece-P3'));
+    t('P14 ' + w + ': a "needed by" link lands on the card', await land('#piece-P1 .ties a[href="#piece-P3"]', 'piece-P3'));
     t('P14 ' + w + ': a "prepares" link lands on the question', await land('#piece-P2 .raid a[href="#q-O2"]', 'q-O2'));
     t('P14 ' + w + ': a "decided in" link lands on the decision row',
       await land('#piece-P1 .raid .decided a', await p.evaluate(() => document.querySelector('#piece-P1 .raid .decided a').hash.slice(1))));
