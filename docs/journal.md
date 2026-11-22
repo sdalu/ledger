@@ -79,6 +79,7 @@ Sequel.migration do
             Bignum :closed_at
             String :beat_line            # the stall counter: the last status line
             Integer :beat_count, null: false, default: 0
+            String :beat_session         # the session whose check last beat
             index %i[place name], unique: true, where: { closed_at: nil }
         end
         create_table(:counters) do       # U3: the last n given, per kind
@@ -745,7 +746,11 @@ clears the claim; a session taking over a piece another left sets it
 resumed orchestrator records `back` and `verified`.
 
 **What is not an event.** The beat (`ledgers.beat_line`, `beat_count`,
-written by `check` without `--peek`) and the counters: neither is the
+`beat_session`, written by `check` without `--peek`, and only by the
+ledger's owner: `beat_session` when set, else the session of the actor
+`session:<id>` of the ledger's first event; a check by another session,
+or with no `CLAUDE_CODE_SESSION_ID`, prints the line and writes nothing,
+as `--peek` does; a ledger with no owner counts every check) and the counters: neither is the
 ledger's content, an undo must not move them, and a beat row would read
 as activity to U14. *Decision.*
 

@@ -1060,8 +1060,9 @@ Written:
   PATH --goal … --title … --short …` adds a ledger to it and refuses an
   address a live ledger holds; every other command writes rows of it. It
   holds each ledger's items, the events that changed them, the stall
-  counter (`beat_line`, `beat_count`, on the ledger's row, written by
-  `check` without `--peek`), the viewer's inbox entries and takes, a
+  counter (`beat_line`, `beat_count`, `beat_session`, on the ledger's row,
+  written by `check` without `--peek`, and only by the ledger's owning
+  session), the viewer's inbox entries and takes, a
   mockup's files as blobs, and sesam's tables (users, invitations,
   passkeys), and the waker's tables (`sessions`, `session_ledgers`,
   `session_stops`, `wakes`). Nothing else is written: no file beside a

@@ -68,18 +68,40 @@ module Ledger
                                         status:)
             end
 
-            # The line, with `unchanged xN` when it has not moved since the
-            # last check; a peek is a read and counts nothing.
+            # The line, with `unchanged ×N` when it has not moved since the
+            # last check; a peek is a read and counts nothing, and neither does
+            # a check by a session other than the ledger's owner (or by none).
             def beat(ledger, line)
                 return line if @opts[:peek]
 
+                session = ENV.fetch("CLAUDE_CODE_SESSION_ID", "").strip
+                owner = owner_of(ledger)
+                return line if owner && owner != session
+
                 count, text = Derive::StatusLine.beat(line, ledger[:beat_line],
                                                       ledger[:beat_count])
-                journal.transaction do
-                    journal.db[:ledgers].where(id: ledger[:id])
-                           .update(beat_line: line, beat_count: count)
-                end
+                store(ledger, line, count, owner && session)
                 text
+            end
+
+            def store(ledger, line, count, session)
+                changes = { beat_line: line, beat_count: count }
+                changes[:beat_session] = session if session
+                journal.transaction do
+                    journal.db[:ledgers].where(id: ledger[:id]).update(changes)
+                end
+            end
+
+            # The session stored with the beat, else the session that wrote
+            # the ledger's first event; nil when neither is a session.
+            def owner_of(ledger)
+                return ledger[:beat_session] if ledger[:beat_session]
+
+                actor = journal.db[:events].where(ledger_id: ledger[:id])
+                               .order(:id).get(:actor)
+                return unless actor&.start_with?("session:")
+
+                actor.delete_prefix("session:")
             end
         end
     end
