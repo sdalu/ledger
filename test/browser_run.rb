@@ -322,6 +322,9 @@ module BrowserRun
     end
 
     def self.run(dir, checks)
+        # the fixtures file words as the user would; a transcript of the
+        # session running the suite would refuse them as unsaid
+        ENV["CLAUDE_CONFIG_DIR"] = File.join(dir, "claude")
         sandbox = Sandbox.new(dir)
         Server.new(sandbox).run { |cookie| checks.call(sandbox, cookie) }
     end

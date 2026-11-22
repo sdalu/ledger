@@ -18,6 +18,9 @@ require "ledger_viewer"
 # config: all of it is in this directory.
 SANDBOX = Dir.mktmpdir("ledger-viewer-test")
 Minitest.after_run { FileUtils.rm_rf(SANDBOX) }
+# nor the transcript of the session running the suite, which would
+# refuse the words the tests file as the user
+ENV["CLAUDE_CONFIG_DIR"] = File.join(SANDBOX, "claude")
 ENV["LEDGER_JOURNAL"] = File.join(SANDBOX, "journal.db")
 
 # The machine's local file and certificate directory are under ~/.config,
