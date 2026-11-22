@@ -20,12 +20,15 @@ hooks, the waker.
  └─────────┬─────────┘                    │ ledgers, items, events,    │
            │ Bash, Agent, Stop,           │ inbox entries, pictures,   │
            │ SessionStart                 │ sesam's sign-in tables     │
-           ▼                              └──────┬───────────────┬─────┘
- ┌───────────────────┐  reads; writes sessions   │               │
- │ ledger hook NAME  │◂──────────────────────────┘               │
- └───────────────────┘                                           │
- ┌───────────────────┐  reads; writes entries, the switch        │
- │ bin/ledger-viewer │◂──────────────────────────────────────────┘
+           ▼                              └──────┬───────────────┬──┬──┘
+ ┌───────────────────┐  reads; writes sessions   │               │  │
+ │ ledger hook NAME  │◂──────────────────────────┘               │  │
+ └───────────────────┘                                           │  │
+ ┌───────────────────┐  reads; writes entries, the switch        │  │
+ │ bin/ledger-viewer │◂──────────────────────────────────────────┘  │
+ └───────────────────┘                                              │
+ ┌───────────────────┐  reads; writes wakes, moves sessions         │
+ │ bin/ledger-waker  │◂─────────────────────────────────────────────┘
  └───────────────────┘
 ```
 
@@ -68,8 +71,12 @@ against the current directory and never touched on disk.
 `In short:` and optional `Context:` lines (the session's words: a quote
 alone reads as nothing to someone coming to it cold) and a placeholder
 criterion D1, which `criterion PATH D1 --text` replaces; it refuses an
-address a live ledger holds. `goal` appends a revised Goal block the
-same way and refuses a quote of fewer than 4 words, a go-ahead that
+address a live ledger holds. `--goal`, `--title` (a phrase in words, at
+most 60 characters, not a list of ids) and `--short` (the goal in one
+sentence) are required and refused empty; `--context POINTERS` is
+optional; `--date` is `YYYY-MM-DD`, today by default, and refused in any
+other form. `goal` appends a revised Goal block the
+same way (`--quote` for `--goal`, the other flags as `new`'s) and refuses a quote of fewer than 4 words, a go-ahead that
 belongs under Decisions (`goal-revision`; `goal-titled` checks the
 title). Each Goal block has an id, `G1` for the first, the next number
 for each revision, printed in its label (`Goal G2 (2026-11-21, revised,
@@ -77,8 +84,10 @@ verbatim):`). A block stays active until `goal PATH G<n> --done
 EVIDENCE` marks it done (a `Done: EVIDENCE` line under its In short);
 `goal PATH G<n> --undone` makes it active again. Both refuse an unknown
 `G<n>`, and `--done` refuses empty evidence, a block already done, and
-`--quote`; `--undone` refuses a block not done. `check` verifies what the schema cannot (the rules are listed in
-`docs/journal.md`, section 5): titles and details, codes from
+`--quote`; `--undone` refuses a block not done. `check [--final] [--peek] [--fix-hints] [--json] PATH` prints each
+rule's verdict, then the status line, which counts a heartbeat unless
+`--peek` makes the call a read; it verifies what the schema cannot (the
+rules are listed in `docs/journal.md`, section 5): titles and details, codes from
 elsewhere (a W1 not named in words or pointed to), links, awaited words,
 the picker grammar, rated cases, a verified piece's `--verified-by`, the
 `--final` rules. The schema refuses the rest before a check could see
@@ -91,7 +100,7 @@ verified piece without evidence; an empty `done when:`.
 open questions (`waiting on you: O1, O2`) and each deferred piece
 with what it waits on (`deferred: P6 (three closures)`); `check
 --final` refuses a finish with pieces still out or deferred, or a
-criterion unmarked; `close` leaves
+criterion unmarked; `close PATH [--take N<n>,…]` leaves
 the ledger's row in the journal marked closed, out of every hook's and
 the viewer's sight, and refuses while a viewer entry is pending; a
 close done first prints an after-action block, `after action:` with
@@ -135,7 +144,7 @@ last dispatch before it; then the outcomes recorded (refusals by
 writer words and hooks, flags on and off, Stop hooks' verdicts) counted
 by kind and rule, overall and per ledger; and over every ledger a last
 line `closed ledgers: N finished, M abandoned`; it writes nothing. `--json` on `check`,
-`status`, `show` and `stats` prints JSON v1: one object whose first key
+`status`, `show`, `survey` and `stats` prints JSON v1: one object whose first key
 is `"schema": 1`, which the viewer and any other reader take and refuse
 in any other number. `check --fix-hints` prints, after each FAIL line, one indented
 `  hint: …` line naming the form expected and the command that fixes it.
@@ -160,24 +169,25 @@ Every item has a writer, and no ledger is edited by hand. `piece
 PATH new|P<n>` adds a piece with the next free id or changes one
 (`--title`, `--what` for the detail, `--status`, `--route`,
 `--done-when`, `--evidence`, `--after`, `--for`, `--by`, `--verified-by`,
-`--cause`, `--no-picture WHY`, `--picture-pending WHY`, `--picture-holds WHY`, `--no-commit WHY`, `--hold WHY`, `--announce FILE`, `--status back --handback`, `--builds O<n>`,
+`--cause`, `--awaits WORDS` (the user's words it cannot move without, comma-joined: start, commit, deploy, push, merge or `other (what)`, any other refused), `--problem`, `--risk "N/10 — what is at stake"` and `--plan` (a piece that awaits a word is refused without a problem and a risk rated 0 to 10), `--scope "WORD = what it authorises | …"` (refused for a word the piece does not await), `--no-picture WHY`, `--picture-pending WHY`, `--picture-holds WHY`, `--no-commit WHY`, `--hold WHY`, `--announce FILE`, `--status back --handback`, `--builds O<n>`,
 `--status obsolete --obsoleted-by P<n>`, `--commits SHA[,SHA...]` (appends the commits that landed it, then prints `now ready: P63` after the status line when that frees started pieces), `--[no-]irreversible` (its step cannot be taken back: 3 more on the step risk of each word it awaits, `— irreversible` on its line), `--gate "NAME: STATE (DETAIL)"` (a gate's state, queued, running, passed or failed, one per name, a later state replacing it: `— gates: unit failed (2 failures)`), `--report FILE` (a helper's report, its status line and up to 12 lines, alone or with `--status back --handback`, which then stores it even on a piece not out, the status untouched: `— report: DONE_WITH_CONCERNS`); an empty value clears a link); a piece not done that
 waits on an event to come, not on the user, is `--status deferred
 --until CONDITION`, the event kept on its line (`— until: three
 closures`) and in the viewer's remains until another status clears
-it; `ask PATH --title TITLE "question"
-[--choices "A = … | B = …"] [--recommend "A, why"] [--items "x | y"]
+it; `ask PATH --title TITLE --problem WHAT --risk "N/10 — what is lost"
+"question" [--choices "A = … | B = …"] [--recommend "A, why"] [--items "x | y"]
 [--by P<n>] [--see F2] (--mockup NAME | --pending P<n> | --no-picture
 WHY) [--replaces O<n>]` puts a question under Open (it refuses one
-without a picture decision or breaking the picker grammar,
+without a problem or a risk rated out of ten, without a picture decision
+or breaking the picker grammar,
 `check`'s `open-picker`; `--replaces` closes O<n> in the same write, a
 Decision `by me`; `--dry-run` also prints the card's picker; `ask PATH
 O<n> --by P<n>|none` sets, changes or clears the `--by` link of an open
 question, and `check`'s `question-loop` fails a question asked by a piece
 that awaits the user's word, which the write refuses to create); `answer
-PATH O<n> --decision TEXT [--take N<n>…]` files the answer as a Decision
+PATH O<n> --decision TEXT [--date D] [--replaces X<n>] [--take N<n>…]` files the answer as a Decision
 `by user`, prefixed `O<n>:`, closes the question and takes the viewer
-entries, in one write; `word PATH P<n> --word W [--take N<n>…]` files
+entries, in one write; `word PATH P<n> --word W [--date D] [--take N<n>…]` files
 the user's word on a piece as a Decision `by user` and changes the piece
 in the same write (`drop` sets it dropped; another word must be one the
 piece awaits and leaves its `awaits` once every awaited word is given);
@@ -227,10 +237,32 @@ the same kind; every structured reference follows by key, free prose is
 never rewritten, and it refuses while the inbox holds an entry about OLD
 not taken. `close` ends by listing the closed ledger's `Out of scope,
 noticed` lines under `noticed, to carry: N`, and `new --carry CLOSED`
+(an address or `L<id>`; refused when no closed ledger answers to it)
 starts the new ledger with them. A second live ledger in a place (the
 same directory or its `.claude/`) is a fork: `new` refuses it, naming
 the live ones, until `--confirmed "the user's words"` is given, and the
-new ledger then holds those words as a Decision by user.
+new ledger then holds those words as a Decision by user; `--confirmed`
+with no live ledger beside is refused.
+
+`inbox PATH` prints the viewer's entries no session has taken, or `inbox:
+nothing pending`, and writes nothing; `--wait` blocks until one is pending
+and exits 1 when `--timeout S` runs out, `--follow` prints each entry once
+until stopped (TERM, INT or HUP end it with 0), holding a burst back until
+`--quiet S` seconds (60 by default) pass without a new entry. `take PATH
+N<n>…` marks entries filed, in one `take` event, and prints `taken: N1;
+pending: none`; it refuses an unknown entry, one taken before, and a call
+with no entry. `waker PATH on|off` switches the ledger for `bin/ledger-waker`
+(one `waker` event, off by default) and refuses any other word. `mockup PATH
+FILE|DIR… --question O<n> [--name NAME] [--replace]` reads the files into
+the journal as pictures of an open question (refused for a question not
+asked under Open, or a `--name` that names none of the pictures placed or
+several sources); `mockup PATH FILE --question O<n> --choice LABEL` places
+one file as that option's picture; `mockup PATH FILE --piece P<n>
+--before|--after` places one file as a side of the piece's before and
+after (refused for a directory, several files, both sides or neither).
+`--replace` takes away what the question, the option or that side held;
+`--question` and `--piece` are exclusive, `--choice` goes with `--question`
+only, and nothing is written on a disk.
 
 An id is never reused: the counters live beside the events, so an
 answered, dropped or undone item does not give its id back. Each writer
@@ -241,8 +273,8 @@ it prints the line and the status line, `Status (TITLE) — criteria …`,
 TITLE the latest Goal block's title (the ledger's address when none is
 set), so that two live ledgers in one session are told apart. A second
 writer waits for the lock and gives up with exit 2 after 10 seconds.
-`--dry-run` on every writer but `new`, `take`, `close`, `mockup`, `waker`
-and `purge` prints a unified diff of the `show` text and the status line the
+`--dry-run` on every writer but `new`, `take`, `close`, `mockup`, `waker`,
+`purge` and `prune-pictures` prints a unified diff of the `show` text and the status line the
 change would give and writes nothing (exit 2 with the refusal when it
 would refuse).
 
@@ -326,7 +358,8 @@ the bytes on disk (journal plus `-wal`) and the logical size (`page_count` times
 `page_size`) before and after, and the backup path. `--dry-run` prints
 `page_count`, `freelist_count`, `page_size`, the logical size and the bytes on
 disk, and writes nothing. Like `purge` it is no event, and the backup is the way
-back. `gate-stamp` and `githook` (below, The gate stamp) take a git
+back. `gate-stamp [PATH] [--tree TREE]` and `githook install|uninstall
+PATH` (below, The gate stamp) take a git
 repository's path, not a ledger's. The `self-routed` check fails
 a piece in flight, awaiting no word, routed `peer:` to the ledger's own
 project (the session that holds the ledger): keep it or route it to a
@@ -334,9 +367,13 @@ delegate.
 
 ## The hooks
 
-Nine words of `ledger hook NAME`, each reading the payload on stdin,
-writing no ledger, and turning any error of its own into exit 0. The
-orchestration skill registers five in its front matter and
+Fifteen words of `ledger hook NAME`, each reading the payload on stdin,
+writing no ledger and turning any error of its own into exit 0
+(`commit-record` files commits through `piece --commits`; `session-start`
+and `stamp` write the waker's session tables). A word that is none of
+them exits 1, which no event reads as a refusal, and a PreToolUse refusal
+is also recorded as a `refusal` row of `outcomes` under the hook's name.
+The orchestration skill registers all but two in its front matter and
 `session-start` in its `hooks.json`; `stamp` and `session-start` are
 also what the waker needs, registered by the user (The waker, below).
 
@@ -369,7 +406,7 @@ also what the waker needs, registered by the user (The waker, below).
 - **brief-constraints** (PreToolUse, Agent): reads the Constraints of
   the session's ledgers, and a brief that names a path one of them names
   (`vendor/`, `units/time.py`) without carrying it verbatim is refused.
-- **brief-piece** (PreToolUse, Agent): with a live ledger in the session's
+- **brief-piece** (PreToolUse, Agent|Task): with a live ledger in the session's
   place, a dispatch whose prompt has no header line `Piece: <absolute .md
   path> P<n>` between its BRIEF line and the first blank line after it is
   refused, as is one naming a piece that is neither ready nor out and
@@ -478,8 +515,9 @@ Callers sign in (sesam: a password, from an invitation that
 `rake user:invite NAME=…` prints once), except those on a network the
 `lan` setting names, none by default. The index is one queue
 of what waits on the user across every ledger, oldest wait first, under
-a summary that leads with what exists ("4 words to give · 2 to review",
-a zero left out). A row is the id and the title of the question or the
+a summary that leads with what exists ("2 questions · 4 words to give",
+then answers sent and not read, then questions being prepared, a zero
+left out). A row is the id and the title of the question or the
 piece in bold, a muted line "ledger · question" or "ledger · awaits
 commit, deploy" (with " · risk N/10" when it is rated), the wait when a
 time is known, and a link that opens the card: *Answer*, *Review WORD*
@@ -687,7 +725,9 @@ What the page takes, all as inbox entries, of the four kinds
   on you reads problem first (head, problem and plan, its RAID line,
   then *What it covers* folded) and has
   a button per word, the one for all of them filled and first (no click
-  is the wait); the entry carries `word`, and the server refuses a word
+  is the wait); while the piece awaits a commit, merge, push and deploy
+  have no button of their own, the combined one and *Commit* give
+  them; the entry carries `word`, and the server refuses a word
   the piece does not await. A piece may carry `— scope: commit = what it
   authorises | deploy = …` (`piece --scope`, only for words it awaits,
   pruned as words are given), shown under each word's button. Each
@@ -997,6 +1037,50 @@ refuses a session's hand write, so a session cannot write one as the
 user. On the network, sign-in is the authentication: name a `lan`
 network only where every device on it is the user's.
 
+The routes. Open to anyone: `GET /health` (answers `ok`), `/sign-in`,
+`/invite` and `/viewer.css`, with sesam's JSON routes. Behind the
+sign-in: `/` (the index), `/l/ID` (a ledger's page; ID is ten hex
+digits), `/l/ID/why/P<n>` or `/l/ID/why/X<n>` (the links page of a piece
+or a decision: what led to it, what it led to; an id the ledger does not
+hold is a 404), `/m/ID/NAME[/PATH]` and `/m/k/TOKEN/ID/NAME[/PATH]` (the
+pictures), `/stamp` and `/events`, and the POSTs `/l/ID/say`,
+`/l/ID/say-all`, `/l/ID/say-batch` and `/l/ID/waker`. A browser
+navigating (a GET accepting HTML) without a session is sent to
+`/sign-in`; a program is refused. A request outside these is a 404 page,
+a 422 has its own page, a journal still locked after 2 s a 503 page, any
+other failure a 500 page.
+
+The settings are two Ruby files each ending in a Hash, read once at
+boot: `config/app.rb` (`bind`, `lan`, `tls_dir`, `session_days`, 30 by
+default) and `~/.config/ledger-viewer/app.local.rb` (or the file
+`$LEDGER_VIEWER_LOCAL` names), outside the checkout, read second and
+winning on any key; `config/app.local.rb.example` is its model. The
+local file holds `session_secret` (32 characters at least, required, so
+a restart does not sign everyone out) and `tls`. A key outside
+`bind`, `session_days`, `session_secret`, `tls`, `tls_dir` and `lan` is
+refused at boot, as is a `lan` network that does not parse. `bind` is
+`host:port` or `tcp://host:port`, one or a list, and the Host header may
+carry those hosts and `localhost`. With `tls` nil the viewer serves
+http; with a Hash (`ca:`, `protocol:` `own` or `acme`, `root:`, optional
+`names:`) it serves https from the certificate and key kept in `tls_dir`
+(`~/.config/ledger-viewer/tls` by default). `rake tls:cert` asks the
+authority for the certificate (`FORCE=1` asks again), `rake tls:root`
+prints the fingerprint of an own authority's root, `rake
+check:certificates` says whether the certificate will be accepted, and a
+new certificate is served after `rake server:restart`. Sign-in takes a
+password only for now. One puma process serves with 16 threads and its
+pid in a pid file under its own tmp directory.
+
+`rake server:start` (`DEBUG=1` for the real exception page and request
+logging, `PRODUCTION=1` for `RACK_ENV=production`, the two together
+refused; `SCREEN=name` or `TMUX=name` detaches it), `server:stop`,
+`server:restart` (a running one re-execs in place and keeps its
+sockets) and `server:status` run it. `rake user:invite NAME=alice`
+makes the user when new and prints the invitation's URL, good for 7
+days (https when `tls` is set), `rake user:list` lists the users with
+their password, passkeys and open invitation, and `rake user:remove
+NAME=alice` removes one with their passkeys and sessions.
+
 The viewer is pushed changes over server-sent events (`GET /events`): a
 page draws its changed parts anew, or falls back to the note or the
 reload, within about a second of a ledger write. The 3 s poll of `/stamp`
@@ -1036,7 +1120,8 @@ ledger: an entry from the user waits on ADDRESS; run ledger inbox ADDRESS
 - **Idle**: the session's last `stamp` older than the idle minutes, no
   wake since, and `claude agents --json --all` listing it `idle`
   (interactive) or `done` (background), or not at all. `busy`,
-  `blocked` and `failed` never wake.
+  `blocked` and `failed` never wake. A pass whose `claude agents` call
+  fails is logged and ends; the next one comes a minute on.
 - **The way**: a session listed idle is a live process, so the line goes
   to its messaging socket, never a resume. A session not listed, or a
   background one done (its process exits after its turn), is resumed:
@@ -1056,7 +1141,8 @@ ledger: an entry from the user waits on ADDRESS; run ledger inbox ADDRESS
   session (interactive, under a tmux server of its own, a throwaway
   session id, settings of its own) in `~/.cache/ledger-waker-probe`, and
   rewrites the record when the line starts a turn there. `--once` makes
-  one pass.
+  one pass, `--help` prints the usage; exit status 0 done, 1 a probe
+  that failed, 2 a refusal.
 
 What the user sets up, once. `rake waker:install` does the first two
 in `~/.claude/settings.json` (`SETTINGS=PATH` for another file):
@@ -1091,13 +1177,39 @@ Written:
   written by `check` without `--peek`, and only by the ledger's owning
   session), the viewer's inbox entries and takes, a
   mockup's files as blobs, and sesam's tables (users, invitations,
-  passkeys), and the waker's tables (`sessions`, `session_ledgers`,
-  `session_stops`, `wakes`). Nothing else is written: no file beside a
+  passkeys), the waker's tables (`sessions`, `session_ledgers`,
+  `session_stops`, `wakes`), and `outcomes`, the countable rows of what
+  the practice did (a refusal, a flag on or off, a Stop hook's verdict).
+  Nothing of a ledger is written outside it: no file beside a
   ledger's address,
   nothing under a project's `.claude/`, so nothing of a ledger is
-  git-tracked.
+  git-tracked. A `--dry-run` prints a diff made from two temporary
+  files, removed when it ends.
 - **Closed ledgers** stay in the journal with `closed_at` set; the
   address is free again, and `new --carry` reads their noticed lines.
+- **Records beside the journal**, in its directory, one per session id
+  unless noted: `edits/ID` (the paths edit-record appends) and
+  `edits/ID.sent` (the digest uncommitted sent), `heads/ID`
+  (commit-record), `status/ID` (status-stop), `dispatches/ID`
+  (brief-piece's writing dispatches), `pushes` (word-gate, one line per
+  repository) and `stamps/REPO` (the gate stamps, Tests below). Each is
+  replaced whole through a temporary name, except the two a hook appends
+  to, `edits/ID` and `dispatches/ID`.
+- **Backups**, beside the journal, mode 0600, made by `purge`, `vacuum`
+  and `prune-pictures` before they change it:
+  `journal.db.before-purge-L<n>-STAMP`, `journal.db.before-vacuum-STAMP`
+  and `journal.db.before-prune-STAMP` (`STAMP` is `YYYYmmdd-HHMMSS`);
+  one that exists is never overwritten.
+- **The viewer's own files**: `tmp/puma.pid` in the checkout (made by
+  `config/puma.rb`; `rake clean` removes `tmp`), and in the `tls_dir`
+  setting's directory (mode 0700) `key.pem` and `cert.pem` from `rake
+  tls:cert`, `root.pem` when the authority gives a root, `account.pem`
+  of an `acme` authority and, for its answers, a `challenge/` directory
+  (0700); a key, certificate or root is made 0600 under a temporary name
+  and renamed.
+- **The user's Claude settings**: `rake waker:install` writes
+  `~/.claude/settings.json` (`SETTINGS` names another) and its
+  `settings.json.bak-waker`.
 
 Read only:
 
@@ -1126,11 +1238,95 @@ No hook writes a ledger: `session-start` writes `sessions` and
 `session_ledgers`, `stamp` writes `session_stops`, both only when the
 journal and those tables exist.
 
-- `bin/ledger-waker` reads the journal, writes `wakes` and moves a
+- `bin/ledger-waker` reads the journal and `config/doorbell.json`,
+  writes `wakes` and moves a
   session's record to a copy's id; `--probe` writes
   `config/doorbell.json` and the files of its scratch session under
   `~/.cache/ledger-waker-probe`, and reads `~/.claude.json` for that
   directory's trust alone.
+
+## Settings and environment
+
+The viewer's settings are Ruby hashes: `config/app.rb`, then
+`~/.config/ledger-viewer/app.local.rb` (or the file `$LEDGER_VIEWER_LOCAL`
+names), which wins on any key. A key outside this table is refused
+(`lib/ledger_viewer/config.rb`, `KEYS`).
+
+| Key              | Default                       | Meaning               |
+| ---------------- | ----------------------------- | --------------------- |
+| `bind`           | `tcp://127.0.0.1:4590`        | puma's addresses      |
+| `lan`            | `[]`                          | no-sign-in networks   |
+| `tls_dir`        | `~/.config/ledger-viewer/tls` | certificate directory |
+| `session_days`   | `30`                          | sign-in lifetime      |
+| `session_secret` | none: 32 characters at least  | signs the sessions    |
+| `tls`            | `nil`: plain http             | the authority, a Hash |
+
+`session_days` is a number of days. `tls` takes `ca`, `protocol` and
+`root`, and `names` to replace the bound addresses as what the certificate
+must name (`config/app.local.rb.example`).
+
+The environment variables the code reads, each with the value used when
+it is unset:
+
+- `LEDGER_JOURNAL`: the journal file, `~/.local/state/orchestration/journal.db`.
+- `LEDGER_SQLITE`: the program `stamp` and the other hooks that start
+  without the bundle write through, `/usr/local/bin/sqlite3`.
+- `LEDGER_STALL_MINUTES`: minutes without an event before an `out` piece
+  is `stalled:`, 60; a value that is not a whole number above 0 is refused.
+- `LEDGER_READY_LIMIT`: minutes a ready piece may stay planned before it
+  is `unsent`, 120; read like the stall budget.
+- `LEDGER_WAKER_IDLE_MINUTES`: minutes a session's last turn must be old
+  before a wake, 10; a whole number of 1 or more.
+- `LEDGER_RUBY`: the launchers' interpreter (`bin/ledger`,
+  `bin/ledger-waker`), else `/usr/local/bin/ruby` when executable, else
+  `ruby` on the path.
+- `LEDGER_VIEWER_LOCAL`: the viewer's local settings file,
+  `~/.config/ledger-viewer/app.local.rb`; `rake check:pre-flight` reads
+  it too.
+- `LEDGER_MOCKUP_TTL`: seconds a mockup key lives, 3600, read at boot.
+- `CLAUDE_CODE_SESSION_ID`: the session a write is attributed to
+  (`session:ID`; unset, the actor is `cli`), the session whose beat
+  `check` counts and whose claim `piece` reads, and whose transcript is
+  found; `--session ID` overrides it on `piece`.
+- `CLAUDE_CONFIG_DIR`: where the transcripts are looked for under
+  `projects/`, `~/.claude`.
+- `CLAUDE_CODE_MESSAGING_SOCKET`: the socket `session-start` records for
+  the waker; unset, none is recorded.
+- `CLAUDECODE`: set and not empty, the commit hook refuses an unstamped
+  commit; unset, it warns.
+- `DEBUG=1` to edit (the real exception page, request logging) and
+  `PRODUCTION=1` to serve (`bin/ledger-viewer` sets `RACK_ENV=production`);
+  neither is the default, and both together is refused by the launcher,
+  `rake server:start` and the library.
+- `APP_ENV`, `RACK_ENV`: the mode `rake check:pre-flight` names, `APP_ENV`
+  first, else `RACK_ENV`, else `development`.
+- `SCREEN`, `TMUX`: a session name; `rake server:start` then starts the
+  viewer detached in it. Both together is refused; tmux's own `TMUX`
+  (a path with commas) is not a request.
+- `NAME`: who `rake user:invite` and `rake user:remove` act on; refused
+  unset.
+- `SETTINGS`: the file `rake waker:install` and `waker:uninstall` edit,
+  `~/.claude/settings.json`.
+- `FORCE=1`: `rake tls:cert` asks the authority again though the
+  certificate is good.
+- `BASE`, `FILES`, `BROWSER`: `rake gate:partial` (Tests, below), `HEAD`,
+  the diff, `chrome`.
+- `PATH`: where `rake check:pre-flight` looks for the external tools.
+
+The rake tasks of `rake -T` that the sections above do not name:
+
+| Task                      | Does                                        |
+| ------------------------- | ------------------------------------------- |
+| `rake check`              | every `check:*` task                        |
+| `rake check:pre-flight`   | gems, configuration, tools, addresses       |
+| `rake check:certificates` | the certificate: present, matching, current |
+| `rake server:status`      | is it running, and with what settings       |
+| `rake tls:cert`           | ask the authority for the certificate       |
+| `rake tls:root`           | the fingerprint of an own authority's root  |
+| `rake user:list`          | users: password, passkeys, open invitation  |
+| `rake user:remove`        | a user, their passkeys and sessions         |
+| `rake stamp:begin`        | take the index tree the gate will test      |
+| `rake stamp:write`        | stamp that tree, if the index still has it  |
 
 ## Tests
 
@@ -1199,6 +1395,15 @@ test/
 │   ├── waker_test.rb    the waker's pass with a fake socket and a stubbed
 │   │                    claude: once, the budget, off, a stall, resume
 │   ├── waker_main_test.rb  the version guard, the probe's trust refusal
+│   ├── waker_install_test.rb, waker_loop_test.rb
+│   │                    `rake waker:install` on a settings file of its
+│   │                    own, the forever loop against a stub claude
+│   ├── cli_test.rb, help_notes_test.rb
+│   │                    the dispatch and the launcher, what help says of
+│   │                    the writers
+│   ├── githook_test.rb, gate_stamp_test.rb
+│   │                    the pre-commit hook and the gate stamps
+│   ├── *_migration_test.rb  the migrations that move data
 │   ├── render/          show's Markdown per item kind, JSON v1
 │   ├── text/            the title, picker, awaits, risk and option rules
 │   ├── inbox_test.rb    entries, the take, --wait and --follow timing
@@ -1216,6 +1421,14 @@ test/
 │                        send collapsing into its Sent row and moving on to
 │                        the next card, no reload of a ledger page, the
 │                        paused-stream status, the tray of batch mode
+├── browser/*.cjs        the other page checks, one script per area
+│                        (builds, choices, gates, groups, keys, long, loop,
+│                        meters, pane, risk, sign_in, ties, ...), each on a
+│                        ledger of its fixture in test/support
+├── support/             the fixtures and helpers the tests share
+├── browser_pages.cjs, browser_session.cjs
+│                        what browser_run.rb hands the browsers: the pages
+│                        to open, the signed-in session cookie
 └── browser_run.rb       runs the browser checks, below
 ```
 
@@ -1223,7 +1436,12 @@ test/
 the viewer in Chrome and Firefox: the fixture loaded into a sandbox
 journal, the app on a free port over it, a user made and signed in. It
 needs node and playwright-core and the browsers, and says what it skips
-and exits 0 without them.
+and exits 0 without them. `PLAYWRIGHT_CORE` (default
+`~/node_modules/playwright-core`), `CHROME` (`/usr/local/bin/chrome`) and
+`FIREFOX` (`/usr/local/bin/firefox`) name them; `ONLY=chrome|firefox` runs
+one browser; `KEYS=1`, `PANE=1` or `CHECK=tag,tag` run only the
+key-renewal check, the pane separator check or the named own-ledger
+checks; `LAN=1` runs without signing in.
 
 Every test points `LEDGER_JOURNAL` at a file in a temporary directory,
 so none touches the real journal.

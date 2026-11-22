@@ -79,7 +79,6 @@ Sequel.migration do
             Bignum :closed_at
             String :beat_line            # the stall counter: the last status line
             Integer :beat_count, null: false, default: 0
-            String :beat_session         # the session whose check last beat
             index %i[place name], unique: true, where: { closed_at: nil }
         end
         create_table(:counters) do       # U3: the last n given, per kind
@@ -106,7 +105,6 @@ Sequel.migration do
             String :before               # JSON row; nil: inserted
             String :after                # JSON row; nil: deleted
             index %i[tbl row_id]
-            index %i[event_id]           # the ledger's joins search, not scan (017)
         end
         create_table(:goals) do
             primary_key :id
@@ -118,7 +116,6 @@ Sequel.migration do
             String :short                # P; NULL or non-empty
             String :context              # P; NULL or non-empty
             String :quote, null: false   # V; lines without "> ", non-empty
-            String :said_in              # P, --said-in WHERE (016); NULL or non-empty
         end
         create_table(:criteria) do       # Done when
             primary_key :id
@@ -136,7 +133,6 @@ Sequel.migration do
             Integer :n, null: false
             String :text, null: false    # V: the line after "C<n>: "
             String :quote, null: false   # V: the words a brief must carry
-            String :said_in              # P, --said-in WHERE (016); NULL or non-empty
             unique %i[ledger_id n]
         end
         create_table(:facts) do
@@ -193,7 +189,6 @@ Sequel.migration do
             String :for_tail             # P, prose after the for: ids
             String :verified_by          # U11: "me", a route, peer: X
             String :claimed_by           # U12: session id while out
-            TrueClass :irreversible      # --irreversible, default false (014)
             unique %i[ledger_id n]
             index %i[ledger_id status]
         end
@@ -211,27 +206,6 @@ Sequel.migration do
             Integer :position, null: false
             String :word, null: false    # start commit deploy push merge other
             String :what                 # P, other's "(…)"
-        end
-        create_table(:piece_commits) do  # — commits: one row per id (013)
-            primary_key :id
-            foreign_key :piece_id, :pieces, null: false
-            Integer :position, null: false
-            String :sha, null: false     # 7-40 lower-case hex, once per piece
-        end
-        create_table(:piece_gates) do    # — gates: one row per name (015)
-            primary_key :id
-            foreign_key :piece_id, :pieces, null: false
-            foreign_key :event_id, :events, null: false # its state's write
-            String :name, null: false    # unique per piece
-            String :state, null: false   # queued running passed failed
-            String :detail               # NULL or non-empty
-        end
-        create_table(:piece_reports) do  # — report: one per piece (015)
-            primary_key :id
-            foreign_key :piece_id, :pieces, null: false # unique
-            foreign_key :event_id, :events, null: false # its last write
-            String :status, null: false  # the report's first line
-            String :body                 # up to 12 lines after it
         end
         create_table(:piece_scopes) do   # — scope: WORD = what | …
             primary_key :id
@@ -279,7 +253,6 @@ Sequel.migration do
             String :label, null: false   # P
             String :effect               # P
             String :cost                 # P
-            String :picture              # a pictures.name of this ledger (migration 009)
         end
         create_table(:question_items) do # — items: a | b
             primary_key :id
@@ -296,18 +269,13 @@ Sequel.migration do
             foreign_key :fact_id, :facts
             foreign_key :piece_id, :pieces
         end
-        create_table(:picture_blobs) do  # S1: each distinct file once (019)
-            String :sha256, primary_key: true # lower-case hex of the bytes
-            File :bytes, null: false     # the file, byte for byte
-            Integer :size, null: false   # length(bytes)
-        end
-        create_table(:pictures) do       # S1: a mockup's files
+        create_table(:pictures) do       # S1: a mockup's files, as blobs
             primary_key :id
             foreign_key :ledger_id, :ledgers, null: false
             String :name, null: false    # the mockup's name (`mockup: NAME`)
             String :path, null: false    # "" for one file; else its path in the directory
             String :type, null: false    # the served content type (MOCKUP_TYPES)
-            foreign_key :sha256, :picture_blobs, null: false # its bytes (019)
+            File :bytes, null: false     # the file, byte for byte (019 moves them)
             foreign_key :event_id, :events, null: false   # the mockup command
             unique %i[ledger_id name path]
         end
@@ -487,6 +455,61 @@ Sequel.migration do
 end
 ```
 
+```ruby
+# frozen_string_literal: true
+
+# lib/ledger/migrations/009_choice_pictures.rb (sketch)
+Sequel.migration do
+    change do
+        alter_table(:question_choices) do
+            add_column :picture, String  # a pictures.name of this ledger
+        end
+    end
+end
+```
+
+```ruby
+# frozen_string_literal: true
+
+# lib/ledger/migrations/010_piece_assessments.rb (sketch)
+Sequel.migration do
+    change do
+        create_table(:piece_assessments) do # piece --announce FILE
+            primary_key :id
+            foreign_key :ledger_id, :ledgers, null: false
+            foreign_key :piece_id, :pieces, null: false
+            foreign_key :event_id, :events, null: false # the write
+            String :session              # who dispatched, when known
+            String :what, null: false    # WHAT
+            String :why, null: false     # WHY, raw
+            String :model, null: false   # WHICH: the model named
+            String :effort               # WHICH: effort, when given
+            String :axis                 # WHICH: highest axis, lower-cased
+            String :axis_level           # low | mid | high
+            Integer :risk_rating         # RISK: N of N/10, NULL unrated
+            String :risk_text, null: false # RISK, whole
+            String :mode, null: false    # MODE, raw
+            TrueClass :mode_attended, null: false # MODE's first word
+            String :block, null: false   # the block as read
+            index %i[ledger_id piece_id]
+        end
+    end
+end
+```
+
+```ruby
+# frozen_string_literal: true
+
+# lib/ledger/migrations/011_no_commit.rb (sketch)
+Sequel.migration do
+    change do
+        alter_table(:pieces) do
+            add_column :no_commit, String # P, NULL or non-empty
+        end
+    end
+end
+```
+
 **An assumption.** What the plan takes as true without having checked
 it, recorded so that it is checked before it bites: unlike a fact it is
 unverified, unlike a decision it is a belief, not a choice. `assume PATH
@@ -617,6 +640,27 @@ the rebuild keeps only those it is given. It runs outside a migration
 transaction, so that Sequel can turn the foreign keys off and the
 tables naming `pieces` keep naming it.
 
+```ruby
+# frozen_string_literal: true
+
+# lib/ledger/migrations/012_builds_obsolete.rb (sketch)
+Sequel.migration do
+    no_transaction                   # as 004: the table is rebuilt
+    up do
+        alter_table(:pieces) do
+            add_foreign_key :builds_id, :questions   # P --builds O<n>
+            add_foreign_key :obsoleted_by_id, :pieces # P --obsoleted-by
+        end
+        alter_table(:pieces) do      # the status CHECK gains 'obsolete'
+            # … every CHECK of 001 and 004 given again, and
+            add_constraint :pieces_obsolete,
+                           "(status = 'obsolete') = (obsoleted_by_id IS NOT NULL)"
+        end
+        add_index :pieces, :builds_id, unique: true # apart from the rebuild
+    end
+end
+```
+
 **A piece that builds a question, a piece made obsolete.** Migration
 012 adds `pieces.builds_id` (a question, `piece P<n> --builds O<n>`,
 `none` clears it) under a unique index: one piece at most builds a
@@ -634,6 +678,118 @@ unfinished for `--final`; `stats` counts it neither as blocked nor as a
 return. Any other status clears `obsoleted_by_id`. The status `CHECK`
 changes as in 004: the table is rebuilt with every `CHECK` given again,
 the unique index added after the rebuild.
+
+```ruby
+# frozen_string_literal: true
+
+# lib/ledger/migrations/013_piece_commits.rb (sketch)
+Sequel.migration do
+    change do
+        create_table(:piece_commits) do # piece --commits SHA[,SHA...]
+            primary_key :id
+            foreign_key :piece_id, :pieces, null: false
+            Integer :position, null: false
+            String :sha, null: false     # 7-40 lower-case hex
+            unique %i[piece_id sha]
+        end
+    end
+end
+```
+
+```ruby
+# frozen_string_literal: true
+
+# lib/ledger/migrations/014_irreversible.rb (sketch)
+Sequel.migration do
+    change do
+        alter_table(:pieces) do
+            add_column :irreversible, TrueClass, null: false, default: false
+        end
+    end
+end
+```
+
+```ruby
+# frozen_string_literal: true
+
+# lib/ledger/migrations/015_gates_report.rb (sketch)
+Sequel.migration do
+    change do
+        create_table(:piece_gates) do # piece --gate "NAME: STATE (DETAIL)"
+            primary_key :id
+            foreign_key :piece_id, :pieces, null: false
+            foreign_key :event_id, :events, null: false # the last write
+            String :name, null: false    # unique per piece
+            String :state, null: false   # queued running passed failed
+            String :detail               # NULL or non-empty
+            unique %i[piece_id name]
+        end
+        create_table(:piece_reports) do # piece --report FILE
+            primary_key :id
+            foreign_key :piece_id, :pieces, null: false, unique: true
+            foreign_key :event_id, :events, null: false # the last write
+            String :status, null: false  # the first line
+            String :body                 # up to 12 lines after it, or NULL
+        end
+    end
+end
+```
+
+```ruby
+# frozen_string_literal: true
+
+# lib/ledger/migrations/016_said_in.rb (sketch)
+Sequel.migration do
+    change do
+        alter_table(:goals) do
+            add_column :said_in, String  # P, --said-in WHERE; NULL or non-empty
+        end
+        alter_table(:constraints) do
+            add_column :said_in, String  # P, --said-in WHERE; NULL or non-empty
+        end
+    end
+end
+```
+
+```ruby
+# frozen_string_literal: true
+
+# lib/ledger/migrations/017_event_rows_event_id.rb (sketch)
+Sequel.migration do
+    up do
+        # the ledger's joins search event_rows by event, not scan it;
+        # IF NOT EXISTS, so a journal that holds the index migrates
+        run "CREATE INDEX IF NOT EXISTS event_rows_event_id_index " \
+            "ON event_rows (event_id)"
+    end
+end
+```
+
+```ruby
+# frozen_string_literal: true
+
+# lib/ledger/migrations/018_beat_session.rb (sketch)
+Sequel.migration do
+    change do
+        alter_table(:ledgers) do
+            add_column :beat_session, String # the session whose check last beat
+        end
+    end
+end
+```
+
+```ruby
+# frozen_string_literal: true
+
+# lib/ledger/migrations/020_piece_hold.rb (sketch)
+Sequel.migration do
+    change do
+        alter_table(:pieces) do
+            add_column :hold, String     # P, NULL or non-empty
+        end
+    end
+end
+```
 
 The `CHECK` constraints the migrations add, each one a check rule the
 schema makes impossible (section 5):
@@ -683,6 +839,27 @@ constraints, `P` pieces); SQLite cannot key one column to five tables,
 so the rule `links` (section 5) proves the target exists, and the
 writer resolves it inside the transaction.
 
+```ruby
+# frozen_string_literal: true
+
+# lib/ledger/migrations/019_picture_blobs.rb (sketch)
+Sequel.migration do
+    up do
+        create_table(:picture_blobs) do  # S1: each distinct file once
+            String :sha256, primary_key: true # lower-case hex of the bytes
+            File :bytes, null: false     # the file, byte for byte
+            Integer :size, null: false   # length(bytes)
+        end
+        create_table(:pictures_moved) do # pictures, built again beside it
+            # ... the columns of 001's pictures but `bytes`, and:
+            foreign_key :sha256, :picture_blobs, type: String, null: false
+        end
+        # each row copied with its bytes stored as a blob once, then
+        # pictures dropped, pictures_moved renamed, an index on sha256
+    end
+end
+```
+
 **A picture's bytes are stored once** (migration 019): `picture_blobs`
 holds each distinct file under the SHA-256 of its bytes, and a
 `pictures` row points to one by `sha256`. A writer stores the blob
@@ -693,6 +870,27 @@ bytes. Migration 019 moved the rows already there, one blob per
 distinct content, and dropped `pictures.bytes`, by rebuilding the table
 in the migration's one transaction; the file keeps the freed pages
 (about twice its size) until a `VACUUM`.
+
+```ruby
+# frozen_string_literal: true
+
+# lib/ledger/migrations/021_outcomes.rb (sketch)
+Sequel.migration do
+    change do
+        create_table(:outcomes) do       # not events: undo never reaches them
+            primary_key :id
+            foreign_key :ledger_id, :ledgers # NULL when none is known
+            String :session              # NULL outside a session
+            Integer :at, null: false     # ms since the epoch
+            String :kind, null: false    # refusal flag_on flag_off hook
+            String :rule, null: false    # check, hook or flag name
+            String :ref                  # P<n> or O<n>, NULL when about no item
+            String :detail               # the refusal's words, a verdict's why
+            index %i[ledger_id kind]
+        end
+    end
+end
+```
 
 **What the practice did is counted** (migration 021): `outcomes` holds
 one row per outcome, `ledger_id` (NULL when none is known), `session`
@@ -800,6 +998,36 @@ end
    `answer` and `word` (each files a decision, so each gives an
    `X<n>`), then the status line.
 
+```text
+┌──────────────────────────────────┐
+│ BEGIN IMMEDIATE                  ├──► locked after 10 s: exit 2
+└─────────────────┬────────────────┘
+                  ▾
+┌──────────────────────────────────┐
+│ before snapshot                  │
+└─────────────────┬────────────────┘
+                  ▾
+┌──────────────────────────────────┐
+│ events row, one per command      │
+└─────────────────┬────────────────┘
+                  ▾
+┌──────────────────────────────────┐
+│ the block's insert, update       │  each also writes an event_rows line
+└─────────────────┬────────────────┘
+                  ▾
+┌──────────────────────────────────┐
+│ after snapshot, checks on both   ├──► worse: rollback, exit 2
+└─────────────────┬────────────────┘
+                  ▾
+┌──────────────────────────────────┐
+│ --dry-run ?                      ├──► yes: print the diff, rollback, exit 0
+└─────────────────┬────────────────┘
+                  ▾
+┌──────────────────────────────────┐
+│ COMMIT, print the result         │
+└──────────────────────────────────┘
+```
+
 **The viewer as a writer.** The viewer's inbox entries and its takes go
 through the same call, in-process, actor `viewer:<user>`, command
 `inbox`; it is one more writer under the same lock, so a session and the
@@ -831,7 +1059,7 @@ clears the claim; a session taking over a piece another left sets it
 resumed orchestrator records `back` and `verified`.
 
 **What is not an event.** The beat (`ledgers.beat_line`, `beat_count`,
-`beat_session`, written by `check` without `--peek`, and only by the
+`beat_session`, migration 018, written by `check` without `--peek`, and only by the
 ledger's owner: `beat_session` when set, else the session of the actor
 `session:<id>` of the ledger's first event; a check by another session,
 or with no `CLAUDE_CODE_SESSION_ID`, prints the line and writes nothing,
@@ -863,6 +1091,22 @@ Stored: `planned`, `out`, `back`, `verified`, `blocked`, `dropped`,
 (with its `obsoleted_by`). Everything
 below is computed per read from the snapshot and the events, never
 stored.
+
+```text
+            claim         hand-back         verified-by
+┌─────────┐        ┌─────┐          ┌──────┐          ┌──────────┐
+│ planned │───────►│ out │─────────►│ back │─────────►│ verified │
+└─────────┘        └──┬──┘          └──┬───┘          └──────────┘
+     ▴                │                │
+     └────────────────┴────────────────┘
+        a return: --status planned, with --cause
+```
+
+The other statuses are reached by one flag each: `blocked`, `dropped`,
+`kept` (`--status 'kept: REASON'`), `deferred` (`--until`) and `obsolete`
+(`--obsoleted-by`, not from `out`). The figure names the edges a command
+gates: `out` needs a session (section 2), a return to `planned` needs a
+`--cause`, `verified` needs `--verified-by`.
 
 | State | Rule |
 |---|---|
@@ -1034,7 +1278,7 @@ id, one writer per column.
 
 `check` runs the rules below on a `Ledger::Snapshot`, in this order
 (`lib/ledger/checks/runner.rb`, each rule in its module under
-`lib/ledger/checks/`); `--final` adds the last three, and `close` adds
+`lib/ledger/checks/`); `--final` adds the last five, and `close` adds
 its own (no entry of the viewer pending). `--fix-hints` prints one hint
 per rule, its commands spelled for `bin/ledger`
 (`lib/ledger/checks/hints.rb`).
@@ -1162,8 +1406,8 @@ Bundler derives from `BUNDLE_GEMFILE`, and that project's lockfile
 would be rewritten with this checkout's gems; frozen, a lockfile that
 does not match stops the command instead of being rewritten. The three
 are exported before every path, the no-bundler hooks included, since a
-leaked `RUBYOPT` can load bundler there too. For the words that read no journal, `hook heartbeat`,
-`hook journal-write` and `hook edit-record`, it passes `-I lib` alone: measured 2026-11-20 on
+leaked `RUBYOPT` can load bundler there too. For the words that need no bundle, `hook heartbeat`,
+`hook journal-write`, `hook edit-record`, `hook stamp` and `hook viewer-guard`, it passes `-I lib` alone: measured 2026-11-20 on
 `/usr/local/bin/ruby`, a bare start is 0.03–0.06 s, `-rbundler/setup`
 0.11–0.19 s, Sequel loaded and a database opened 0.20 s, and the
 heartbeat runs after every Bash call. Sessions run it from the Bash
@@ -1176,11 +1420,12 @@ bundle's native sqlite3: that fallback fails there, and the code's
 Ruby 3.4 idioms (`it`) fail on it anyway. Recorded, not designed
 around: the user's decision.
 
-**Registration.** The orchestration skill registers the hooks: five in
-its SKILL.md front matter, `session-start` in its `hooks.json`
-(SessionStart, no matcher). Each command finds the tool by PATH and is
-a no-op without it: `command -v ledger >/dev/null 2>&1 || exit 0; exec
-ledger hook NAME`. On this host `ledger` is the relative symlink
+**Registration.** The orchestration skill registers the hooks: thirteen
+in its SKILL.md front matter (PostToolUse, PreToolUse and Stop),
+`session-start` in its `hooks.json` (SessionStart, no matcher, through
+the skill's `ledger-hook.sh`); `stamp` is the user's to register (README, The
+waker). Each command finds the tool by PATH and is a no-op without it:
+`command -v ledger >/dev/null 2>&1 || exit 0; exec ledger hook NAME`. On this host `ledger` is the relative symlink
 `~/bin/ledger -> ../Repos/ledger/bin/ledger`; the launcher follows the
 chain with `readlink` to find its checkout.
 
@@ -1192,7 +1437,8 @@ are the live ledgers whose `place` is the
 payload's `cwd`, `cwd/.claude`, or its `scratchpad_dir`.
 `CLAUDE_CODE_SESSION_ID` is set in the Bash tool's environment, so the
 claim (U12) needs no `--session` in the common case. Stop starts Ruby
-twice (two hook entries); section 9 records merging them as an
+once per hook (`finish`, `inbox`, `uncommitted`, `status-stop`, and
+`stamp` where registered); section 9 records merging them as an
 objection.
 
 | Hook (event, matcher) | Reads | Does |
@@ -1329,7 +1575,7 @@ a temporary directory per test.
 
 | Area | Files |
 |---|---|
-| journal, write path | `lib/ledger.rb` (the `Ledger::Error` family), `lib/ledger/journal.rb`, `migrations/001_journal.rb`, `migrations/002_piece_returns.rb`, `migrations/003_piece_pictures.rb`, `migrations/005_waker.rb`, `migrations/010_piece_assessments.rb`, `migrations/016_said_in.rb`, `snapshot.rb`, `write.rb` |
+| journal, write path | `lib/ledger.rb` (the `Ledger::Error` family), `lib/ledger/journal.rb`, `migrations/` (001 to 021, one file each, section 1), `snapshot.rb`, `write.rb` |
 | a piece's brief | `lib/ledger/commands/brief.rb`, `piece_brief.rb`, `piece_facts.rb`, `text/paths.rb` |
 | the user's words | `lib/ledger/transcript.rb` (the session's transcript), `asked_since.rb`, `commands/heard.rb`, `text/fold.rb` |
 | text rules | `lib/ledger/text/{title,picker,awaits,risk,options}.rb`, pure functions; `text/announce.rb` parses an ANNOUNCE block, refusing with a sentence |
@@ -1356,8 +1602,9 @@ Settled objections, kept as decided:
   ways: `edit` refuses a P id.
 - `piece --by X<n>` and `ask --by P<n>` give one flag word two meanings
   (the decision behind a piece; the piece preparing a question).
-- Stop runs two hooks, so two Ruby starts; one `hook stop` word running
-  inbox then finish would cost one, at the price of six hook names.
+- Stop runs separate hooks, so one Ruby start each; one `hook stop` word
+  running them in turn would cost one, at the price of the separate hook
+  names.
 
 Decisions of the build, reviewable: the `LEDGER_JOURNAL` name; the
 address is the path spelling of a ledger file; `beat` and counters outside the
@@ -1365,8 +1612,8 @@ events; `case-rated`; `journal-write`; the resume view's order and
 fallback; `--no-picture` stored; event times in milliseconds, as sesam
 keeps its own; questions kept after an answer; `pictures` outside
 `event_rows`; the viewer's 2 s wait and 503; `decide`, `answer` and
-`word` print their `X<n>` first; the launcher's bare start for the two
-journal-free hooks; the tool found by PATH, its hooks a no-op without
+`word` print their `X<n>` first; the launcher's bare start for the
+hooks that need no bundle; the tool found by PATH, its hooks a no-op without
 it.
 
 Behaviours that follow from the design:
