@@ -392,6 +392,13 @@ also what the waker needs, registered by the user (The waker, below).
   a live ledger, a task list is refused, the reason pointing to
   `bin/ledger piece PATH new ...`. A call whose payload carries `agent_id`
   (made inside a subagent) passes; with no live ledger it passes.
+- **viewer-guard** (PreToolUse, Bash): refuses a command that starts or
+  stops the viewer or the waker (`ledger-viewer`, `ledger-waker`,
+  `rake server:start`, `rake server:stop`), also through `bundle exec`,
+  nice, timeout, low-priority, env, nohup, `sh -c`, `eval` and a path to
+  the bin: the user starts and stops them; a session restarts the viewer
+  in place (`rake server:restart`, which passes). A command that only
+  names a program (grep, echo) passes. Stdlib only.
 - **edit-record** (PostToolUse, Edit|Write|NotebookEdit): appends the
   absolute path the tool edited to `edits/SESSION_ID` beside the journal
   file (`LEDGER_JOURNAL` moves it), one path per line, no duplicates.

@@ -55,7 +55,7 @@ fi
 
 if [ "${1:-}" = hook ]; then
     case "${2:-}" in
-        heartbeat|journal-write|stamp|edit-record)
+        heartbeat|journal-write|stamp|edit-record|viewer-guard)
             exec "$ruby" -I "$root/lib" -r ledger/hooks/main \
                  -e 'exit Ledger::Hooks.main(ARGV)' -- "$2"
             ;;
