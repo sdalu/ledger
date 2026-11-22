@@ -309,6 +309,66 @@
     document.body.append(box);
     return box;
   };
+  // the pane's width, a share of the window kept in localStorage: a
+  // separator on its left edge sets it by pointer or keys, and the
+  // stylesheet's --pane-width gives the page the same room
+  const PANE_MIN = 33, PANE_MAX = 80, PANE_DEFAULT = 50, paneKey = 'pane-width';
+  const paneShare = () => {
+    let v = NaN;
+    try { v = parseFloat(localStorage.getItem(paneKey)); } catch (e) { v = NaN; }
+    return Number.isFinite(v) ? Math.min(PANE_MAX, Math.max(PANE_MIN, v)) : PANE_DEFAULT;
+  };
+  const setPaneShare = (sep, pct, keep) => {
+    const v = Math.min(PANE_MAX, Math.max(PANE_MIN, Math.round(pct * 10) / 10));
+    document.documentElement.style.setProperty('--pane-width', v + 'vw');
+    sep.setAttribute('aria-valuenow', String(Math.round(v)));
+    if (keep) { try { localStorage.setItem(paneKey, String(v)); } catch (e) {} }
+    return v;
+  };
+  const paneSeparator = () => {
+    const sep = document.createElement('div');
+    sep.className = 'pane-sep';
+    sep.setAttribute('role', 'separator');
+    sep.setAttribute('aria-orientation', 'vertical');
+    sep.setAttribute('aria-label', 'Picture width');
+    sep.setAttribute('aria-valuemin', String(PANE_MIN));
+    sep.setAttribute('aria-valuemax', String(PANE_MAX));
+    sep.tabIndex = 0;
+    setPaneShare(sep, paneShare(), false);
+    let share = paneShare(), lastUp = 0, lastX = 0;
+    const drag = e => { share = setPaneShare(sep, 100 * (document.documentElement.clientWidth - e.clientX) / innerWidth, false); };
+    sep.addEventListener('pointerdown', e => {
+      if (e.button !== 0) return;
+      sep.setPointerCapture(e.pointerId);
+      sep.classList.add('is-dragging');
+      document.body.classList.add('is-resizing');
+    });
+    sep.addEventListener('pointermove', e => { if (sep.hasPointerCapture(e.pointerId)) drag(e); });
+    const end = e => {
+      if (!sep.hasPointerCapture(e.pointerId)) return;
+      sep.releasePointerCapture(e.pointerId);
+      sep.classList.remove('is-dragging');
+      document.body.classList.remove('is-resizing');
+      setPaneShare(sep, share, true);
+    };
+    sep.addEventListener('pointerup', e => {
+      end(e);
+      // a double-click resets the width; counted here because Firefox
+      // reports each click of a captured pointer as a first one
+      const now = e.timeStamp, still = Math.abs(e.clientX - lastX) < 4;
+      if (now - lastUp < 500 && still) { share = setPaneShare(sep, PANE_DEFAULT, true); lastUp = 0; }
+      else { lastUp = now; lastX = e.clientX; }
+    });
+    sep.addEventListener('pointercancel', end);
+    sep.addEventListener('keydown', e => {
+      const step = {ArrowLeft: 2, ArrowRight: -2}[e.key];
+      if (step !== undefined) share = setPaneShare(sep, share + step, true);
+      else if (e.key === 'Home') share = setPaneShare(sep, PANE_DEFAULT, true);
+      else return;
+      e.preventDefault();
+    });
+    return sep;
+  };
   const setFull = (box, on) => {
     box.classList.toggle('is-full', on);
     const full = box.querySelector('.a-full');
@@ -350,6 +410,7 @@
       if (!pane) {
         pane = shell('aside', 'mock-pane', 'mock-pane-title');
         pane.querySelector('.a-close').addEventListener('click', () => closePane());
+        pane.prepend(paneSeparator());
       }
       fill(pane, b);
       pane.hidden = false;

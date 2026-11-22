@@ -13,7 +13,8 @@
 # ~/node_modules/playwright-core) and the browsers ($CHROME, $FIREFOX);
 # without them it says what it skips and exits 0. $ONLY=chrome or
 # firefox runs one; $KEYS=1 runs only the key-renewal check, on a viewer
-# whose mockup keys live KEYS_TTL seconds; $LAN=1 runs without signing in,
+# whose mockup keys live KEYS_TTL seconds; $PANE=1 runs only the pane
+# separator check, on the fixture's ledger; $LAN=1 runs without signing in,
 # 127.0.0.1 being in the viewer's lan setting, where the default signs a
 # user in. Run from the
 # checkout:
@@ -191,6 +192,7 @@ module BrowserRun
         RISK = File.join(__dir__, "browser", "risk.cjs")
         LOOP = File.join(__dir__, "browser", "loop.cjs")
         KEYS = File.join(__dir__, "browser", "keys.cjs")
+        PANE = File.join(__dir__, "browser", "pane.cjs")
         # [tag, fixture, script] of the checks that each run on a ledger
         # of their own, once per browser, after the shared checks, which
         # read the index's first queue entry and must not meet them; the
@@ -208,6 +210,7 @@ module BrowserRun
 
         def call(sandbox, cookie)
             return keys_pass?(sandbox, cookie) if ENV["KEYS"]
+            return pane_pass?(sandbox, cookie) if ENV["PANE"]
 
             shared = @browsers.map do |name, exe|
                 check(sandbox, cookie, name, exe)
@@ -227,6 +230,17 @@ module BrowserRun
                 system(env(sandbox, cookie).merge(
                            "LEDGER_MOCKUP_TTL" => KEYS_TTL
                        ), "node", KEYS, sandbox.base, name)
+            end.all?
+        end
+
+        # The pane separator's check alone, in each browser, on the
+        # fixture's ledger (PANE=1 starts it so).
+        def pane_pass?(sandbox, cookie)
+            @browsers.map do |name, exe|
+                next true unless File.executable?(exe)
+
+                system(env(sandbox, cookie), "node", PANE, sandbox.base,
+                       sandbox.ledger, name)
             end.all?
         end
 
