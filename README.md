@@ -379,12 +379,13 @@ also what the waker needs, registered by the user (The waker, below).
   Never blocks; silent when nothing moved. `check --final` warns of a
   piece given its commit word that holds no commit.
 - **word-gate** (PreToolUse, Bash): in the main session (no `agent_id`),
-  a `git commit` or `git merge` in a project with a live ledger is refused
-  without the user's commit word on file, also through nice, timeout,
-  low-priority, env and `sh -c`. A commit needs a piece given its commit
-  word that holds no commit yet; a merge needs every commit `HEAD..BRANCH`
-  held by a piece given its commit word, and the refusal names the ones
-  that are not. A `git push` is not gated; no live ledger, a delegate and
+  a `git commit`, `git merge` or `git push` in a project with a live
+  ledger is refused without the user's word on file, also through nice,
+  timeout, low-priority, env and `sh -c`. A commit, and a merge that
+  lands something (`HEAD..BRANCH` not empty), need a piece given its
+  commit word that holds no commit yet; a push needs a piece given its
+  push word after the last push the hook let through for the repository
+  (kept in `pushes` beside the journal). No live ledger, a delegate and
   any other command pass silently.
 - **uncommitted** (Stop): the recorded files a git repository still
   shows as changed (`git status --porcelain -- PATH`), in a repository

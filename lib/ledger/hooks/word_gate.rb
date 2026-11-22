@@ -5,25 +5,26 @@ require "open3"
 require "ledger/commit_word"
 require "ledger/hooks/git_commands"
 require "ledger/hooks/ledgers"
+require "ledger/hooks/push_word"
 
 module Ledger
     module Hooks
         # PreToolUse on Bash, in the main session only (a payload with an
-        # agent_id is a delegate's): a git commit or git merge in a
+        # agent_id is a delegate's): a git commit, merge or push in a
         # repository whose project has a live ledger is refused unless
-        # the user's commit word is on file for it.
+        # the user's word is on file for it.
         #
-        # - commit: some piece was given its commit word and holds no
-        #   commit yet (that word is unspent).
-        # - merge: every commit the merge would land, HEAD..BRANCH, is
-        #   held by a piece given its commit word; the refusal names
-        #   the ones that are not.
+        # - commit and merge: some piece was given its commit word and
+        #   holds no commit yet (that word is unspent). A merge with
+        #   nothing to land, HEAD..BRANCH empty, passes.
+        # - push: some piece was given its push word after the last push
+        #   this hook let through for the repository (PushWord); an
+        #   allowed push records the time.
         #
-        # A git push is not gated. No live ledger, a delegate, or any
-        # other command passes silently.
+        # No live ledger, a delegate, or any other command passes
+        # silently.
         module WordGate
             GIT = /\bgit\b/
-            ABBREV = 7
             ENDS = %w[--abort --continue --quit].freeze
             OPTION_VALUE = %w[-m -s -X -F --into-name].freeze
 
@@ -49,42 +50,44 @@ module Ledger
 
             # -> why CALL may not go, nil when it may.
             def refusal(payload, call)
-                return unless %w[commit merge].include?(call.action)
-
                 dir = File.expand_path(call.dir.to_s, cwd(payload))
                 found = Ledgers.read(payload.merge("cwd" => dir))
                 return if found.empty?
 
-                return unspent(found) if call.action == "commit"
+                case call.action
+                when "commit" then unspent(found, "commit")
+                when "merge" then merging(found, call, dir)
+                else pushed(found, dir)
+                end
+            end
 
-                uncovered(found, call, dir)
+            def merging(found, call, dir)
+                unspent(found, "merge") if landing?(call, dir)
             end
 
             def cwd(payload)
                 payload["cwd"].to_s.empty? ? Dir.pwd : payload["cwd"].to_s
             end
 
-            def unspent(found)
+            def unspent(found, action)
                 open = given(found).any? do |ledger, piece|
                     ledger.derive.commits(piece).empty?
                 end
                 return if open
 
-                "git commit needs the user's commit word: no piece of " \
+                "git #{action} needs the user's commit word: no piece of " \
                     "#{found.map(&:address).join(", ")} was given one " \
                     "that holds no commit yet"
             end
 
-            def uncovered(found, call, dir)
-                landing = landing(call, dir)
-                held = given(found).flat_map do |ledger, piece|
-                    ledger.derive.commits(piece)
-                end
-                missing = landing.reject { |sha| held.any? { same?(it, sha) } }
-                return if missing.empty?
+            # The push word is spent by the push it allows.
+            def pushed(found, dir)
+                top = PushWord.top(dir)
+                return PushWord.record(top) if PushWord.unspent?(found, top)
 
-                "git merge needs the user's commit word: " \
-                    "#{missing.join(", ")} belong to no piece given one"
+                "git push needs the user's push word: none was given on " \
+                    "a piece of #{found.map(&:address).join(", ")} since " \
+                    "the last push"
             end
 
             # The [ledger, piece] pairs whose commit word was given.
@@ -97,19 +100,15 @@ module Ledger
                 end
             end
 
-            def same?(left, right)
-                left.start_with?(right) || right.start_with?(left)
-            end
+            # Whether the merge of CALL's operands lands a commit in the
+            # repository at DIR; false when none, or when they cannot be
+            # told.
+            def landing?(call, dir)
+                return false if call.args.intersect?(ENDS)
 
-            # The abbreviated ids the merge of CALL's operands would land
-            # in the repository at DIR; [] when they cannot be told.
-            def landing(call, dir)
-                return [] if call.args.intersect?(ENDS)
-
-                operands(call.args).flat_map do |branch|
-                    lines(dir, "rev-list", "--reverse", "--abbrev-commit",
-                          "--abbrev=#{ABBREV}", "HEAD..#{branch}")
-                end.uniq
+                operands(call.args).any? do |branch|
+                    !lines(dir, "rev-list", "HEAD..#{branch}").empty?
+                end
             end
 
             def operands(args)

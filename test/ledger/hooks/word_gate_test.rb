@@ -64,31 +64,23 @@ class WordGateTest < HookTest
         assert_nil gate("git commit-tree HEAD")
     end
 
-    # Two pieces, the branch's first commit on P1, which has its word.
-    def worded_branch
+    def test_a_merge_needs_an_unspent_commit_word
         piece("First", "commit")
-        piece("Second", "commit")
         branch
-        cli("word", @address, "P1", "--word", "commit")
-        file("P1", landed.take(1))
-    end
 
-    def test_a_merge_of_commits_held_by_worded_pieces_passes
-        worded_branch
-        cli("word", @address, "P2", "--word", "commit")
-        file("P2", landed.drop(1))
+        assert_match(/git merge needs/, refusal("git merge --ff-only feat"))
+        cli("word", @address, "P1", "--word", "commit")
 
         assert_nil gate("git merge --ff-only feat")
     end
 
-    def test_a_merge_names_the_commit_no_worded_piece_holds
-        worded_branch
-        file("P2", landed.drop(1))
-        reason = refusal("git merge --ff-only feat")
+    def test_a_merge_after_the_commits_are_filed_is_refused
+        piece("First", "commit")
+        branch
+        cli("word", @address, "P1", "--word", "commit")
+        file("P1", landed)
 
-        assert_includes reason, landed.last
-        refute_includes reason, landed.first
-        assert_match(/git merge needs/, reason)
+        assert_match(/git merge needs/, refusal("git merge feat"))
     end
 
     def test_a_merge_with_nothing_to_land_passes
@@ -97,10 +89,26 @@ class WordGateTest < HookTest
         assert_nil gate("git merge --ff-only #{@base}")
     end
 
-    def test_a_push_is_not_gated
-        piece("First", "commit")
+    def test_a_push_without_a_push_word_is_refused
+        piece("First", "push")
+
+        assert_match(/git push needs the user's push word/,
+                     refusal("git push origin main"))
+    end
+
+    def test_a_push_word_allows_one_push_and_a_second_is_refused
+        piece("First", "push")
+        cli("word", @address, "P1", "--word", "push")
 
         assert_nil gate("git push origin main")
+        assert_match(/git push needs/, refusal("nice git push"))
+    end
+
+    def test_a_commit_word_is_no_push_word
+        piece("First", "commit")
+        cli("word", @address, "P1", "--word", "commit")
+
+        assert_match(/git push needs/, refusal("git push"))
     end
 
     def test_no_live_ledger_passes_silently
