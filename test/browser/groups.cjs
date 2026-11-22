@@ -17,12 +17,12 @@ const [url, which] = process.argv.slice(2);
   await p.goto(url);
   const forms = () => p.evaluate(() => [...document.querySelectorAll('section.waiting form.give-all')].map(f => ({
     visible: f.checkVisibility() && f.getBoundingClientRect().height > 0,
-    button: f.querySelector('button').textContent.trim(), line: f.querySelector('.give-all-refs').textContent.trim(),
+    button: f.querySelector('button').textContent.trim(), line: [...f.querySelectorAll('.give-all-refs a.id-link')].map(a => a.textContent.trim()).join(' '),
     refs: f.querySelector('[name=refs]').value })));
   const before = await forms();
   t('two group forms are visible', before.length === 2 && before.every(f => f.visible), JSON.stringify(before));
   t('each names its words and its pieces', before.length === 2 && /^Commit \+ Merge all 3$/.test(before[0].button)
-    && before[0].line === 'P1–P3' && /^Start all 3$/.test(before[1].button) && before[1].line === 'P4–P6',
+    && before[0].line === 'P1 P2 P3' && /^Start all 3$/.test(before[1].button) && before[1].line === 'P4 P5 P6',
     JSON.stringify(before));
   const waiting = () => p.evaluate(() => [...document.querySelectorAll('section.waiting .entries > li[id]')].map(l => l.id.replace(/^p-/, '')));
   t('six pieces wait', (await waiting()).length === 6);
@@ -34,12 +34,33 @@ const [url, which] = process.argv.slice(2);
     .catch(() => {});
   const after = await p.evaluate(() => ({ noReload: window.noReload === true,
     refs: [...document.querySelectorAll('form.give-all')].map(f => f.querySelector('[name=refs]').value),
-    first: document.querySelector('form.give-all .give-all-refs')?.textContent.trim(),
+    first: [...document.querySelectorAll('form.give-all:first-of-type .give-all-refs a.id-link')].map(a => a.textContent.trim()).join(' '),
     button: document.querySelector('form.give-all button')?.textContent.trim(),
     marked: document.querySelectorAll('form.give-all')[1]?.mark }));
   t('a word on one card redraws its group form, not the other, without a reload',
     after.noReload && after.refs.join('|') === 'P2 P3|P4 P5 P6' && /^Commit \+ Merge all 2$/.test(after.button) && after.marked === 'b',
     JSON.stringify(after));
+  // a group's chip: its tooltip on hover tells the piece, a click goes to its card, even one the risk filter hides
+  const chip = p.locator('form.give-all').nth(1).locator('.give-all-refs a.id-link').first();
+  await chip.hover();
+  await p.waitForTimeout(300);
+  const tipShown = await p.evaluate(() => {
+    const a = document.querySelectorAll('form.give-all')[1].querySelector('.give-all-refs a.id-link');
+    const tip = a.nextElementSibling;
+    return !!tip && tip.matches('.tip') && tip.checkVisibility() && /^fix the /.test(tip.textContent) && /plan: /.test(tip.textContent);
+  });
+  t('hovering a group chip shows the piece\'s title and plan', tipShown);
+  await p.evaluate(() => {
+    const show = document.querySelector('.waiting-view input[name="view-show"][value="7"]');
+    if (show) { show.checked = true; show.dispatchEvent(new Event('change', {bubbles: true})); }
+  });
+  const hiddenFirst = await p.evaluate(() => document.getElementById('p-P4')?.hidden === true);
+  await chip.click();
+  await p.waitForTimeout(800);
+  t('a click on a group chip lands on its card, shown even when the risk filter hid it', hiddenFirst && await p.evaluate(() => {
+    const li = document.getElementById('p-P4'), r = li.getBoundingClientRect();
+    return location.hash === '#p-P4' && !li.hidden && r.top < innerHeight && r.bottom > 0;
+  }));
   await Promise.all([p.waitForNavigation(), p.locator('form.give-all').nth(1).locator('button').click()]);
   const left = await waiting();
   t('the click sent a word to each piece of its group only', ['P2', 'P3'].every(id => left.includes(id))

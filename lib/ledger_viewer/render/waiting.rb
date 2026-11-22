@@ -83,10 +83,21 @@ module LedgerViewer
                 @scope.partial(
                     "ledger/give_all",
                     { lid: @lid, token: @token, count: pieces.length, names:,
-                      whole:, refs: ids.join(" "), line: Groups.line(ids),
+                      whole:, refs: ids.join(" "), chips: chips(pieces),
                       symbol: symbol(names),
                       labels: names.map { Terms::WORD_LABEL.fetch(it) } }
                 )
+            end
+
+            # The group's pieces as id chips, each a link to its card
+            # with a tooltip saying what the piece is.
+            def chips(pieces)
+                pieces.map do |piece|
+                    id = piece["id"]
+                    attrs, box = @scope.tip(Groups.summary(piece))
+                    %(<a class="id-link" href="#p-#{id}"#{attrs}>) +
+                        "#{@scope.chip(id)}</a>#{box}"
+                end.join(" ")
             end
 
             def symbol(names)
@@ -123,24 +134,20 @@ module LedgerViewer
                 end
             end
 
-            # The ids in the order given, a run of consecutive numbers as
-            # a range: `P3\u2013P5, P8`.
-            def line(ids)
-                runs(ids).flat_map do |run|
-                    next run if run.length < 3
-
-                    "#{run.first}\u2013#{run.last}"
-                end.join(", ")
+            # What a group's chip tells on hover: the piece's title, its
+            # risk rating and the first line of its plan.
+            def summary(piece)
+                rating, = Text.risk_rating(piece.dig("risk", "text").to_s)
+                [piece["title"], ("risk #{rating}/10" if rating),
+                 (plan = first_line(piece["plan"])) && "plan: #{plan}"]
+                    .compact.join(" · ")
             end
 
-            def runs(ids)
-                ids.slice_when { |a, b| !successor?(a, b) }.to_a
-            end
+            def first_line(text)
+                line = text.to_s.lines.map(&:strip).find { !it.empty? }
+                return unless line
 
-            def successor?(from, to)
-                one = from.match(/\A(\D+)(\d+)\z/)
-                two = to.match(/\A(\D+)(\d+)\z/)
-                one && two && one[1] == two[1] && one[2].to_i + 1 == two[2].to_i
+                line.length > 80 ? "#{line[0, 79]}…" : line
             end
         end
     end

@@ -39,19 +39,27 @@
   const quotable = on => {
     for (const b of document.querySelectorAll('button.a-quote')) { b.hidden = !seen; b.disabled = !on; }
   };
-  document.addEventListener('selectionchange', () => {
+  // text selected inside a field is the user's own draft, never a quote,
+  // even while the page keeps a selection of its own elsewhere
+  const inField = () => {
+    const f = document.activeElement;
+    return !!f && f.matches('textarea, input') && f.selectionStart !== f.selectionEnd;
+  };
+  const look = () => {
     const s = document.getSelection();
     const t = s ? s.toString().trim() : '';
     const n = s && s.anchorNode && (s.anchorNode.nodeType === 1 ? s.anchorNode : s.anchorNode.parentElement);
     clearTimeout(lapse);
-    if (!t || (n && n.closest('form'))) {
+    if (!t || (n && n.closest('form')) || inField()) {
       if (quote) lapse = setTimeout(() => { quote = ''; quotable(false); }, 400);
       return;
     }
     quote = t;
     seen = true;
     quotable(true);
-  });
+  };
+  document.addEventListener('selectionchange', look);
+  document.addEventListener('select', look, true);
   // what batch mode says on the buttons and forms of a root, once the tray
   // is known (below)
   let labelBatch = () => {};
@@ -838,8 +846,10 @@
     // waits: a word sent on one card leaves a form naming pieces already
     // given. A form the server draws as shown stays as it is.
     const bars = [...document.querySelectorAll(giveAll)], fresh = [...doc.querySelectorAll(giveAll)];
-    const shown = new Map(bars.map(f => [f.outerHTML, f]));
-    const kept = fresh.map(f => shown.get(f.outerHTML));
+    // compared as the parts are, tooltip numbers aside: a form above
+    // gaining or losing a chip renumbers the tips of those below
+    const shown = new Map(bars.map(f => [norm(f.outerHTML), f]));
+    const kept = fresh.map(f => shown.get(norm(f.outerHTML)));
     for (const f of bars) if (!kept.includes(f)) f.remove();
     let at = document.querySelector('section.waiting > h2');
     fresh.forEach((f, i) => {
@@ -1501,6 +1511,15 @@
     choose();
     document.querySelector('.view-status')?.focus({preventScroll: true});
   });
+  // a link to a card the risk filter hides shows every card first, so
+  // the link lands on its card rather than on nothing
+  document.addEventListener('click', e => {
+    const a = e.target.closest?.('a[href^="#"]');
+    const to = a && document.getElementById(a.getAttribute('href').slice(1));
+    if (!to || !to.closest('li[hidden]') || view.show === 'all') return;
+    view.show = 'all';
+    choose();
+  }, true);
   document.addEventListener('focusout', () => { if (unsorted) setTimeout(arrange, 0); });
   if (ledgerPage) {
     new MutationObserver(records => {

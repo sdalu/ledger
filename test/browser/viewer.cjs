@@ -158,6 +158,20 @@ t('A2: the status pill\'s summary is at least 24 px', await p.evaluate(() => {
   await p.waitForTimeout(200);
   t('quote enabled again when text is selected again', await p.evaluate(() =>
     [...document.querySelectorAll('button.a-quote')].every(x => !x.disabled)));
+  // text selected inside a comment box is the user's own draft: nothing to quote
+  const box = await p.evaluate(() => {
+    const li = document.querySelector('li.is-card form.say .comment-box')?.closest('li');
+    li.querySelector('.comment-box').open = true;
+    return '#' + li.id + ' .comment-box textarea';
+  });
+  await p.fill(box, 'my own draft words');
+  await p.focus(box);
+  await p.keyboard.press('Shift+Home');
+  await p.waitForTimeout(600);
+  t('a selection made inside a comment box offers no quote', await p.evaluate(() =>
+    [...document.querySelectorAll('button.a-quote')].every(x => x.disabled)));
+  await p.fill(box, '');
+  await p.evaluate(b => { const ta = document.querySelector(b); ta.blur(); ta.closest('details').open = false; }, box);
 
   await p.click('.ledger-head a[href="#say-note"]');
   t('Leave a note opens the box under the goal', await p.evaluate(() => {

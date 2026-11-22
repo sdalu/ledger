@@ -41,7 +41,16 @@ class GiveAllTest < ViewerTest
 
     def refs(form) = form[/name="refs" value="([^"]*)"/, 1]
 
-    def line(form) = form[%r{<p class="give-all-refs">(.*?)</p>}, 1]
+    # The ids the group's chips link to, in order.
+    def line(form)
+        refs = form[%r{<p class="give-all-refs">.*?</p>}m]
+        refs.scan(/<a class="id-link" href="#p-(P\d+)"/).flatten.join(" ")
+    end
+
+    # The tooltip text after the chip that links to `id`.
+    def tip(form, id)
+        form[%r{href="#p-#{id}".*?<span class="tip"[^>]*>(.*?)</span>}m, 1]
+    end
 
     def buttons(body, id)
         card = body[%r{<li[^>]*id="p-#{id}".*?</li>}m]
@@ -60,7 +69,7 @@ class TwoGroupsTest < GiveAllTest
         assert_equal(["P1 P3", "P2 P4"], found.map { refs(it) })
         assert_includes found[0], "Commit + Merge all 2"
         assert_includes found[1], "Start all 2"
-        assert_equal "P1, P3", line(found[0])
+        assert_equal "P1 P3", line(found[0])
     end
 
     def test_a_singleton_set_has_no_form
@@ -87,27 +96,26 @@ class WholeTest < GiveAllTest
         form = forms(page).first
 
         assert_includes form, "All 2 await the same words: start"
-        assert_equal "P1, P2", line(form)
+        assert_equal "P1 P2", line(form)
     end
 end
 
-class RangeTest < Minitest::Test
-    def test_runs_are_ranges_and_the_rest_comma_separated
-        line = LedgerViewer::Render::Groups.line(%w[P3 P4 P5 P8])
+class ChipTipTest < GiveAllTest
+    def sets = %w[start start]
 
-        assert_equal "P3–P5, P8", line
+    def test_each_chip_tells_title_risk_and_plan
+        form = forms(page).first
+
+        assert_equal "fix the reorder · risk 2/10 · plan: go", tip(form, "P1")
+        assert_equal "fix the header · risk 2/10 · plan: go", tip(form, "P2")
     end
 
-    def test_two_consecutive_ids_are_not_a_range
-        line = LedgerViewer::Render::Groups.line(%w[P1 P2 P4])
+    def test_a_long_plan_line_is_cut_at_eighty
+        plan = "a" * 120
+        line = LedgerViewer::Render::Groups.first_line("\n#{plan}\nmore")
 
-        assert_equal "P1, P2, P4", line
-    end
-
-    def test_a_run_follows_the_given_order
-        line = LedgerViewer::Render::Groups.line(%w[P5 P4 P6 P7 P8])
-
-        assert_equal "P5, P4, P6–P8", line
+        assert_equal 80, line.length
+        assert line.end_with?("…")
     end
 end
 
