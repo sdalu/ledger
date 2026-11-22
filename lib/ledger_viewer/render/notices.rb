@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require_relative "age"
 require_relative "icons"
 require_relative "text"
 
@@ -20,6 +21,8 @@ module LedgerViewer
 
             # The form sent again on one click: what was typed, under
             # this server's token.
+            # The text typed is a visitor's: it may not carry the age
+            # brackets, which would forge an element.
             def stale(action:, token:, fields:, text:)
                 "#{CRUMBS}<h1>Not sent yet</h1>#{STALE_WORDS}" \
                     "<form class=\"say\" method=\"post\" " \
@@ -27,7 +30,7 @@ module LedgerViewer
                     "<input type=\"hidden\" name=\"token\" " \
                     "value=\"#{token}\">#{hidden(fields)}" \
                     "<textarea name=\"text\" maxlength=\"#{MAX_TEXT}\" " \
-                    "aria-label=\"Your text\">#{Text.escape(text)}" \
+                    "aria-label=\"Your text\">#{Text.escape(Age.strip(text))}" \
                     "</textarea><div class=\"actions\"><button " \
                     "type=\"submit\">#{Icons.icon("send")}Send again" \
                     "</button></div></form>"
@@ -40,7 +43,7 @@ module LedgerViewer
 
             def hidden_input(name, value)
                 "<input type=\"hidden\" name=\"#{Text.escape(name)}\" " \
-                    "value=\"#{Text.escape(value)}\">"
+                    "value=\"#{Text.escape(Age.strip(value))}\">"
             end
 
             def hidden(fields)

@@ -6,6 +6,8 @@ require "ledger"
 require "ledger/read"
 require "ledger/waker"
 
+require_relative "render/age"
+
 module LedgerViewer
     # The live ledgers of the journal, read afresh each time, and what a
     # page reads of one: its JSON v1 document (Ledger::Read). A closed
@@ -33,10 +35,13 @@ module LedgerViewer
 
         def find(lid) = all.find { it.id == lid }
 
-        # The ledger's JSON v1 document, string keys.
+        # The ledger's JSON v1 document, string keys. The private-use
+        # characters that bracket an age are dropped from its texts here:
+        # only the viewer's own Age.of may bracket one, and a journal's
+        # text holding them would otherwise forge an element.
         def read(entry)
             document = Ledger::Read.ledger(@journal, entry.ledger_id)
-            Ledger::Read.parse(JSON.generate(document))
+            Ledger::Read.parse(Render::Age.strip(JSON.generate(document)))
         end
 
         # The bytes and type of a picture's file, or nil: NAME is a
