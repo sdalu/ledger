@@ -62,7 +62,7 @@ class NextWaitingTest < ViewerTest
         https "/l/#{@lid}"
         receipt = last_response.body[%r{<li[^>]* id="q-O2".*?</li>}m]
 
-        assert_includes receipt, "Nothing else waits on you"
+        assert_includes receipt, "Nothing left waiting on you in this ledger"
         refute_includes receipt, 'class="next-waiting"'
     end
 

@@ -32,10 +32,26 @@ module LedgerViewer
 
             def unready(question)
                 prep = question["preparing"]
-                "Not ready to answer: #{prep} " \
-                    "(#{question["preparing_status"]}) " \
-                    "is still preparing #{unready_what(question)}. It moves " \
+                "Not ready to answer#{preparing_line(question)}. It moves " \
                     "to Waiting on you when #{prep} is verified."
+            end
+
+            # What the preparing piece is doing: a deferred one waits on
+            # an event, which is what the user needs to know.
+            def preparing_line(question)
+                prep = question["preparing"]
+                piece = @reading.pieces.find { it["id"] == prep }
+                if piece && piece["status"] == "deferred"
+                    return ". Waits for #{prep}, #{deferred(piece)}"
+                end
+
+                ": #{prep} (#{question["preparing_status"]}) is still " \
+                    "preparing #{unready_what(question)}"
+            end
+
+            def deferred(piece)
+                cond = piece["until"].to_s
+                cond.empty? ? "deferred" : "deferred until #{cond}"
             end
 
             def unready_what(question)

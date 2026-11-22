@@ -98,6 +98,9 @@ module LedgerViewer
                 inbox.select { !it["taken"] && it["ref"] == ref }
             end
 
+            # How many entries the user sent that no session took.
+            def unread = inbox.count { !it["taken"] }
+
             def figures
                 live = pieces.reject { it["status"] == "dropped" }
                 kept = live.count { it["status"] == "kept" }

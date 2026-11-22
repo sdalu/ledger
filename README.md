@@ -464,7 +464,9 @@ What the page takes, all as inbox entries, of the four kinds
   verified (or kept). It is listed under *Being prepared* with the
   piece and its status, no form, and the server refuses an answer to
   it; the status line names it `being prepared: O9 (P36)`, and its wait
-  starts only once it can be answered.
+  starts only once it can be answered. When that piece is deferred the
+  card says *Waits for P36, deferred until CONDITION* instead of that
+  the piece is still preparing.
 - **A comment on a question**, not an answer (to ask for more before
   answering): below an open question's answer form, a fold *Ask about
   O<n>* with its own *Send question*; the entry carries `comment: true`
@@ -520,14 +522,24 @@ What the page takes, all as inbox entries, of the four kinds
   same answer (a change by someone else in it still shows *Ledger
   changed*); *Change* opens the
   card again where it stands; with reduced motion the same happens
-  without transition, smooth scroll or pulse. A refusal, a failed fetch
+  without transition, smooth scroll or pulse. While the send is out the
+  pressed button reads *Sending…* (disabled, `aria-busy`) and the card's
+  other submit buttons are disabled; drafts elsewhere stay editable, and
+  everything returns on the answer, a refusal or *Delivery unconfirmed*.
+  While the waker is off and sent entries are unread, the ledger head
+  says *N sent, not read yet — no session is woken while the waker is
+  off*, with a *Switch on* button (the waker's own form,
+  `POST /l/ID/waker`), and redrawn with the head.
+  A send that leaves nothing waiting on the user ends the receipt with
+  *Nothing left waiting on you in this ledger* (`role="status"`), which
+  takes the focus, *not read by the session yet* staying visible. A refusal, a failed fetch
   or a card that did not become a receipt falls back to the plain form
   post. Without script the send answers 303 to the next card waiting
   (`#p-P<n>`, `#q-O<n>`), to the answered card when none waits; a
   comment, a note or an order goes back to its own card or `#inbox`. A
   piece whose word is sent shows a receipt, *You asked: Commit + Deploy
   · sent HH:MM · not read by the session yet*, then a link to the next card waiting
-  or *Nothing else waits on you*. When two or more pieces wait and all
+  or *Nothing left waiting on you in this ledger*. When two or more pieces wait and all
   await the same words (none `other`), a bar under the Waiting heading
   gives them all in one request (`POST /l/ID/say-all`: token, Origin and
   Host as `/say`; refused with 409, sending nothing, if any no longer

@@ -685,6 +685,13 @@
     const bar = document.querySelector(giveAll), fresh = doc.querySelector(giveAll);
     if (bar && !fresh) bar.remove();
     else if (bar && fresh) bar.replaceWith(document.importNode(fresh, true));
+    // the head's count of sent entries nothing wakes a session for grows
+    // with each send, and comes or goes with the first and the last
+    const unread = document.querySelector('.ledger-head > .waker-unread'), now = doc.querySelector('.ledger-head > .waker-unread');
+    const actions = document.querySelector('.ledger-head > .ledger-actions');
+    if (unread && !now) unread.remove();
+    else if (unread && now) unread.replaceWith(document.importNode(now, true));
+    else if (now && actions) actions.after(document.importNode(now, true));
   };
   // anything but the cards acted on gone from what waits, or changed, is
   // somebody else's change
@@ -709,8 +716,36 @@
     e.preventDefault();
     if (sending || f.dataset.unconfirmed) return;
     sending = true;
+    // while the send is out the card's submit buttons are held: the one
+    // pressed says Sending, the others wait; the drafts stay editable
+    const held = [];
+    // a disabled button drops the focus, which keeps the card's own form
+    // as the user's while a change elsewhere is drawn (holds()): it goes
+    // back to the pressed button with the rest
+    const focused = document.activeElement === e.submitter;
+    const hold = () => {
+      for (const b of card.querySelectorAll('form.say button[type="submit"]:not(:disabled)')) {
+        const text = b === e.submitter
+          ? [...b.childNodes].filter(n => n.nodeType === 3 && n.nodeValue.trim()).pop() : null;
+        held.push({b, text, was: text && text.nodeValue});
+        if (text) {
+          text.nodeValue = 'Sending…';
+          b.setAttribute('aria-busy', 'true');
+        }
+        b.disabled = true;
+      }
+    };
+    const release = () => {
+      for (const {b, text, was} of held.splice(0)) {
+        if (text) text.nodeValue = was;
+        b.removeAttribute('aria-busy');
+        b.disabled = false;
+      }
+      if (focused && e.submitter.isConnected && document.activeElement !== e.submitter) e.submitter.focus({preventScroll: true});
+    };
     const plain = () => {
       sending = false;
+      release();
       f.dataset.plain = '1';
       f.requestSubmit(e.submitter);
     };
@@ -724,6 +759,7 @@
     };
     const unconfirmed = () => {
       sending = false;
+      release();
       f.dataset.unconfirmed = '1';
       const note = document.createElement('p');
       note.className = 'send-unconfirmed';
@@ -765,11 +801,13 @@
     };
     let doc = null, r = null;
     try {
+      const body = new URLSearchParams(new FormData(f, e.submitter));
+      hold();
       r = await fetch(f.action, {
         method: 'POST',
         credentials: 'same-origin',
         headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-        body: new URLSearchParams(new FormData(f, e.submitter)),
+        body,
       });
       if (r.ok && r.redirected) doc = new DOMParser().parseFromString(await r.text(), 'text/html');
     } catch (err) { doc = null; }
@@ -782,6 +820,7 @@
         const which = ask.matches('.ask-about') ? '.ask-about' : '.picture-ask';
         const part = doc.getElementById(card.id)?.querySelector(which);
         sending = false;
+        release();
         if (!part) { location.assign(url + '#' + card.id); return; }
         const now = waitingSig(doc);
         const outside = [...known].some(([id, sig]) => now.get(id) !== sig)
@@ -831,7 +870,9 @@
       rebase(doc, [card.id, ...redrawn]);
       if (outside) stale(); else here = doc.body.dataset.stamp || here;
       sending = false;
-      if (!next) return;
+      // nothing left waiting on the user: the receipt's line says so, read
+      // out politely, and takes the focus
+      if (!next) { mine.querySelector('.next-waiting.is-none')?.focus(); return; }
       next.tabIndex = -1;
       next.focus({preventScroll: true});
       next.scrollIntoView({behavior: reduced() ? 'auto' : 'smooth', block: 'start'});

@@ -60,9 +60,12 @@ module LedgerViewer
             def body(entry, reading, token)
                 kit = kit(entry, reading, token)
                 waking = @ledgers.waker(entry)
-                waker = Waker.new(kit.scope, kit.lid, token).html(waking)
-                top = CRUMBS + Head.new(kit, entry, waker, on: waking.on).html +
-                      layout(kit, token)
+                switch = Waker.new(kit.scope, kit.lid, token)
+                head = Head.new(kit, entry, switch.html(waking),
+                                on: waking.on,
+                                unread: switch.unread(waking,
+                                                      kit.reading.unread))
+                top = CRUMBS + head.html + layout(kit, token)
                 [top, rest(kit)]
             end
 

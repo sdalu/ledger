@@ -19,6 +19,16 @@ module LedgerViewer
                                wakes: waking.wakes.map { row(it) })
             end
 
+            # The head's line while the waker is off and COUNT sent entries
+            # are unread: nothing wakes a session for them, with the switch
+            # beside. "" when the waker is on or nothing is unread.
+            def unread(waking, count)
+                return "" if waking.on || count.zero?
+
+                @scope.partial("ledger/waker_unread",
+                               lid: @lid, token: @token, count:)
+            end
+
             private
 
             def row(wake)

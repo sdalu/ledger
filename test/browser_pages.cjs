@@ -49,8 +49,12 @@ const [base, which] = process.argv.slice(2);
   // iframe is lazy: it is scrolled into view before anything is awaited.
   errors.length = 0;
   await p.setViewportSize({width: 1300, height: 900});
-  await p.goto(base + pages[0]);
+  // the ledger that holds the directory mockup, whatever order the index lists the ledgers in
   const deck = p.locator('iframe[src$="/deck/index.html"]');
+  for (const page of pages) {
+    await p.goto(base + page);
+    if (await deck.count() === 1) break;
+  }
   t('a directory mockup is drawn in a tile', await deck.count() === 1);
   if (await deck.count() === 1) {
     const waitFor = (name) => p.waitForResponse(r => r.url().endsWith('/deck/' + name), {timeout: 10000})

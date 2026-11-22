@@ -1,0 +1,2 @@
+<%# The waker's switch form again, beside the count of sent entries nothing wakes a session for. %>
+<form class="waker-unread" data-key="waker-unread" method="post" action="/l/<%= lid %>/waker"><input type="hidden" name="token" value="<%= token %>"><input type="hidden" name="waker" value="on"><span class="waker-says"><%= count %> sent, not read yet — no session is woken while the waker is off</span><button type="submit" class="a-waker">Switch on</button></form>

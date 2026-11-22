@@ -7,8 +7,9 @@ module LedgerViewer
         # What a receipt ends with: a link to the first card still
         # waiting on the user, or the line saying none does.
         class NextWaiting
-            NONE = '<p class="next-waiting is-none">Nothing else waits ' \
-                   "on you</p>"
+            NONE = '<p class="next-waiting is-none" role="status" ' \
+                   'tabindex="-1">Nothing left waiting on you in this ' \
+                   "ledger</p>"
 
             # [[anchor, title]]: the cards still waiting on the user, in
             # the page's order, the oldest wait first.

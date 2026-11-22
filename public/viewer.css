@@ -1215,6 +1215,33 @@
     background: color-mix(in oklab, var(--ask) 6%, var(--panel));
   }
 
+  /* a send held in flight: the pressed button says Sending, its card's other
+     submit buttons wait */
+  form.say button[type="submit"]:disabled { cursor: progress; opacity: 0.6; }
+
+  /* the ledger head while the waker is off and sent entries are unread: Switch on beside */
+  .waker-unread {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-xs) var(--space-s);
+    margin-block-start: var(--space-xs);
+    font-size: 0.875rem;
+    & .waker-says { flex: 1 1 14rem; color: var(--muted); }
+    & button.a-waker {
+      min-block-size: 2.75rem;
+      padding-inline: var(--space-s);
+      border: 1px solid var(--edge);
+      border-radius: var(--radius);
+      font: inherit;
+      font-weight: 600;
+      color: var(--ink);
+      background: var(--panel);
+      cursor: pointer;
+      &:hover { border-color: var(--accent); }
+    }
+  }
+
   /* a send nothing answered: said under the form, with Check, then Retry */
   .send-unconfirmed {
     display: flex;
@@ -1621,7 +1648,10 @@
       margin: 0;
       font-size: 1rem;
     }
-    & > :is(.detail, .said, .next-waiting) { display: none; }
+    & > :is(.detail, .said, .next-waiting:not(.is-none)) { display: none; }
+    /* what a collapsed receipt keeps saying: nothing is left waiting on
+       the user */
+    & > .next-waiting.is-none { grid-column: 2 / 4; grid-row: 3; margin: 0; }
     & > :is(.sent, .sent-line) {
       grid-column: 2 / 4;
       grid-row: 2;

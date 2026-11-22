@@ -17,7 +17,7 @@ module LedgerViewer
             # begin: the page already names its ledger.
             TITLE_HEAD = /\AStatus \(.*?\) — (?=criteria \d)/
 
-            def initialize(kit, entry, waker, on:)
+            def initialize(kit, entry, waker, on:, unread: "")
                 @scope = kit.scope
                 @reading = kit.reading
                 @lid = kit.lid
@@ -25,6 +25,7 @@ module LedgerViewer
                 @entry = entry
                 @waker = waker
                 @on = on
+                @unread = unread
             end
 
             def html
@@ -38,7 +39,8 @@ module LedgerViewer
                 path = @entry.path
                 { lid: @lid, nxt: next_step, tiles:, close: @word.close(data),
                   abandon: @word.abandon(data), short:,
-                  waker: @waker, waking: "waker #{@on ? "on" : "off"}",
+                  waker: @waker, unread: @unread,
+                  waking: "waker #{@on ? "on" : "off"}",
                   path: Clock.short(path), status: untitled,
                   name: Helpers.project_name(@entry.project, path),
                   updated: Clock.updated(data.updated),

@@ -981,6 +981,86 @@ t('A2: the status pill\'s summary is at least 24 px', await p.evaluate(() => {
   t('V8: a write to another ledger leaves the open ledger page\'s stamp, and the page is not fetched again',
     await p.evaluate(s => window.__mark === 1 && document.body.dataset.stamp === s && !document.querySelector('.stale-note'), stampWas)
     && refetched.length === 0);
+  // D1 and D3: while a send is out its button says Sending… and is held, the card's other submit
+  // buttons wait and the drafts elsewhere stay editable; the head says how many sent entries are
+  // unread and that no session is woken while the waker is off, with Switch on beside it
+  sent = mark();
+  await p.goto(base + page);
+  const unreadBefore = await p.evaluate(() => ({count: Number(document.querySelector('.ledger-head > .waker-unread')?.textContent.match(/^\s*(\d+) sent/)?.[1] || 0)}));
+  let letGo;
+  const gate = new Promise(r => { letGo = r; });
+  await p.route('**/say', async route => { await gate; await route.continue(); });
+  await p.locator('#p-P4 button[name="word"][value="commit"]').click();
+  await p.waitForSelector('#p-P4 button[aria-busy="true"]');
+  const inflight = await p.evaluate(() => {
+    const subs = [...document.querySelectorAll('#p-P4 form.say button[type="submit"]')];
+    const busy = subs.filter(b => b.getAttribute('aria-busy') === 'true');
+    const draft = document.querySelector('#q-O1 form.say textarea');
+    return {one: busy.length === 1, says: busy[0] && busy[0].textContent.trim(), off: subs.every(b => b.disabled),
+            many: subs.length > 1, draft: !!draft && !draft.disabled && !draft.readOnly,
+            elsewhere: [...document.querySelectorAll('#q-O1 form.say button[type="submit"]')].every(b => !b.disabled)};
+  });
+  t('D1: during a held send the pressed button says Sending… and is disabled and aria-busy', inflight.one && inflight.says === 'Sending…' && inflight.off);
+  t('D1: during a held send the card\'s other submit buttons are disabled, drafts elsewhere stay editable',
+    inflight.many && inflight.off && inflight.draft && inflight.elsewhere);
+  letGo();
+  await p.waitForSelector('#p-P4.is-collapsed');
+  await p.unroute('**/say');
+  t('D1: the answer returns every held button (none busy or disabled left on the page)', await p.evaluate(
+    () => !document.querySelector('button[aria-busy="true"]') && ![...document.querySelectorAll('form.say button[type="submit"]')].some(b => b.disabled)));
+  await p.waitForFunction(n => Number(document.querySelector('.ledger-head .waker-unread')?.textContent.match(/^\s*(\d+) sent/)?.[1]) === n + 1,
+    unreadBefore.count, {timeout: 5000}).catch(() => {});
+  const unreadLine = () => p.evaluate(() => {
+    const n = document.querySelector('.ledger-head > .waker-unread'), b = n && n.querySelector('button'), r = n && n.getBoundingClientRect();
+    return n ? {count: Number(n.textContent.match(/^\s*(\d+) sent/)?.[1]), key: n.dataset.key, says: n.querySelector('.waker-says').textContent.trim(),
+                button: b.textContent.trim(), on: n.querySelector('input[name="waker"]').value, action: n.getAttribute('action'),
+                shown: r.width > 0 && r.height > 0, receiptNote: !!document.querySelector('.waker-note')} : null;
+  });
+  const unreadAfter = await unreadLine();
+  if (!unreadAfter || unreadAfter.count !== unreadBefore.count + 1) console.log('  head line before/after: ' + JSON.stringify([unreadBefore, unreadAfter]));
+  t('D3: after a send with the waker off the head says "N+1 sent, not read yet — no session is woken while the waker is off", keyed, with Switch on',
+    !!unreadAfter && unreadAfter.count === unreadBefore.count + 1 && unreadAfter.key === 'waker-unread' && unreadAfter.shown
+    && unreadAfter.says === unreadAfter.count + ' sent, not read yet — no session is woken while the waker is off'
+    && unreadAfter.button === 'Switch on' && unreadAfter.on === 'on' && /^\/l\/[0-9a-f]+\/waker$/.test(unreadAfter.action) && !unreadAfter.receiptNote);
+  rewind(sent);
+  // the line goes when the waker is switched on, and comes back when it is switched off again
+  await p.goto(base + page);
+  await p.locator('.ledger-head > .waker-unread button').click();
+  await p.waitForSelector('.ledger-head .waker-state.is-on', {state: 'attached'});
+  t('D3: with the waker switched on the head line is gone', await p.evaluate(() => !document.querySelector('.waker-unread')));
+  await p.evaluate(() => { document.querySelector('.ledger-head details.ledger-details').open = true; });
+  await p.locator('.ledger-head .waker button.a-waker').click();
+  await p.waitForSelector('.ledger-head .waker-state.is-off', {state: 'attached'});
+  t('D3: with the waker switched off again the head line is back', await p.evaluate(() => !!document.querySelector('.ledger-head > .waker-unread')));
+  // D4: the last answer of a ledger says nothing is left waiting, politely, takes the focus and keeps
+  // "not read by the session yet" visible
+  const lone = path.join(path.dirname(ledger), '..', '..', 'lone', '.claude', 'LEDGER.md');
+  runOn(lone, 'new', '--goal', 'a ledger with one question', '--title', 'Lone ledger', '--short', 'one question', '--date', '2026-11-19');
+  runOn(lone, 'ask', 'which one?', '--title', 'Only question', '--problem', 'two', '--risk', '3/10 — rework',
+    '--choices', 'A = one | B = two', '--recommend', 'A, simple', '--no-picture', 'text only');
+  const loneId = require('crypto').createHash('sha1').update(lone).digest('hex').slice(0, 10);
+  await p.goto(base + '/l/' + loneId);
+  await p.locator('#q-O1 input[name="choice"]').first().check();
+  await p.locator('#q-O1 form.say > .actions > button[type="submit"]:not([name])').first().click();
+  await p.waitForSelector('#q-O1.is-collapsed');
+  await p.waitForFunction(() => document.activeElement && document.activeElement.matches('#q-O1 .next-waiting.is-none'));
+  t('D4: the last answer says "Nothing left waiting on you in this ledger", role status, and has the focus', await p.evaluate(() => {
+    const n = document.activeElement, tag = document.querySelector('#q-O1 .sent .tag'), r = n.getBoundingClientRect();
+    return n.getAttribute('role') === 'status' && n.textContent.trim() === 'Nothing left waiting on you in this ledger' && r.height > 0
+      && !!tag && /not read by the session yet/.test(tag.textContent) && tag.getBoundingClientRect().height > 0;
+  }));
+  // D2: a question held by a deferred piece says what it waits for, not that it is preparing options;
+  // last, because a piece and a question are not taken back
+  run('piece', 'new', '--route', 'sonnet, effort: low', '--title', 'Wait for the API');
+  run('piece', 'P5', '--status', 'deferred', '--until', 'the API ships');
+  run('ask', 'which client?', '--title', 'Client choice', '--problem', 'two clients', '--risk', '3/10 — rework',
+    '--choices', 'A = a | B = b', '--recommend', 'A, fine', '--by', 'P5', '--no-picture', 'text only');
+  await p.goto(base + page);
+  t('D2: a question held by a deferred piece says "Waits for P5, deferred until the API ships"', await p.evaluate(() => {
+    const m = [...document.querySelectorAll('li.is-card .meta')].map(x => x.textContent).find(x => /Waits for P5/.test(x)) || '';
+    return /Not ready to answer\. Waits for P5, deferred until the API ships\. It moves to Waiting on you when P5 is verified\./.test(m)
+      && !/still preparing/.test(m);
+  }));
   await p.goto(base + '/favicon.ico').catch(() => {});
   t('no page error and no failed request', errors.length === 0 || (console.log(errors.join('\n')), false));
   await b.close();
