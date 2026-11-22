@@ -287,14 +287,17 @@ backup path. Without `--confirmed` it prints the ledger's place, name, closed
 time and the row counts per table and exits 2, writing nothing; a live ledger
 or an unknown id is refused. It is irreversible: the purge is no event of any
 ledger, so `undo` and `restore` cannot bring the ledger back; the backup is
-the way back. `vacuum [--dry-run]` compacts the journal file: the journal is first
-copied with the online backup to `journal.db.before-vacuum-YYYYMMDD-HHMMSS`
-beside it (refused if that name exists), the write lock is then taken for an
+the way back. `vacuum [--dry-run]` compacts the journal file: the write lock is first taken for an
 instant with a 5 s busy timeout (refused with `another session is writing the
-journal; try again` when it is not free), and `VACUUM` runs; it prints the
-size before and after and the backup path. `--dry-run` prints `page_count`,
-`freelist_count`, `page_size` and the size, and writes nothing. Like `purge` it
-is no event, and the backup is the way back. `gate-stamp` and `githook` (below, The gate stamp) take a git
+journal; try again` when it is not free, before anything is copied), the journal is
+then copied with the online backup to `journal.db.before-vacuum-YYYYMMDD-HHMMSS`
+beside it (refused if that name exists), `VACUUM` runs and the `-wal` is
+checkpointed (`wal_checkpoint(TRUNCATE)`) so the file itself shrinks. It prints
+the bytes on disk (journal plus `-wal`) and the logical size (`page_count` times
+`page_size`) before and after, and the backup path. `--dry-run` prints
+`page_count`, `freelist_count`, `page_size`, the logical size and the bytes on
+disk, and writes nothing. Like `purge` it is no event, and the backup is the way
+back. `gate-stamp` and `githook` (below, The gate stamp) take a git
 repository's path, not a ledger's. The `self-routed` check fails
 a piece in flight, awaiting no word, routed `peer:` to the ledger's own
 project (the session that holds the ledger): keep it or route it to a

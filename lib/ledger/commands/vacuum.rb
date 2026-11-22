@@ -7,7 +7,8 @@ module Ledger
         # `vacuum [--dry-run]`: the journal's free pages given back to
         # the file. The journal is first copied (Backup) to
         # <journal>.before-vacuum-YYYYMMDD-HHMMSS, then VACUUM runs once
-        # no other session holds the write lock.
+        # no other session holds the write lock (checked first, so a refusal
+        # leaves no backup), and the -wal is checkpointed.
         class Vacuum < CLI::Command
             USAGE = ""
             SYNOPSIS = "[--dry-run]"
@@ -33,23 +34,29 @@ module Ledger
             rescue Backup::Exists => e
                 refuse("#{e.message}; nothing vacuumed")
             rescue Ledger::Vacuum::Busy => e
-                refuse("#{e.message}\nbackup kept: #{e.backup}")
+                refuse(e.message)
             end
 
             def report(sizes)
                 @out.puts "page_count: #{sizes.pages}"
                 @out.puts "freelist_count: #{sizes.free}"
                 @out.puts "page_size: #{sizes.page_size}"
-                @out.puts "size: #{sizes.bytes} bytes, " \
+                @out.puts "logical: #{sizes.bytes} bytes, " \
                           "#{sizes.free_bytes} free"
+                @out.puts "on disk: #{disk(sizes)}"
                 0
             end
 
             def done(path, before, after)
-                @out.puts "size before: #{before.bytes} bytes"
-                @out.puts "size after: #{after.bytes} bytes"
+                @out.puts "before: #{disk(before)}, logical #{before.bytes}"
+                @out.puts "after: #{disk(after)}, logical #{after.bytes}"
                 @out.puts "backup: #{path}"
                 0
+            end
+
+            # "N bytes (journal J + wal W)".
+            def disk(sizes)
+                "#{sizes.disk} bytes (journal #{sizes.file} + wal #{sizes.wal})"
             end
         end
     end

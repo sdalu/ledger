@@ -36,13 +36,20 @@ class VacuumTest < CommandCase
         assert_operator free_pages, :>, 0
         out = ok("vacuum")
         assert_equal 0, free_pages
-        before, now = out.scan(/size (?:before|after): (\d+)/).flatten
+        before, now = out.scan(/^(?:before|after): (\d+) bytes/).flatten
         assert_operator now.to_i, :<, before.to_i
     end
 
     def test_a_vacuum_names_its_backup
         out = ok("vacuum")
         assert_equal "backup: #{backups.first}", out.lines.last.chomp
+    end
+
+    def test_the_size_after_is_the_file_on_disk
+        out = ok("vacuum")
+        journal = File.size(@journal.path)
+        assert_match(/^after: #{journal} bytes \(journal #{journal} \+ wal 0\)/,
+                     out)
     end
 
     def free_pages = Ledger::Vacuum.new(@journal).sizes.free
@@ -63,6 +70,7 @@ class VacuumTest < CommandCase
         assert_includes err, "another session is writing the journal; " \
                              "try again"
         assert_empty out
+        assert_empty backups
     ensure
         other&.close
     end
