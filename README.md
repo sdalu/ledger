@@ -654,7 +654,12 @@ beside the page when the window is at least 64rem wide and in a window
 over it otherwise (Esc or *Close*), and *Open in a new tab*; the page
 does not reload while one is open. A mockup may load its
 own CSS, scripts, images and fonts from the files it was placed with,
-and nothing else. Its pages run in an
+and nothing else. A frame in an opaque origin sends no session cookie,
+so a page signed in to the viewer draws its mockups from
+`/m/k/TOKEN/LID/NAME`: the files reach a frame through a short-lived
+signed path, good for an hour and for that one ledger, which the page's
+relative CSS, scripts and images inherit; a bad or expired key is a 404,
+and the plain `/m/LID/NAME` stays behind sign-in. Its pages run in an
 opaque origin, by a `sandbox` CSP that holds even when one is opened
 on its own, with no fetch, no form and no frame, so a mockup can
 neither read the viewer's token nor post to it.

@@ -17,11 +17,12 @@ module LedgerViewer
             # `tile` is false for what stands loose in the card.
             Part = Data.define(:name, :html, :tile)
 
+            # base: the path the ledger's files are under ("/m/k/TOKEN/LID");
             # files: {name => [{path, type, size}]}; bytes: answers the
             # bytes of a picture of one file, by its name.
-            def initialize(scope, lid, files, bytes)
+            def initialize(scope, base, files, bytes)
                 @scope = scope
-                @lid = lid
+                @base = base
                 @files = files
                 @bytes = bytes
             end
@@ -56,7 +57,7 @@ module LedgerViewer
                 @scope.partial("ledger/mock_missing", name:)
             end
 
-            def url(name) = "/m/#{@lid}/#{Text.quote(target(name))}"
+            def url(name) = "#{@base}/#{Text.quote(target(name))}"
 
             def part(name)
                 return pair(name) if @pairs.key?(name)

@@ -11,10 +11,10 @@ module LedgerViewer
         class Mockups
             # reading: the ledger's Reading; bytes: answers the bytes of
             # the picture of one file a name is.
-            def initialize(scope, lid, reading, bytes)
+            def initialize(scope, base, reading, bytes)
                 @scope = scope
                 @reading = reading
-                @tiles = PieceTiles.new(scope, lid, files(reading), bytes)
+                @tiles = PieceTiles.new(scope, base, files(reading), bytes)
             end
 
             # [the card's part, {item => the tiles for that item}] of a

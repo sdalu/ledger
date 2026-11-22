@@ -59,14 +59,19 @@ class MockupRouteTest < ViewerTest
         assert_includes last_response.headers["Content-Type"], "text/css"
     end
 
+    # The /m/k/TOKEN/LID the page draws its pictures from.
+    def keyed
+        last_response.body[%r{/m/k/[\w.-]+/#{@lid}}] or flunk "no keyed path"
+    end
+
     def test_a_directory_with_an_index_is_drawn_by_it
         sign_in
         https "/l/#{@lid}"
         body = last_response.body
 
-        assert_includes body, %(data-src="/m/#{@lid}/deck/index.html")
-        assert_includes body, %(<iframe src="/m/#{@lid}/deck/index.html")
-        assert_includes body, %(data-src="/m/#{@lid}/pic.svg")
+        assert_includes body, %(data-src="#{keyed}/deck/index.html")
+        assert_includes body, %(<iframe src="#{keyed}/deck/index.html")
+        assert_includes body, %(data-src="#{keyed}/pic.svg")
         refute_includes body, "placed as a directory"
     end
 
@@ -75,22 +80,27 @@ class MockupRouteTest < ViewerTest
         https "/l/#{@lid}"
 
         assert_includes last_response.body,
-                        %(<img src="/m/#{@lid}/sub/b.png")
+                        %(<img src="#{keyed}/sub/b.png")
+    end
+
+    # A row for a second page of the placed directory NAME.
+    def second_page(name)
+        pictures = @journal.db[:pictures]
+        pictures.insert(pictures.where(name:).first.except(:id)
+                                .merge(path: "b.html"))
     end
 
     # A directory of two pages and no index: the command refuses to place
     # one, so the second page is a row an older journal could hold.
     def test_a_directory_of_two_pages_is_flagged_not_drawn
         place("two/a.html" => "<p>a</p>")
-        pictures = @journal.db[:pictures]
-        pictures.insert(pictures.where(name: "two").first.except(:id)
-                                .merge(path: "b.html"))
+        second_page("two")
         sign_in
         https "/l/#{@lid}"
 
         assert_includes last_response.body,
                         "mockup two: placed as a directory, not drawn here"
-        refute_includes last_response.body, "/m/#{@lid}/two/"
+        refute_includes last_response.body, "#{keyed}/two/"
     end
 
     def test_nothing_but_a_picture_of_the_ledger_is_served

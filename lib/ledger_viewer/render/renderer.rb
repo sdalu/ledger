@@ -22,7 +22,7 @@ module LedgerViewer
                 scope = Scope.new(views)
                 page = Page.new(views, scope, config.stylesheet, config.script)
                 @index = Index.new(views, scope, page)
-                @ledger = LedgerPage.new(scope, page, ledgers)
+                @ledger = LedgerPage.new(scope, page, ledgers, config)
                 @page = page
                 @ledgers = ledgers
                 @views = views

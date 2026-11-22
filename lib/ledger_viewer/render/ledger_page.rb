@@ -33,11 +33,13 @@ module LedgerViewer
             NOTE = "A note to the session working on this ledger"
             REST = "</div></div>"
 
-            # ledgers: where a picture's bytes are read.
-            def initialize(scope, page, ledgers)
+            # ledgers: where a picture's bytes are read; config: whose
+            # session secret signs the keys to a ledger's pictures.
+            def initialize(scope, page, ledgers, config)
                 @scope = scope
                 @page = page
                 @ledgers = ledgers
+                @secret = config.session_secret
             end
 
             # The page of the ledger `entry`, its document `data`.
@@ -100,8 +102,15 @@ module LedgerViewer
                         raid: Raid.new(scope, reading),
                         **forms(scope, lid, token, reading, cases),
                         refs: Refs.new(scope), blocks: Blocks.new(scope),
-                        mockups: Mockups.new(scope, lid, reading,
+                        mockups: Mockups.new(scope, files_path(lid), reading,
                                              bytes(entry)))
+            end
+
+            # Where the page's pictures are fetched from: under a key good
+            # for this ledger and an hour, which a frame without a session
+            # needs. A page swapped in later carries a fresh one.
+            def files_path(lid)
+                "/m/k/#{MockupToken.issue(@secret, lid)}/#{lid}"
             end
 
             # The builders of the page's forms: answers, words, pictures.

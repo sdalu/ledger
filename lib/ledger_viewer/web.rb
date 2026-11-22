@@ -18,7 +18,7 @@ module LedgerViewer
         PUBLIC = %w[/health /sign-in /invite /viewer.css].freeze
 
         register Sesam::Sinatra
-        register Sends, WakerSwitch
+        register Sends, WakerSwitch, MockupFiles
 
         set :root, File.expand_path("../..", __dir__)
         set :erb, escape_html: true
@@ -54,6 +54,7 @@ module LedgerViewer
         before do
             same_site!
             next if PUBLIC.include?(request.path_info) || sesam_open?
+            next if keyed_mockup!
 
             redirect to("/sign-in", false) if page? && signed_out?
             admit!
@@ -85,19 +86,6 @@ module LedgerViewer
             settings.renderer.links(entry, id)
         rescue LinksGraph::Error
             not_found
-        end
-
-        # A ledger's pictures, from the journal: /m/ID/NAME for a picture
-        # of one file, /m/ID/NAME/PATH for a file of one placed as a
-        # directory. A NAME may hold a slash: the longest that leads the
-        # rest is the one.
-        get %r{/m/([0-9a-f]{10})/(.+)} do |lid, rest|
-            entry = settings.ledgers.find(lid) or not_found
-            row = settings.ledgers.picture_at(entry, unquoted(rest)) or
-                not_found
-            headers Headers::MOCKUP
-            content_type row[:type]
-            row[:bytes].to_s
         end
 
         not_found { erb :not_found }
