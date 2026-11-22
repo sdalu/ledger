@@ -211,6 +211,13 @@ t('the status pill is as tall as the id chip beside it', await p.evaluate(() => 
     return gaps.length > 1 && gaps.every(g => g >= 12);
   }));
 
+  // a card ending with its word or answer form keeps as much room under the panel as beside it
+  const feetGaps = await p.evaluate(() => [...document.querySelectorAll('.entries > li.is-card')]
+    .filter(li => li.lastElementChild?.matches('form.say') && li.lastElementChild.checkVisibility())
+    .map(li => { const r = li.getBoundingClientRect(), f = li.lastElementChild.getBoundingClientRect();
+      return Math.abs((r.bottom - f.bottom) - (f.left - r.left)); }));
+  t(`a card's word or answer panel sits as far from the card's foot as from its sides (largest difference ${Math.max(0, ...feetGaps).toFixed(1)} px over ${feetGaps.length})`,
+    feetGaps.length > 0 && feetGaps.every(d => d <= 1.5));
   // a choice's comment at its tile's foot, level across the row
   const feet = await p.evaluate(() => [...document.querySelectorAll('#q-O1 .choice')].map(c =>
     Math.round(c.getBoundingClientRect().bottom - c.querySelector(':scope > details').getBoundingClientRect().bottom)));

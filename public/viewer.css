@@ -536,8 +536,10 @@
       & > .card-head + .facets { margin-block-start: var(--space-xs); padding-block-start: 0; border-block-start: 0; }
       /* nor does the RAID line need its own rule under the head */
       & > .card-head + .raid { margin-block-start: var(--space-xs); padding-block-start: 0; border-block-start: 0; }
-      /* a closed fold ending the card already has its 44 px target's room under its label */
-      &:has(> :last-child > details:last-child:not([open])) { padding-block-end: 0; }
+      /* a closed fold ending the card already has its 44 px target's room
+         under its label; not one inside the word or answer form, whose
+         panel keeps the card's padding under it */
+      &:has(> :last-child:not(form.say) > details:last-child:not([open])) { padding-block-end: 0; }
       & > .covers {
         margin-block-start: var(--space-s);
         font-size: var(--text-s);
