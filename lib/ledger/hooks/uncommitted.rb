@@ -11,13 +11,14 @@ module Ledger
     module Hooks
         # Stop: the files the session edited (edit-record) that a git
         # repository still shows as changed, in a repository whose
-        # project has a live ledger with no piece awaiting commit and no
-        # piece out, are named back to the session once per distinct set
-        # of files. A plain dirty-tree test would name other sessions'
-        # work in a shared tree; the record keeps it to this session's
-        # own files. A repository with no live ledger is never named, and
-        # a session with no record passes. On the retry
-        # (stop_hook_active) the stop goes through.
+        # project has a live ledger with no piece awaiting commit, none
+        # out and none marked `--no-commit`, are named back to the
+        # session once per distinct set of files. A plain dirty-tree
+        # test would name other sessions' work in a shared tree; the
+        # record keeps it to this session's own files. A repository
+        # with no live ledger is never named, and a session with no
+        # record passes. On the retry (stop_hook_active) the stop goes
+        # through.
         module Uncommitted
             STEPS = "files you edited are uncommitted and no piece awaits " \
                     "commit: %<paths>s; file one with --awaits commit " \
@@ -50,7 +51,7 @@ module Ledger
             end
 
             # The top directories of the repositories whose every live
-            # ledger has no piece awaiting commit and none out.
+            # ledger has no piece awaiting commit, none out and none no-commit.
             def due_repositories(found)
                 by_top = found.group_by { top(project(it.address)) }
                 by_top.delete(nil)
@@ -70,7 +71,7 @@ module Ledger
             end
 
             def out_or_awaiting?(derive, piece)
-                piece[:status] == "out" ||
+                piece[:status] == "out" || piece[:no_commit] ||
                     derive.awaits(piece).any? { |word, _| word == "commit" }
             end
 

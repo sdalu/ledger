@@ -10,7 +10,7 @@ module Ledger
         # `piece PATH new|P<n> [--status --route --title --what --done-when
         # --evidence --after --for --problem --risk --plan --scope --awaits
         # --verified-by --session --by --cause --until --no-picture
-        # --picture-pending --picture-holds]`:
+        # --picture-pending --picture-holds --no-commit]`:
         # add a piece or change one; `--status deferred --until
         # CONDITION` defers it; `--by X<n>` writes the decision's
         # led_to edge to it, `--status out` claims it for the session
@@ -19,8 +19,9 @@ module Ledger
         # before/after, `--picture-pending WHY` that its picture is being
         # redrawn (the next `mockup --piece` clears it, as does ''),
         # `--picture-holds WHY` that the picture still shows it after a
-        # change, as of this write; `--announce FILE` records a
-        # dispatch's ANNOUNCE block (PieceAnnounce).
+        # change, as of this write, `--no-commit WHY` that its work is
+        # deliberately left uncommitted ('' clears it); `--announce FILE`
+        # records a dispatch's ANNOUNCE block (PieceAnnounce).
         class Piece < CLI::Command
             USAGE = "PATH TARGET"
             SYNOPSIS = "PATH new|P<n> [--FIELD VALUE...]"
@@ -66,6 +67,7 @@ module Ledger
                 end
                 no_picture_flag(parser)
                 announce_flag(parser)
+                no_commit_flag(parser)
                 parser.on("--claim", "take over an out piece's claim for " \
                                      "this session; the status stays") do
                     @opts["claim"] = true
@@ -79,6 +81,16 @@ module Ledger
                 parser.on("--no-picture", "=WHY", String,
                           "why the piece needs no before/after") do |why|
                     @opts["no-picture"] = why
+                end
+            end
+
+            # Spelled "--no-commit WHY", for the reason --no-picture is.
+            def no_commit_flag(parser)
+                # The pattern, not String: String refuses the empty WHY.
+                parser.on("--no-commit", "=WHY", /\A.*\z/m,
+                          "why the piece's work stays uncommitted; " \
+                          "'' clears it") do |why|
+                    @opts["no-commit"] = why
                 end
             end
 
@@ -391,7 +403,8 @@ module Ledger
                       "problem" => :problem, "risk" => :risk,
                       "plan" => :plan, "verified-by" => :verified_by,
                       "picture-pending" => :picture_pending,
-                      "picture-holds" => :picture_holds }.freeze
+                      "picture-holds" => :picture_holds,
+                      "no-commit" => :no_commit }.freeze
             ROUTE = "--route (`sonnet, effort: medium[, skills: c]` or " \
                     "`peer: SESSION`) or --status 'kept: REASON'"
 

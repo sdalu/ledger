@@ -152,7 +152,7 @@ Every item has a writer, and no ledger is edited by hand. `piece
 PATH new|P<n>` adds a piece with the next free id or changes one
 (`--title`, `--what` for the detail, `--status`, `--route`,
 `--done-when`, `--evidence`, `--after`, `--for`, `--by`, `--verified-by`,
-`--cause`, `--no-picture WHY`, `--picture-pending WHY`, `--picture-holds WHY`, `--announce FILE`; an empty value clears a link); a piece not done that
+`--cause`, `--no-picture WHY`, `--picture-pending WHY`, `--picture-holds WHY`, `--no-commit WHY`, `--announce FILE`; an empty value clears a link); a piece not done that
 waits on an event to come, not on the user, is `--status deferred
 --until CONDITION`, the event kept on its line (`— until: three
 closures`) and in the viewer's remains until another status clears
@@ -324,8 +324,8 @@ also what the waker needs, registered by the user (The waker, below).
   It answers nothing; the standard library alone, no bundle.
 - **uncommitted** (Stop): the recorded files a git repository still
   shows as changed (`git status --porcelain -- PATH`), in a repository
-  whose project has a live ledger where no piece awaits commit and none
-  is out, are sent back once as `files you edited are uncommitted and no
+  whose project has a live ledger where no piece awaits commit, none
+  is out and none carries `--no-commit WHY` (deliberate scratch work), are sent back once as `files you edited are uncommitted and no
   piece awaits commit: PATHS; file one with --awaits commit ...`. Once
   per distinct set of files (its digest is kept in `edits/SESSION_ID.sent`),
   and the retry (`stop_hook_active`) goes through. Without a record or a

@@ -1,54 +1,11 @@
 # frozen_string_literal: true
 
-require_relative "helper"
+require_relative "uncommitted_repo"
 
 # uncommitted: a Stop names the files a session edited that a scratch git
 # repository still shows as changed, once per set.
 class UncommittedTest < HookTest
-    SESSION = "s-1234"
-
-    def setup
-        super
-        make_repo
-        @address = File.join(@repo, "LEDGER.md")
-        @journal.create_ledger(@address, project: "repo")
-    end
-
-    def make_repo
-        @repo = File.realpath(Dir.mktmpdir("ledger-repo", @dir))
-        git("init", "-q")
-        git("config", "user.email", "t@example.invalid")
-        git("config", "user.name", "T")
-        @file = File.join(@repo, "a.txt")
-        File.write(@file, "one\n")
-        git("add", "a.txt")
-        git("commit", "-q", "-m", "first")
-    end
-
-    def git(*) = system("git", "-C", @repo, *, exception: true)
-
-    def edit(path)
-        hook("edit-record", session_id: SESSION, tool_name: "Edit",
-                            tool_input: { file_path: path })
-    end
-
-    def stop(**) = hook("uncommitted", cwd: @repo, session_id: SESSION, **)
-
-    def dirty!
-        File.write(@file, "two\n")
-        edit(@file)
-    end
-
-    # A piece of the repository's ledger, with the words it awaits.
-    def piece_in(status: "planned", awaits: [])
-        Ledger::Write.run(@journal, @address, "import", []) do |change|
-            id = piece(change, status:)
-            awaits.each_with_index do |word, position|
-                change.insert(:piece_awaits, piece_id: id, position:, word:,
-                                             what: nil)
-            end
-        end
-    end
+    include UncommittedRepo
 
     def test_a_changed_file_is_named_once_for_a_set
         dirty!
@@ -111,26 +68,5 @@ class UncommittedTest < HookTest
         File.write(@file, "two\n")
 
         assert_equal Ledger::Hooks::Answer.pass, stop
-    end
-
-    def test_a_piece_awaiting_commit_is_quiet
-        dirty!
-        piece_in(awaits: %w[commit])
-
-        assert_equal Ledger::Hooks::Answer.pass, stop
-    end
-
-    def test_a_piece_out_is_quiet
-        dirty!
-        piece_in(status: "out")
-
-        assert_equal Ledger::Hooks::Answer.pass, stop
-    end
-
-    def test_a_piece_awaiting_another_word_still_sends_the_stop
-        dirty!
-        piece_in(awaits: %w[deploy])
-
-        assert_equal 2, stop.status
     end
 end
