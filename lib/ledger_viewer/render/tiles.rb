@@ -10,7 +10,8 @@ module LedgerViewer
         # lightbox, a before/after pair as one, a short text figure
         # drawn in the card itself. Used by Mockups. A picture placed as a
         # directory is drawn by the file Ledger::Pictures.pick names, its
-        # other files served under it; one that picks none is flagged.
+        # other files served under it; one that picks none, or that was
+        # pruned, is flagged.
         class Tiles
             include TextTiles
 
@@ -46,15 +47,21 @@ module LedgerViewer
 
             # The file a name is drawn by, or nil for a directory that
             # picks none.
-            def single(name) = Folder.drawn(@files.fetch(name))
+            def single(name)
+                files = @files[name]
+                Folder.drawn(files) if files
+            end
 
             # The path a name is served by: the name, or its picked file.
             def target(name) = Folder.target(name, single(name))
 
             def kind(name) = Folder.kind(target(name))
 
+            # The flag of a name drawn by nothing: a directory that picks
+            # no file, or a picture pruned from the journal.
             def absent(name)
-                @scope.partial("ledger/mock_missing", name:)
+                partial = @files.key?(name) ? "mock_missing" : "mock_pruned"
+                @scope.partial("ledger/#{partial}", name:)
             end
 
             def url(name) = "#{@base}/#{Text.quote(target(name))}"

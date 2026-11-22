@@ -12,6 +12,9 @@ module LedgerViewer
             # as one tile under LABEL.
             def roles(names, label)
                 before, after = names.values_at("before", "after")
+                gone = [before, after].compact.reject { @files.key?(it) }
+                return Part.new(label, gone.map { absent(it) }.join, false) if
+                    gone.any?
                 return sides(before, after, label) if before && after
 
                 name = before || after
