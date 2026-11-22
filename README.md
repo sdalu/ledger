@@ -152,7 +152,7 @@ Every item has a writer, and no ledger is edited by hand. `piece
 PATH new|P<n>` adds a piece with the next free id or changes one
 (`--title`, `--what` for the detail, `--status`, `--route`,
 `--done-when`, `--evidence`, `--after`, `--for`, `--by`, `--verified-by`,
-`--cause`, `--no-picture WHY`, `--picture-pending WHY`, `--picture-holds WHY`, `--no-commit WHY`, `--announce FILE`; an empty value clears a link); a piece not done that
+`--cause`, `--no-picture WHY`, `--picture-pending WHY`, `--picture-holds WHY`, `--no-commit WHY`, `--announce FILE`, `--status back --handback`; an empty value clears a link); a piece not done that
 waits on an event to come, not on the user, is `--status deferred
 --until CONDITION`, the event kept on its line (`— until: three
 closures`) and in the viewer's remains until another status clears
@@ -250,7 +250,13 @@ ANNOUNCE line or one of WHAT, WHY, WHICH, RISK, MODE is refused, exit
 2, the reason a sentence on the last line. The piece's line gains
 `— dispatched: 2× (last: sonnet, medium, stakes low, risk 2/10)`,
 `show PATH P<n>` lists each one with its time, and `undo` takes one
-back like any write. `undo PATH` puts back the last event that changed the
+back like any write. When the delegate hands back, the same hook runs
+`piece PATH P<n> --status back --handback`: a piece out goes back and
+the one line `hand-back recorded on PATH P<n>` is printed; a piece in
+any other status stays as it is, `P<n> is verified; the hand-back
+changes nothing`, exit 0, so the ledger shows back, never further,
+until the orchestrator verifies it; `--handback` with another status
+or another flag is refused, exit 2. `undo PATH` puts back the last event that changed the
 ledger's items, in an event of its own, one level, refused once a row
 changed since; the inbox's takes are never undone. `restore PATH --to
 E<n>` puts back every item-changing event after `E<n>`; without `--to`

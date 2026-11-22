@@ -2,6 +2,7 @@
 
 require "ledger/commands/piece_announce"
 require "ledger/commands/piece_flags"
+require "ledger/commands/piece_handback"
 require "ledger/text/awaits"
 require "ledger/text/risk"
 require "ledger/text/title"
@@ -22,9 +23,11 @@ module Ledger
         # `--picture-holds WHY` that the picture still shows it after a
         # change, as of this write, `--no-commit WHY` that its work is
         # deliberately left uncommitted ('' clears it); `--announce FILE`
-        # records a dispatch's ANNOUNCE block (PieceAnnounce).
+        # records a dispatch's ANNOUNCE block (PieceAnnounce), `--status
+        # back --handback` a delegate's hand-back (PieceHandback).
         class Piece < CLI::Command
             include PieceFlags
+            include PieceHandback
 
             USAGE = "PATH TARGET"
             SYNOPSIS = "PATH new|P<n> [--FIELD VALUE...]"
@@ -73,6 +76,7 @@ module Ledger
             end
 
             def run(path, target)
+                return handback(path, target) if @opts.key?("handback")
                 return announce(path, target) if @opts.key?("announce")
 
                 refuse("the target is `new` or P<n>") unless

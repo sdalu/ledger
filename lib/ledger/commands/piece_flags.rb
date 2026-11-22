@@ -10,6 +10,7 @@ module Ledger
             def special_flags(parser)
                 no_picture_flag(parser)
                 announce_flag(parser)
+                handback_flag(parser)
                 no_commit_flag(parser)
                 parser.on("--claim", "take over an out piece's claim for " \
                                      "this session; the status stays") do
@@ -33,6 +34,14 @@ module Ledger
                           "why the piece's work stays uncommitted; " \
                           "'' clears it") do |why|
                     @opts["no-commit"] = why
+                end
+            end
+
+            def handback_flag(parser)
+                parser.on("--handback", "with --status back alone: a " \
+                                        "delegate's hand-back; a piece out " \
+                                        "goes back, any other stays") do
+                    @opts["handback"] = true
                 end
             end
 
