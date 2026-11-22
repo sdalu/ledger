@@ -328,6 +328,12 @@ also what the waker needs, registered by the user (The waker, below).
   whatever it did.
 - **inbox** (Stop): pending viewer entries refuse the stop once,
   verbatim, with the filing steps.
+- **status-stop** (Stop): when the session's ledger has a piece out or
+  back and its status line differs from the last one this hook showed for
+  the session (kept in `status/SESSION_ID` beside the journal file), the
+  line is printed as the hook's `systemMessage`, the text `check --peek`
+  gives. It never blocks: exit 0, nothing when unchanged or without a
+  ledger.
 - **edit-record** (PostToolUse, Edit|Write|NotebookEdit): appends the
   absolute path the tool edited to `edits/SESSION_ID` beside the journal
   file (`LEDGER_JOURNAL` moves it), one path per line, no duplicates.
@@ -968,7 +974,7 @@ Read only:
 
 - The `journal-write` and `heartbeat` hooks read no file, only the
   command and the output in the hook payload.
-- `brief-constraints`, `brief-piece`, `finish`, `inbox` and `session-start` open the
+- `brief-constraints`, `brief-piece`, `finish`, `inbox`, `status-stop` and `session-start` open the
   journal read-only (a missing file means no ledgers, and the hook
   passes) and read the live ledgers whose address is directly under the
   session's directory, its `.claude/` or its scratch directory, and
