@@ -14,10 +14,10 @@
 # without them it says what it skips and exits 0. $ONLY=chrome or
 # firefox runs one; $KEYS=1 runs only the key-renewal check, on a viewer
 # whose mockup keys live KEYS_TTL seconds; $PANE=1 runs only the pane
-# separator check, on the fixture's ledger; $LAN=1 runs without signing in,
-# 127.0.0.1 being in the viewer's lan setting, where the default signs a
-# user in. Run from the
-# checkout:
+# separator check, on the fixture's ledger; $CHECK=comment,groups runs
+# only the named own-ledger checks (the tags of Checks::OWN); $LAN=1
+# runs without signing in, 127.0.0.1 being in the viewer's lan setting,
+# where the default signs a user in. Run from the checkout:
 #   bundle exec ruby test/browser_run.rb
 
 require "digest"
@@ -195,6 +195,7 @@ module BrowserRun
         KEYS = File.join(__dir__, "browser", "keys.cjs")
         PANE = File.join(__dir__, "browser", "pane.cjs")
         BUILDS = File.join(__dir__, "browser", "builds.cjs")
+        COMMENT = File.join(__dir__, "browser", "comment_only.cjs")
         # [tag, fixture, script] of the checks that each run on a ledger
         # of their own, once per browser, after the shared checks, which
         # read the index's first queue entry and must not meet them; the
@@ -203,6 +204,7 @@ module BrowserRun
         OWN = [["long", LongFixture, LONG], ["groups", GroupsFixture, GROUPS],
                ["choices", ChoicesFixture, CHOICES],
                ["loop", LoopFixture, LOOP],
+               ["comment", ChoicesFixture, COMMENT],
                ["risk", RiskFixture, RISK],
                ["builds", BuildsFixture, BUILDS]].freeze
 
@@ -214,6 +216,7 @@ module BrowserRun
         def call(sandbox, cookie)
             return keys_pass?(sandbox, cookie) if ENV["KEYS"]
             return pane_pass?(sandbox, cookie) if ENV["PANE"]
+            return chosen_pass?(sandbox, cookie) if ENV["CHECK"]
 
             shared = @browsers.map do |name, exe|
                 check(sandbox, cookie, name, exe)
@@ -245,6 +248,18 @@ module BrowserRun
                 system(env(sandbox, cookie), "node", PANE, sandbox.base,
                        sandbox.ledger, name)
             end.all?
+        end
+
+        # The own-ledger checks named by CHECK (tags, comma-separated)
+        # alone; a tag that names none is an error, not a silent pass.
+        def chosen_pass?(sandbox, cookie)
+            tags = ENV.fetch("CHECK").split(",")
+            unknown = tags - OWN.map(&:first)
+            abort "CHECK names no check: #{unknown.join(", ")}" unless
+                unknown.empty?
+
+            OWN.select { tags.include?(it.first) }
+               .map { own_passes?(sandbox, cookie, *it) }.all?
         end
 
         # One script's check, once per browser, on a ledger of its own

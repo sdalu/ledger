@@ -184,6 +184,17 @@
       form.addEventListener('reset', () => setTimeout(mark));
       mark();
     }
+    // Send comment only shows once the overall comment holds text
+    for (const form of root.querySelectorAll('form.say')) {
+      const ta = form.querySelector('.overall textarea');
+      const only = form.querySelector('button.a-comment-only');
+      if (!ta || !only) continue;
+      const mark = () => { only.hidden = ta.value.trim() === ''; };
+      ta.addEventListener('input', mark);
+      ta.addEventListener('change', mark);
+      form.addEventListener('reset', () => setTimeout(mark));
+      mark();
+    }
     // Cancel on a request closes its fold and gives the focus back to the
     // trash that opened it; without script the trash closes it as well
     for (const b of root.querySelectorAll('button.a-cancel')) {
@@ -963,6 +974,8 @@
       const kind = trayKind(f, e.submitter);
       if (kind) { e.preventDefault(); toTray(f, e.submitter, kind); return; }
     }
+    // Send comment only: the overall comment goes as a comment on the question
+    const comment = !!(e.submitter && e.submitter.classList.contains('a-comment-only'));
     const card = f.closest('li.is-card[id]');
     if (!card || !/^[qp]-/.test(card.id) || !/\/say$/.test(new URL(f.action).pathname)) return;
     e.preventDefault();
@@ -999,7 +1012,11 @@
       sending = false;
       release();
       f.dataset.plain = '1';
+      // the comment-only button posts as a comment for the server's own page
+      const mark = comment && document.createElement('input');
+      if (mark) { mark.type = 'hidden'; mark.name = 'comment'; mark.value = '1'; f.append(mark); }
       f.requestSubmit(e.submitter);
+      if (mark) mark.remove();
     };
     // a send that got no answer may have landed: the form is not posted
     // again by itself, the card says so and offers a Check against the
@@ -1054,6 +1071,7 @@
     let doc = null, r = null;
     try {
       const body = new URLSearchParams(new FormData(f, e.submitter));
+      if (comment) body.set('comment', '1');
       hold();
       r = await fetch(f.action, {
         method: 'POST',
@@ -1069,11 +1087,17 @@
       for (const [g, ref] of formsIn(card)) {
         if (g === f) try { sessionStorage.removeItem('draft:' + lid + ':' + ref); } catch (err) {}
       }
-      f.reset();
+      // a comment only empties the overall comment: the pick and the
+      // option comments stay, and the draft of what remains is kept again
+      if (comment) {
+        const box = f.querySelector('.overall textarea');
+        if (box) { box.value = ''; box.defaultValue = ''; box.dispatchEvent(new Event('input', {bubbles: true})); }
+        keepDrafts();
+      } else f.reset();
       // a question asked about a card, or a picture asked of it, leaves it
       // answerable: only that part is drawn again, so an answer being
       // written on the card stays
-      const ask = f.closest('.ask-about, .picture-ask');
+      const ask = comment ? card.querySelector('.ask-about') : f.closest('.ask-about, .picture-ask');
       if (ask) {
         const which = ask.matches('.ask-about') ? '.ask-about' : '.picture-ask';
         const part = doc.getElementById(card.id)?.querySelector(which);

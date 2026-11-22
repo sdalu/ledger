@@ -65,4 +65,22 @@ class QuestionCommentTest < ViewerTest
                      shown)
         refute_includes shown, "Change your answer"
     end
+
+    def test_the_answer_form_offers_a_hidden_comment_only_button
+        sign_in
+        shown = card
+
+        assert_match(/class="a-comment-only" formnovalidate hidden>.*?Send/m,
+                     shown)
+    end
+
+    def test_a_comment_sent_with_a_pick_files_the_comment_alone
+        sign_in
+        say([%w[ref O1], %w[comment 1], ["choice", "A = one"],
+             ["text", "why not B?"]])
+
+        assert_equal({ "id" => "N1", "ref" => "O1", "comment" => true,
+                       "text" => "why not B?" }, entries.first.except("at"))
+        assert_equal 1, entries.length
+    end
 end

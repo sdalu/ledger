@@ -44,7 +44,8 @@ module LedgerViewer
                     "ledger/say",
                     { lid: @lid, token: @token, ref: spec.ref.to_s,
                       replaces: spec.replaces.join(", "), middle:, box:,
-                      built: spec.built, starts: spec.starts, submit:, after: }
+                      built: spec.built, starts: spec.starts, submit:,
+                      only: only?, after: }
                 )
             end
 
@@ -53,6 +54,11 @@ module LedgerViewer
             def choices? = !@spec.choices.empty?
 
             def folded? = choices? || !@spec.order.empty?
+
+            # The button that sends the overall comment alone, as a
+            # comment on the question: only a question with choices has a
+            # comment that is not its answer's text.
+            def only? = choices? && Terms.kind(@spec.ref) == "answer"
 
             def middle
                 spec = @spec
