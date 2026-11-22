@@ -420,7 +420,13 @@ t('A2: the status pill\'s summary is at least 24 px', await p.evaluate(() => {
   run('ask', 'how long?', '--title', 'Age check', '--problem', 'a wait', '--risk', '1/10 — none',
       '--choices', 'A = yes | B = no', '--recommend', 'A, simple', '--no-picture', 'a choice of words');
   rewinder('age', '295');
-  await p.goto(base + page);
+  // the write above can set the open page reloading by itself: a load it
+  // aborts is taken again once, any other failure stands
+  await p.goto(base + page).catch(async e => {
+    if (!/NS_BINDING_ABORTED|ERR_ABORTED/.test(e.message)) throw e;
+    await p.waitForLoadState('load').catch(() => {});
+    await p.goto(base + page);
+  });
   await p.waitForTimeout(1500);
   const ageWas = await p.evaluate(() => {
     const c = document.querySelector('section.waiting li[id^="q-"]:has([data-age]):not(:has(a[href*="/m/k/"]))');
