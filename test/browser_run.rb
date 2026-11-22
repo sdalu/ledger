@@ -196,6 +196,7 @@ module BrowserRun
         PANE = File.join(__dir__, "browser", "pane.cjs")
         BUILDS = File.join(__dir__, "browser", "builds.cjs")
         COMMENT = File.join(__dir__, "browser", "comment_only.cjs")
+        SHOWN = File.join(__dir__, "browser", "groups_shown.cjs")
         # [tag, fixture, script] of the checks that each run on a ledger
         # of their own, once per browser, after the shared checks, which
         # read the index's first queue entry and must not meet them; the
@@ -205,6 +206,7 @@ module BrowserRun
                ["choices", ChoicesFixture, CHOICES],
                ["loop", LoopFixture, LOOP],
                ["comment", ChoicesFixture, COMMENT],
+               ["shown", GroupsFixture, SHOWN],
                ["risk", RiskFixture, RISK],
                ["builds", BuildsFixture, BUILDS]].freeze
 

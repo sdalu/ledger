@@ -40,7 +40,7 @@ const [url, which] = process.argv.slice(2);
   t('a word on one card redraws its group form, not the other, without a reload',
     after.noReload && after.refs.join('|') === 'P2 P3|P4 P5 P6' && /^Commit \+ Merge all 2$/.test(after.button) && after.marked === 'b',
     JSON.stringify(after));
-  // a group's chip: its tooltip on hover tells the piece, a click goes to its card, even one the risk filter hides
+  // a group's chip: its tooltip on hover tells the piece, a click goes to its card
   const chip = p.locator('form.give-all').nth(1).locator('.give-all-refs a.id-link').first();
   await chip.hover();
   await p.waitForTimeout(300);
@@ -50,14 +50,9 @@ const [url, which] = process.argv.slice(2);
     return !!tip && tip.matches('.tip') && tip.checkVisibility() && /^fix the /.test(tip.textContent) && /plan: /.test(tip.textContent);
   });
   t('hovering a group chip shows the piece\'s title and plan', tipShown);
-  await p.evaluate(() => {
-    const show = document.querySelector('.waiting-view input[name="view-show"][value="7"]');
-    if (show) { show.checked = true; show.dispatchEvent(new Event('change', {bubbles: true})); }
-  });
-  const hiddenFirst = await p.evaluate(() => document.getElementById('p-P4')?.hidden === true);
   await chip.click();
   await p.waitForTimeout(800);
-  t('a click on a group chip lands on its card, shown even when the risk filter hid it', hiddenFirst && await p.evaluate(() => {
+  t('a click on a group chip lands on its card', await p.evaluate(() => {
     const li = document.getElementById('p-P4'), r = li.getBoundingClientRect();
     return location.hash === '#p-P4' && !li.hidden && r.top < innerHeight && r.bottom > 0;
   }));

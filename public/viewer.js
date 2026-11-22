@@ -531,12 +531,17 @@
   // waits; the index is a queue to glance at and reloads quietly unless a
   // draft or pane holds it
   const fallback = () => { if (ledgerPage || dirty()) stale(); else location.reload(); };
+  // a group form as the server drew it, kept while the risk filter rewrites
+  // the live one from its shown cards: the form's key, and what a page
+  // fetched is compared with, stay the server's
+  const groupSrc = new WeakMap();
+  const sentGroup = f => groupSrc.get(f) || f;
   // the parts of a page drawn again one at a time when the ledger changes
   // elsewhere, each under a key naming it in the page shown and the page
   // fetched; the rest of the page must be as the server last sent it
   const PARTS = {
     ledger: [['header.ledger-head', () => 'head'], ['nav.question-nav', () => 'nav'],
-             ['h2[id] > .count', e => 'count:' + e.parentElement.id], ['section.waiting form.give-all', e => 'give-all:' + e.querySelector('[name=refs]').value],
+             ['h2[id] > .count', e => 'count:' + e.parentElement.id], ['section.waiting form.give-all', e => 'give-all:' + sentGroup(e).querySelector('[name=refs]').value],
              ['[data-key]', e => e.dataset.key], ['details.done-fold[id]', e => e.id], ['li[id]', e => e.id]],
     index: [['p.queue-summary', () => 'summary'], ['[data-key]', e => e.dataset.key]],
   }[document.body.dataset.page];
@@ -939,7 +944,7 @@
     const bars = [...document.querySelectorAll(giveAll)], fresh = [...doc.querySelectorAll(giveAll)];
     // compared as the parts are, tooltip numbers aside: a form above
     // gaining or losing a chip renumbers the tips of those below
-    const shown = new Map(bars.map(f => [norm(f.outerHTML), f]));
+    const shown = new Map(bars.map(f => [norm(sentGroup(f).outerHTML), f]));
     const kept = fresh.map(f => shown.get(norm(f.outerHTML)));
     for (const f of bars) if (!kept.includes(f)) f.remove();
     let at = document.querySelector('section.waiting > h2');
@@ -1634,6 +1639,32 @@
     const text = count + ' hidden by the risk filter';
     if (said.textContent !== text) said.textContent = text;
   };
+  // a group form names, counts and sends only the pieces whose cards are
+  // shown: drawn from the server's form each time, and hidden when fewer
+  // than two pieces are left
+  const fitGroup = f => {
+    if (!groupSrc.has(f)) groupSrc.set(f, f.cloneNode(true));
+    const next = groupSrc.get(f).cloneNode(true);
+    const refs = next.querySelector('[name=refs]');
+    const ids = refs.value.split(' ');
+    const shown = ids.filter(id => !document.getElementById('p-' + id)?.hidden);
+    refs.setAttribute('value', shown.join(' '));
+    const said = next.querySelector('p');
+    said.firstChild.nodeValue = said.firstChild.nodeValue.replace(/\d+/, shown.length);
+    const labelled = [...next.querySelector('button').childNodes].filter(n => n.nodeType === 3).pop();
+    labelled.nodeValue = labelled.nodeValue.replace(/\d+$/, shown.length);
+    for (const a of next.querySelectorAll('.give-all-refs a.id-link')) {
+      if (shown.includes(a.getAttribute('href').slice(3))) continue;
+      const tip = a.nextElementSibling;
+      const gap = (tip?.matches('.tip') ? tip : a).nextSibling;
+      if (tip?.matches('.tip')) tip.remove();
+      if (gap?.nodeType === 3) gap.remove();
+      a.remove();
+    }
+    if (next.innerHTML !== f.innerHTML) f.replaceChildren(...next.childNodes);
+    const off = shown.length < 2;
+    if (f.hidden !== off) f.hidden = off;
+  };
   // a list holding focus is left as it is, and sorted when focus leaves it
   let unsorted = false;
   const arrange = () => {
@@ -1661,6 +1692,7 @@
     }
     const section = document.querySelector('section.waiting');
     if (section && viewLists().length) hiddenSaid(section, hidden);
+    for (const f of document.querySelectorAll(giveAll)) fitGroup(f);
   };
   const choose = () => { local.set(VIEW_KEY, JSON.stringify(view)); arrange(); };
   document.addEventListener('change', e => {
@@ -1688,7 +1720,7 @@
   if (ledgerPage) {
     new MutationObserver(records => {
       const parts = r => [...r.addedNodes, ...r.removedNodes].some(n => n.nodeType === 1);
-      if (records.some(r => parts(r) && !r.target.closest?.('.view-status'))) arrange();
+      if (records.some(r => parts(r) && !r.target.closest?.('.view-status, form.give-all'))) arrange();
     }).observe(document.querySelector('main'), {childList: true, subtree: true});
     arrange();
   }

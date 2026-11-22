@@ -1767,6 +1767,7 @@
 
   /* one word for every waiting piece, above their cards */
   .give-all {
+    &[hidden] { display: none; }
     display: flex;
     flex-wrap: wrap;
     align-items: center;
