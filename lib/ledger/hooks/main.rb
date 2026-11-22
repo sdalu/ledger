@@ -21,6 +21,7 @@ module Ledger
                   "inbox" => :Inbox,
                   "edit-record" => :EditRecord,
                   "commit-record" => :CommitRecord,
+                  "word-gate" => :WordGate,
                   "uncommitted" => :Uncommitted,
                   "session-start" => :SessionStart,
                   "status-stop" => :StatusStop,
