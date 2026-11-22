@@ -177,6 +177,7 @@ module BrowserRun
         SHIM = File.join(__dir__, "browser_session.cjs")
         VIEWER = File.join(__dir__, "browser", "viewer.cjs")
         PAGES = File.join(__dir__, "browser_pages.cjs")
+        SIGN_IN = File.join(__dir__, "browser", "sign_in.cjs")
         GROUPS = File.join(__dir__, "browser", "groups.cjs")
         LONG = File.join(__dir__, "browser", "long.cjs")
         CHOICES = File.join(__dir__, "browser", "choices.cjs")
@@ -238,7 +239,8 @@ module BrowserRun
             shared = system(env, "node", VIEWER, sandbox.base, sandbox.ledger,
                             name)
             pages = system(env, "node", PAGES, sandbox.base, name)
-            shared && pages
+            sign_in = system(env, "node", SIGN_IN, sandbox.base, name)
+            shared && pages && sign_in
         end
 
         def env(sandbox, cookie)

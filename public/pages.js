@@ -16,7 +16,14 @@
         problem.textContent = said.error || `Refused (${response.status}).`;
         problem.hidden = false;
     };
-    const token = decodeURIComponent(location.hash.slice(1));
+    // A fragment that is not valid percent-encoding (a cut invitation
+    // link, "#%") is ignored as if absent: a throw here would leave the
+    // submit listener unattached.
+    const fragment = () => {
+        try { return decodeURIComponent(location.hash.slice(1)); }
+        catch { return ""; }
+    };
+    const token = fragment();
 
     const greet = async () => {
         const response = await post(form.dataset.check, { token });

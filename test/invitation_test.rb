@@ -11,6 +11,14 @@ class InvitationTest < ViewerTest
         end
     end
 
+    def test_the_forms_carry_credentials_by_post_even_without_script
+        %w[/sign-in /invite].each do |path|
+            https path
+
+            assert_match(/<form method="post" /, last_response.body, path)
+        end
+    end
+
     def test_an_invitation_is_spent_once_and_refused_the_second_time
         token = LedgerViewer::Accounts.invite(@db, "alice")
         post_json("/session/invite", token:, password: Fixture::PASSWORD)

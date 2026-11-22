@@ -1,5 +1,5 @@
 <h1>Sign in</h1>
-<form data-page="sign-in" data-endpoint="<%= to("/session/password", false) %>"
+<form method="post" data-page="sign-in" data-endpoint="<%= to("/session/password", false) %>"
       data-next="<%= to("/", false) %>">
 <p><label>Name <input name="name" autocomplete="username" required></label></p>
 <p><label>Password <input name="password" type="password"
