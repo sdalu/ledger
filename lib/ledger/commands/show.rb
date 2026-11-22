@@ -3,6 +3,7 @@
 require "json"
 
 require "ledger/abandon"
+require "ledger/commands/show_history"
 
 module Ledger
     module Commands
@@ -11,6 +12,8 @@ module Ledger
         # ledger's address or `L<id>`, live or closed; a closed one's
         # Markdown ends with the line saying how it closed (Abandon.line).
         class Show < CLI::Command
+            include ShowHistory
+
             USAGE = "PATH [ID]"
             LEDGER = /\AL([1-9]\d*)\z/
             SUMMARY = "the whole ledger as Markdown, or one item's fields " \
@@ -86,40 +89,16 @@ module Ledger
             end
 
             # Scalars as `key: value`, lists joined by ` | `, a link kind
-            # as its own line (`rests-on: F2, C3`), a piece's return as
-            # its own line (`return: env, from back, TIME`), and each
-            # dispatch announced (`assessment: TIME, sonnet, …`).
+            # as its own line (`rests-on: F2, C3`), then a piece's history
+            # (ShowHistory).
             def text(item)
                 links = item[:links] || {}
-                scalars = item.except(:links, :returns, :assessments)
+                scalars = item.except(:links, *ShowHistory::KEYS)
                 [*scalars.map { |key, value| "#{key}: #{value(value)}" },
                  *links.map do |kind, ids|
                      "#{kind.tr("_", "-")}: #{ids.join(", ")}"
                  end,
-                 *returns(item), *assessments(item)]
-                    .join("\n")
-            end
-
-            def returns(item)
-                item.fetch(:returns, []).map do |row|
-                    "return: #{row[:cause]}, from #{row[:from]}, #{row[:at]}"
-                end
-            end
-
-            # `assessment: TIME, sonnet, effort: medium, axis: stakes
-            # (low), risk: 2/10, attended`, what the block left out left out.
-            def assessments(item)
-                item.fetch(:assessments, []).map do |row|
-                    "assessment: #{[row[:at], *assessed(row)].join(", ")}"
-                end
-            end
-
-            def assessed(row)
-                rating = row.dig(:risk, :rating)
-                [row[:model], row[:effort]&.then { "effort: #{it}" },
-                 row[:axis]&.then { "axis: #{it} (#{row[:axis_level]})" },
-                 "risk: #{rating ? "#{rating}/10" : "unrated"}",
-                 row[:mode_attended] ? "attended" : "unattended"].compact
+                 *history(item)].join("\n")
             end
 
             def value(value)

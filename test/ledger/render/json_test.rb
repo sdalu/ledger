@@ -137,8 +137,8 @@ class JsonTest < JsonCase
                problem risk plan verified_by claim irreversible step_risk
                work_risk ready ready_since unsent
                stalled touched_at settled brief criteria returns assessments
-               pictures no_picture picture_pending builds obsoleted_by
-               line].freeze
+               gates report pictures no_picture picture_pending builds
+               obsoleted_by line].freeze
     QUESTION = %i[id title detail problem risk recommend choices items by see
                   pictures rests_on_assumptions preparing preparing_status
                   held_by asked_since line].freeze

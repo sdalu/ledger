@@ -153,7 +153,7 @@ PATH new|P<n>` adds a piece with the next free id or changes one
 (`--title`, `--what` for the detail, `--status`, `--route`,
 `--done-when`, `--evidence`, `--after`, `--for`, `--by`, `--verified-by`,
 `--cause`, `--no-picture WHY`, `--picture-pending WHY`, `--picture-holds WHY`, `--no-commit WHY`, `--announce FILE`, `--status back --handback`, `--builds O<n>`,
-`--status obsolete --obsoleted-by P<n>`, `--commits SHA[,SHA...]` (appends the commits that landed it), `--[no-]irreversible` (its step cannot be taken back: 3 more on the step risk of each word it awaits, `— irreversible` on its line); an empty value clears a link); a piece not done that
+`--status obsolete --obsoleted-by P<n>`, `--commits SHA[,SHA...]` (appends the commits that landed it), `--[no-]irreversible` (its step cannot be taken back: 3 more on the step risk of each word it awaits, `— irreversible` on its line), `--gate "NAME: STATE (DETAIL)"` (a gate's state, queued, running, passed or failed, one per name, a later state replacing it: `— gates: unit failed (2 failures)`), `--report FILE` (a helper's report, its status line and up to 12 lines, alone or with `--status back --handback`, which then stores it even on a piece not out, the status untouched: `— report: DONE_WITH_CONCERNS`); an empty value clears a link); a piece not done that
 waits on an event to come, not on the user, is `--status deferred
 --until CONDITION`, the event kept on its line (`— until: three
 closures`) and in the viewer's remains until another status clears
@@ -462,7 +462,11 @@ as returned, stalled or ready and not sent, nothing sent on it) is one
 row under Unfinished pieces (title, status, id, the links
 icon) that opens into its card; a link to `#piece-P<n>` opens it. Out,
 back and blocked pieces, and any with something to say, stay cards; a
-blocked piece says what blocks it straight under its title.
+blocked piece says what blocks it straight under its title. A piece
+out or back shows its gates as chips (`unit failed`, coloured by
+state, the time on hover), the detail of the last one failed under
+them, and its helper's report folded (*Report: DONE_WITH_CONCERNS*);
+once verified it shows neither, and `show PATH P<n>` keeps both.
 Every piece card (in flight, waiting on a word, on record) and every
 question card carries a RAID line under its case, each part left out
 when it has nothing to say: the risk (its ten-step meter; on a piece

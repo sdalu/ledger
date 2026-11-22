@@ -52,7 +52,8 @@ class HandbackTest < PieceCase
 
     def test_another_flag_is_refused
         refused("P1", "--status", "back", "--handback", "--evidence", "ran",
-                "--handback goes with --status back alone: drop --evidence.")
+                "--handback goes with --status back and --report alone: " \
+                "drop --evidence.")
         refused("P1", "--status", "back", "--handback", "--dry-run",
                 "drop --dry-run.")
     end

@@ -13,9 +13,23 @@ module Ledger
                 handback_flag(parser)
                 no_commit_flag(parser)
                 irreversible_flag(parser)
+                report_flag(parser)
+                claim_flag(parser)
+            end
+
+            def claim_flag(parser)
                 parser.on("--claim", "take over an out piece's claim for " \
                                      "this session; the status stays") do
                     @opts["claim"] = true
+                end
+            end
+
+            def report_flag(parser)
+                parser.on("--report FILE",
+                          "a helper's report, from FILE or - for stdin: its " \
+                          "status line and up to 12 lines; alone or with " \
+                          "--status back --handback") do |file|
+                    @opts["report"] = file
                 end
             end
 

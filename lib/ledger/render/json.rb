@@ -5,6 +5,8 @@ require "json"
 
 require "ledger/derive"
 require "ledger/render/json_builds"
+require "ledger/render/json_gates"
+require "ledger/render/json_route"
 require "ledger/render/json_risks"
 require "ledger/render/markdown"
 require "ledger/text/pointer"
@@ -311,9 +313,7 @@ module Ledger
                     @briefs = snapshot.piece_briefs.group_by { it[:piece_id] }
                     @criteria = Refs.group(snapshot.piece_criteria, :piece_id)
                     @returns = Refs.group(snapshot.piece_returns, :piece_id)
-                    @assessments = Assessments.new(snapshot, context)
-                    @builds = Builds.new(snapshot)
-                    @risks = Risks.new(snapshot, derive)
+                    parts(snapshot, derive, context)
                 end
 
                 def call(piece)
@@ -322,11 +322,20 @@ module Ledger
                       brief: brief(piece),
                       criteria: criteria(piece), returns: returns(piece),
                       assessments: @assessments.call(piece),
+                      **@gates.call(piece),
                       **pictures(piece), **@builds.call(piece),
                       line: @markdown.line("P#{piece[:n]}") }
                 end
 
                 private
+
+                # The parts each kept in a class of its own.
+                def parts(snapshot, derive, context)
+                    @assessments = Assessments.new(snapshot, context)
+                    @gates = Gates.new(snapshot, context)
+                    @builds = Builds.new(snapshot)
+                    @risks = Risks.new(snapshot, derive)
+                end
 
                 def pictures(piece)
                     { pictures: @derive.pictures(piece).map do |row|
@@ -338,26 +347,10 @@ module Ledger
 
                 def head(piece)
                     { status: piece[:status], kept_reason: piece[:kept_reason],
-                      until: piece[:until], route: route(piece),
-                      route_text: route_text(piece),
+                      until: piece[:until], **Route.call(piece),
                       title: piece[:title], detail: piece[:detail],
                       done_when: piece[:done_when], evidence: piece[:evidence],
                       commits: @derive.commits(piece) }
-                end
-
-                def route(piece)
-                    return unless piece[:peer] || piece[:model]
-
-                    { model: piece[:model], effort: piece[:effort],
-                      skills: piece[:skills], peer: piece[:peer] }
-                end
-
-                def route_text(piece)
-                    return "peer: #{piece[:peer]}" if piece[:peer]
-                    return unless piece[:model]
-
-                    skills = ", skills: #{piece[:skills]}" if piece[:skills]
-                    "#{piece[:model]}, effort: #{piece[:effort]}#{skills}"
                 end
 
                 def links(piece)

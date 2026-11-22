@@ -5,7 +5,9 @@ require "ledger/commands/piece_builds"
 require "ledger/commands/piece_by"
 require "ledger/commands/piece_commits"
 require "ledger/commands/piece_flags"
+require "ledger/commands/piece_gates"
 require "ledger/commands/piece_handback"
+require "ledger/commands/piece_report"
 require "ledger/text/awaits"
 require "ledger/text/risk"
 require "ledger/text/title"
@@ -16,7 +18,7 @@ module Ledger
         # --evidence --after --for --problem --risk --plan --scope --awaits
         # --verified-by --session --by --cause --until --no-picture
         # --picture-pending --picture-holds --no-commit --builds
-        # --obsoleted-by --commits --[no-]irreversible]`:
+        # --obsoleted-by --commits --[no-]irreversible --gate --report]`:
         # add a piece or change one; `--status deferred --until
         # CONDITION` defers it; `--by X<n>` writes the decision's
         # led_to edge to it, `--status out` claims it for the session
@@ -31,7 +33,9 @@ module Ledger
         # --obsoleted-by P<n>` that another piece replaces it
         # (PieceBuilds); `--commits SHA[,SHA...]` appends the commits
         # that landed it (PieceCommits); `--irreversible` that its step
-        # cannot be taken back (`--no-irreversible` clears it);
+        # cannot be taken back (`--no-irreversible` clears it); `--gate
+        # "NAME: STATE (DETAIL)"` a gate's state (PieceGates), `--report
+        # FILE` a helper's report (PieceReport);
         # `--announce FILE` records a dispatch's ANNOUNCE block
         # (PieceAnnounce), `--status back --handback` a delegate's
         # hand-back (PieceHandback).
@@ -77,7 +81,10 @@ module Ledger
                 "obsoleted-by" => "P<n>, the piece that replaces it, with " \
                                   "--status obsolete",
                 "commits" => "SHA[,SHA...], 7-40 hex digits, appended to " \
-                             "the commits that landed it"
+                             "the commits that landed it",
+                "gate" => "NAME: STATE (DETAIL), STATE one of queued, " \
+                          "running, passed, failed; a name's later state " \
+                          "replaces it"
             }.freeze
 
             private
@@ -247,10 +254,19 @@ module Ledger
             def row_of(ref) = @change.resolve(ref).last[:id]
 
             # What a piece takes besides its own columns: the decision of
-            # `--by`, the commits of `--commits`.
+            # `--by`, the commits of `--commits`, the gate of `--gate`, the
+            # report of `--report`.
             def beside(id)
                 PieceBy.new(@change, @db, @opts).link(id)
                 PieceCommits.new(@change, @db, @opts).append(id)
+                PieceGates.new(@change, @db, @opts).record(id)
+                PieceReport.new(@change, @db, report).store(id)
+            end
+
+            def report
+                file = @opts["report"] or return
+
+                PieceReport.read(file)
             end
 
             def claim(id, row)

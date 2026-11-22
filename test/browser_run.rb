@@ -34,6 +34,7 @@ require "ledger_viewer"
 require_relative "support/browser_fixture"
 require_relative "support/builds_fixture"
 require_relative "support/choices_fixture"
+require_relative "support/gates_fixture"
 require_relative "support/groups_fixture"
 require_relative "support/long_fixture"
 require_relative "support/loop_fixture"
@@ -201,6 +202,7 @@ module BrowserRun
         SHOWN = File.join(__dir__, "browser", "groups_shown.cjs")
         TIES = File.join(__dir__, "browser", "ties.cjs")
         METERS = File.join(__dir__, "browser", "meters.cjs")
+        GATES = File.join(__dir__, "browser", "gates.cjs")
         # [tag, fixture, script] of the checks that each run on a ledger
         # of their own, once per browser, after the shared checks, which
         # read the index's first queue entry and must not meet them; the
@@ -213,6 +215,7 @@ module BrowserRun
                ["shown", GroupsFixture, SHOWN],
                ["ties", TiesFixture, TIES],
                ["meters", MetersFixture, METERS],
+               ["gates", GatesFixture, GATES],
                ["risk", RiskFixture, RISK],
                ["builds", BuildsFixture, BUILDS]].freeze
 

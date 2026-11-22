@@ -204,7 +204,7 @@
     pointer-events: none;
     @media (forced-colors: active) { border: 1px solid CanvasText; }
   }
-  :is(.tag, button, summary, a):is(:hover, :focus-visible) + .tip,
+  :is(.tag, button, summary, a, .gate):is(:hover, :focus-visible) + .tip,
   .drop-fold:has(> summary:is(:hover, :focus-visible)) + .tip { display: block; }
 
   /* a piece whose word is sent: one line, leading to its card in Sent */
@@ -802,6 +802,43 @@
   .entries li .word-evidence { margin-block-start: var(--space-s); font-size: var(--text-s); overflow-wrap: anywhere; }
   /* why a piece awaiting a word shows no before/after: said, not pressed */
   .entries li .no-picture { margin-block-start: var(--space-xs); font-size: var(--text-s); color: var(--muted); }
+  /* a piece out or back: its gates as chips coloured by state (passed in
+     the done colour, failed in the failure colour, running in the accent,
+     queued muted), the time on hover; the last failure's detail under them;
+     the helper's report folded below */
+  .gates {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-xs);
+    margin-block: var(--space-s) 0;
+    padding: 0;
+    list-style: none;
+    & .gate {
+      display: inline-block;
+      padding: 0.0625rem 0.5rem;
+      border: 1px solid currentColor;
+      border-radius: 999px;
+      font: 600 var(--text-xs)/1.5 var(--font-mono);
+      color: var(--muted);
+      &.is-passed { color: var(--ok); }
+      &.is-failed { color: var(--fail); }
+      &.is-running { color: var(--accent); }
+    }
+  }
+  .entries li .gate-failure { margin-block-start: var(--space-xs); font-size: var(--text-s); color: var(--fail); overflow-wrap: anywhere; }
+  .entries li .report {
+    margin-block-start: var(--space-s);
+    & > summary { min-block-size: 1.5rem; font-size: var(--text-s); font-weight: 600; color: var(--muted); }
+    & > .report-lines {
+      margin-block-start: var(--space-xs);
+      padding: var(--space-xs) var(--space-s);
+      border-radius: var(--radius);
+      font-size: var(--text-s);
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      background: var(--inset);
+    }
+  }
   /* the way to a piece's or a decision's links page: a quiet icon beside its
      id chip, its sentence said on hover and to a screen reader */
   .why-icon {

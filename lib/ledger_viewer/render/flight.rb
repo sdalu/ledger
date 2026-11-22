@@ -3,6 +3,7 @@
 require_relative "clock"
 require_relative "entry"
 require_relative "flight_row"
+require_relative "gates"
 require_relative "links"
 require_relative "order"
 require_relative "sectioned"
@@ -112,11 +113,12 @@ module LedgerViewer
                 lead + kase(piece)
             end
 
-            # The ties, the facets, then the RAID line.
+            # The ties, the facets, then the RAID line, the commits, and on a
+            # piece out or back its gates and report.
             def kase(piece)
                 facets = @kit.ties.piece(piece) + @kit.cases.facets(piece)
                 facets + @kit.raid.piece(piece, flight: true) +
-                    @kit.cases.commits(piece)
+                    @kit.cases.commits(piece) + Gates.new(@scope).html(piece)
             end
 
             def comment(piece)

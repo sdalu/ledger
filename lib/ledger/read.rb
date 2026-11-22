@@ -79,9 +79,11 @@ module Ledger
         end
 
         # {id => {at:, actor:}} of the events the rows name: the briefs,
-        # the returns, the assessments and the takes.
+        # the returns, the assessments, the gates, the reports and the
+        # takes.
         def events(db, snapshot)
-            ids = %i[piece_briefs piece_returns piece_assessments]
+            ids = %i[piece_briefs piece_returns piece_assessments piece_gates
+                     piece_reports]
                   .flat_map { |table| snapshot[table].map { it[:event_id] } }
             ids += snapshot.inbox_entries.filter_map { it[:taken_id] }
             db[:events].where(id: ids).select(:id, :at, :actor).all

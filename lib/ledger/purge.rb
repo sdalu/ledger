@@ -22,8 +22,8 @@ module Ledger
             questions: %i[question_choices question_items question_pictures
                           question_sees],
             pieces: %i[piece_assessments piece_awaits piece_briefs piece_commits
-                       piece_criteria piece_links piece_pictures piece_returns
-                       piece_scopes]
+                       piece_criteria piece_gates piece_links piece_pictures
+                       piece_reports piece_returns piece_scopes]
         }.freeze
 
         # The tables with a ledger_id column of their own, after the
