@@ -7,6 +7,7 @@ require "ledger/commands/piece_commits"
 require "ledger/commands/piece_flags"
 require "ledger/commands/piece_gates"
 require "ledger/commands/piece_handback"
+require "ledger/commands/piece_hold"
 require "ledger/commands/piece_report"
 require "ledger/text/awaits"
 require "ledger/text/risk"
@@ -18,7 +19,8 @@ module Ledger
         # --evidence --after --for --problem --risk --plan --scope --awaits
         # --verified-by --session --by --cause --until --no-picture
         # --picture-pending --picture-holds --no-commit --builds
-        # --obsoleted-by --commits --[no-]irreversible --gate --report]`:
+        # --obsoleted-by --commits --[no-]irreversible --gate --report
+        # --hold]`:
         # add a piece or change one; `--status deferred --until
         # CONDITION` defers it; `--by X<n>` writes the decision's
         # led_to edge to it, `--status out` claims it for the session
@@ -35,7 +37,9 @@ module Ledger
         # that landed it (PieceCommits); `--irreversible` that its step
         # cannot be taken back (`--no-irreversible` clears it); `--gate
         # "NAME: STATE (DETAIL)"` a gate's state (PieceGates), `--report
-        # FILE` a helper's report (PieceReport);
+        # FILE` a helper's report (PieceReport); `--hold WHY` that a
+        # planned piece is held back on purpose ('' clears it; any other
+        # status does);
         # `--announce FILE` records a dispatch's ANNOUNCE block
         # (PieceAnnounce), `--status back --handback` a delegate's
         # hand-back (PieceHandback).
@@ -84,7 +88,9 @@ module Ledger
                              "the commits that landed it",
                 "gate" => "NAME: STATE (DETAIL), STATE one of queued, " \
                           "running, passed, failed; a name's later state " \
-                          "replaces it"
+                          "replaces it",
+                "hold" => "why a planned piece is held back (a P<n> in it " \
+                          "releases it once that piece settles); '' clears it"
             }.freeze
 
             private
@@ -257,6 +263,7 @@ module Ledger
             # `--by`, the commits of `--commits`, the gate of `--gate`, the
             # report of `--report`.
             def beside(id)
+                PieceHold.new(@change, @opts).check
                 PieceBy.new(@change, @db, @opts).link(id)
                 PieceCommits.new(@change, @db, @opts).append(id)
                 PieceGates.new(@change, @db, @opts).record(id)
@@ -404,7 +411,9 @@ module Ledger
                       "plan" => :plan, "verified-by" => :verified_by,
                       "picture-pending" => :picture_pending,
                       "picture-holds" => :picture_holds,
-                      "no-commit" => :no_commit }.freeze
+                      "no-commit" => :no_commit, "hold" => :hold }.freeze
+            HOLD_PLANNED = "--hold holds a planned piece: any other " \
+                           "status clears it"
             ROUTE = "--route (`sonnet, effort: medium[, skills: c]` or " \
                     "`peer: SESSION`) or --status 'kept: REASON'"
 
@@ -607,7 +616,7 @@ module Ledger
                 @row = (old || NEW).slice(*COLUMNS)
                 [method(:what), method(:prose), method(:route),
                  method(:status), method(:no_picture),
-                 method(:irreversible)].each(&:call)
+                 method(:irreversible), method(:hold)].each(&:call)
                 words(awaits, scopes)
                 complete
             end
@@ -632,6 +641,15 @@ module Ledger
             private
 
             def kept?(row) = row[:status] == "kept"
+
+            # A hold is on a planned piece; the other statuses clear it.
+            def hold
+                return unless @row[:status] != "planned"
+
+                refuse(HOLD_PLANNED) if @opts["hold"].to_s.strip != ""
+                @row[:hold] = nil
+            end
+
             def obsolete? = @row[:status] == "obsolete"
 
             # The awaited words and their scope; an obsolete piece awaits

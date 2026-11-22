@@ -1,17 +1,19 @@
 # frozen_string_literal: true
 
+require "ledger/hold"
 require "ledger/render/refs"
 
 module Ledger
     module Render
-        # The fields that close a piece's line, after its evidence: `— no
-        # commit: WHY`, `— commits: a1b2c3d, e4f5a6b`, `— picture: being
-        # redrawn (WHY)` and `— picture: holds (WHY)`, then `—
-        # dispatched: N× (last: …)` when a dispatch was announced (piece
-        # --announce), `— gates: NAME STATE (DETAIL), …` and `— report:
-        # STATUS`, the report's first line.
+        # The fields that close a piece's line, after its evidence: `—
+        # held: WHY`, `— no commit: WHY`, `— commits: a1b2c3d, e4f5a6b`,
+        # `— picture: being redrawn (WHY)` and `— picture: holds (WHY)`,
+        # then `— dispatched: N× (last: …)` when a dispatch was announced
+        # (piece --announce), `— gates: NAME STATE (DETAIL), …` and `—
+        # report: STATUS`, the report's first line.
         class PieceTail
             def initialize(snapshot)
+                @pieces = snapshot.pieces
                 @assessed = Refs.group(snapshot.piece_assessments, :piece_id)
                 @commits = Refs.group(snapshot.piece_commits, :piece_id)
                 @gates = Refs.group(snapshot.piece_gates, :piece_id)
@@ -22,7 +24,8 @@ module Ledger
 
             # [[name, value]] of the fields, the empty ones included.
             def call(piece)
-                [["no commit", piece[:no_commit]], ["commits", commits(piece)],
+                [["held", Hold.active(piece, @pieces)],
+                 ["no commit", piece[:no_commit]], ["commits", commits(piece)],
                  ["picture", redrawn(piece)], ["picture", holds(piece)],
                  ["dispatched", dispatched(piece)], ["gates", gates(piece)],
                  ["report", @reports[piece[:id]]]]

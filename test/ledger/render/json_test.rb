@@ -135,7 +135,7 @@ class JsonTest < JsonCase
                done_when evidence commits after for awaits scope
                rests_on_assumptions
                problem risk plan verified_by claim irreversible step_risk
-               work_risk ready ready_since unsent
+               work_risk ready hold ready_since unsent
                stalled touched_at settled brief criteria returns assessments
                gates report pictures no_picture picture_pending builds
                obsoleted_by line].freeze

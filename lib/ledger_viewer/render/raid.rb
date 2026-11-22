@@ -39,11 +39,12 @@ module LedgerViewer
                       depends(question_links(question)), decided(question)])
             end
 
-            # 'blocked', 'stalled 2 h', 'ready, not sent for 3 h',
+            # 'blocked', 'Held: WHY', 'stalled 2 h', 'ready, not sent for 3 h',
             # 'returned 2: depth, unrecorded'.
             def self.issues(piece)
                 causes = piece["returns"].map { it["cause"] }
                 [("blocked" if piece["status"] == "blocked"),
+                 ("Held: #{piece["hold"]}" if piece["hold"]),
                  (stalled(piece) if piece["stalled"]),
                  (unsent(piece) if piece["unsent"]),
                  ("returned #{causes.size}: #{causes.join(", ")}" if

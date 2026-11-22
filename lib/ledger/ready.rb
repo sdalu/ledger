@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "ledger/hold"
 require "ledger/text/waited"
 
 module Ledger
@@ -26,11 +27,19 @@ module Ledger
         def self.parse(value) = Derive.minutes(LIMIT_ENV, value, LIMIT)
 
         # A planned piece awaiting no word whose `after` pieces are all
-        # verified, kept, dropped or obsolete.
+        # verified, kept, dropped or obsolete, and that is not held.
         def ready?(piece)
             piece[:status] == "planned" && awaits_rows(piece).empty? &&
-                after(piece).all? { ENDED.include?(it[:status]) }
+                after(piece).all? { ENDED.include?(it[:status]) } &&
+                held(piece).nil?
         end
+
+        # Why the piece is held back on purpose (`piece --hold`), nil when
+        # it is not, or the piece it names has settled.
+        def held(piece) = Hold.active(piece, pieces)
+
+        # The pieces held back, in row order.
+        def held_pieces = pieces.select { held(it) }
 
         # [[piece, age in ms]] of the pieces unsent, in row order: ready
         # for longer than the limit.

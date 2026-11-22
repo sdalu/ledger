@@ -386,6 +386,7 @@ module Ledger
 
                 def state(piece)
                     { ready: @derive.ready?(piece),
+                      hold: @derive.held(piece),
                       ready_since: Json.time(@derive.ready_since(piece)),
                       unsent: @derive.unsent?(piece),
                       stalled: @derive.stalled?(piece),

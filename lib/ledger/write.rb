@@ -221,12 +221,13 @@ module Ledger
         end
 
         # U12: `out` stores the session and is refused under another
-        # holder; any other status clears the claim.
+        # holder; any other status clears the claim, and the hold a
+        # planned piece carried.
         def status(piece_id, status, session: nil)
             if status == "out"
                 claim(piece_id, session)
             else
-                update(:pieces, piece_id, status:, claimed_by: nil)
+                update(:pieces, piece_id, status:, claimed_by: nil, hold: nil)
             end
         end
 
@@ -240,7 +241,8 @@ module Ledger
                 raise Claimed, "P#{piece[:n]} is out under #{holder} since " \
                                "#{claimed_at(piece_id, holder)}"
             end
-            update(:pieces, piece_id, status: "out", claimed_by: session)
+            update(:pieces, piece_id, status: "out", claimed_by: session,
+                                      hold: nil)
         end
 
         # The time of the event that gave the piece to its holder.

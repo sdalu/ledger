@@ -264,7 +264,7 @@ module Ledger
         # told apart. With `deferred:` (each
         # piece with its condition), `assuming:` (the open assumptions)
         # then `stalled:` after blocked (U14), then `ready, unsent:` (each
-        # piece with its age).
+        # piece with its age), then `held:` (each piece with its reason).
         # The beat's `unchanged ×N` is the check command's to append
         # (StatusLine.beat).
         class StatusLine
@@ -280,7 +280,7 @@ module Ledger
             end
 
             def to_s
-                parts = [criteria, pieces, *states, *unsent, *waiting,
+                parts = [criteria, pieces, *states, *unsent, *held, *waiting,
                          *viewer]
                 parts << "done: propose close" if done?
                 "Status (#{head}) — #{parts.join(" · ")}"
@@ -323,6 +323,14 @@ module Ledger
             def unsent
                 labels = @derive.unsent.map { @derive.unsent_label(*it) }
                 [clause("ready, unsent", labels)].compact
+            end
+
+            # The planned pieces held on purpose, with their reason.
+            def held
+                labels = @derive.held_pieces.map do |piece|
+                    "#{@derive.ref(piece)} (#{@derive.held(piece)})"
+                end
+                [clause("held", labels)].compact
             end
 
             # The assumptions waiting on their check.
