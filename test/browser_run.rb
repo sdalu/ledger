@@ -190,34 +190,24 @@ module BrowserRun
         VIEWER = File.join(__dir__, "browser", "viewer.cjs")
         PAGES = File.join(__dir__, "browser_pages.cjs")
         SIGN_IN = File.join(__dir__, "browser", "sign_in.cjs")
-        GROUPS = File.join(__dir__, "browser", "groups.cjs")
-        LONG = File.join(__dir__, "browser", "long.cjs")
-        CHOICES = File.join(__dir__, "browser", "choices.cjs")
-        RISK = File.join(__dir__, "browser", "risk.cjs")
-        LOOP = File.join(__dir__, "browser", "loop.cjs")
         KEYS = File.join(__dir__, "browser", "keys.cjs")
         PANE = File.join(__dir__, "browser", "pane.cjs")
-        BUILDS = File.join(__dir__, "browser", "builds.cjs")
-        COMMENT = File.join(__dir__, "browser", "comment_only.cjs")
-        SHOWN = File.join(__dir__, "browser", "groups_shown.cjs")
-        TIES = File.join(__dir__, "browser", "ties.cjs")
-        METERS = File.join(__dir__, "browser", "meters.cjs")
-        GATES = File.join(__dir__, "browser", "gates.cjs")
-        # [tag, fixture, script] of the checks that each run on a ledger
-        # of their own, once per browser, after the shared checks, which
-        # read the index's first queue entry and must not meet them; the
-        # risk and builds checks send words, which the next must not meet,
-        # so they are last, builds reading only its own ledger.
-        OWN = [["long", LongFixture, LONG], ["groups", GroupsFixture, GROUPS],
-               ["choices", ChoicesFixture, CHOICES],
-               ["loop", LoopFixture, LOOP],
-               ["comment", ChoicesFixture, COMMENT],
-               ["shown", GroupsFixture, SHOWN],
-               ["ties", TiesFixture, TIES],
-               ["meters", MetersFixture, METERS],
-               ["gates", GatesFixture, GATES],
-               ["risk", RiskFixture, RISK],
-               ["builds", BuildsFixture, BUILDS]].freeze
+        # [tag, fixture, script in test/browser] of the checks that each
+        # run on a ledger of their own, once per browser, after the shared
+        # checks, which read the index's first queue entry and must not meet
+        # them; the risk and builds checks send words, which the next must
+        # not meet, so they are last, builds reading only its own ledger.
+        OWN = [["long", LongFixture, "long.cjs"],
+               ["groups", GroupsFixture, "groups.cjs"],
+               ["choices", ChoicesFixture, "choices.cjs"],
+               ["loop", LoopFixture, "loop.cjs"],
+               ["comment", ChoicesFixture, "comment_only.cjs"],
+               ["shown", GroupsFixture, "groups_shown.cjs"],
+               ["ties", TiesFixture, "ties.cjs"],
+               ["meters", MetersFixture, "meters.cjs"],
+               ["gates", GatesFixture, "gates.cjs"],
+               ["risk", RiskFixture, "risk.cjs"],
+               ["builds", BuildsFixture, "builds.cjs"]].freeze
 
         def initialize(core, browsers)
             @core = core
@@ -237,7 +227,6 @@ module BrowserRun
         end
 
         private
-
 
         # The key-renewal check alone, in each browser, against a viewer
         # booted with the short key lifetime (KEYS=1 starts it so).
@@ -284,7 +273,8 @@ module BrowserRun
                                     "LEDGER.md")
                 build(sandbox, fixture, address)
                 lid = Digest::SHA1.hexdigest(address)[0, 10]
-                system(env(sandbox, cookie), "node", script,
+                system(env(sandbox, cookie), "node",
+                       File.join(__dir__, "browser", script),
                        "#{sandbox.base}/l/#{lid}", name)
             end.all?
         end
