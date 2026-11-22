@@ -10,12 +10,17 @@ module Ledger
         # denied. A constraint naming no path is never enforced here: a
         # brief cannot be shown to touch it without judgment.
         module BriefConstraints
-            # A path in a brief (\w as Unicode).
+            # A path in a brief (\w as Unicode): a token starting with
+            # `~/`, `./`, `../` or `/`; one with a slash and a file
+            # extension; one ending in a slash (a directory); or a bare
+            # name with a known extension. `and/or` is none of them.
             PATH = %r{(?<![[:word:]/])
-                      ((?:~/|\.{0,2}/)?[[:word:].-]+(?:/[[:word:].-]*)+
+                      ((?:~/|\.{1,2}/|/)[[:word:].-]+(?:/[[:word:].-]*)*
+                      |(?:[[:word:].-]+/)+[[:word:].-]+\.[[:alpha:]][[:word:]]*
                       |[[:word:]-]+\.(?:py|c|h|rb|md|json|ya?ml|toml|js|ts|
-                                       go|rs|sh|bib|tex|csv|txt))
-                      (?![[:word:]])}x
+                                       go|rs|sh|bib|tex|csv|txt)
+                      |(?:[[:word:].-]+/)+)
+                      (?![[:word:]]|\.[[:word:]])}x
             TOOLS = %w[Agent Task].freeze
 
             module_function
@@ -32,10 +37,20 @@ module Ledger
             # -> [[C<n>, quote, the first path the brief touches]].
             def missing(snapshot, brief)
                 folded = fold(brief)
+                named = paths(brief)
                 snapshot.constraints.filter_map do |row|
-                    touched = paths(row[:quote]).find { brief.include?(it) }
+                    touched = paths(row[:quote]).find { covered?(it, named) }
                     next unless touched && !folded.include?(fold(row[:quote]))
                     ["C#{row[:n]}", row[:quote], touched]
+                end
+            end
+
+            # Whether a constraint's PATH is one of the brief's NAMED
+            # path tokens, or a directory (trailing slash) one lies under.
+            def covered?(path, named)
+                named.any? do |token|
+                    token == path ||
+                        (path.end_with?("/") && token.start_with?(path))
                 end
             end
 
