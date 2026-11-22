@@ -23,6 +23,7 @@ module Ledger
                   "uncommitted" => :Uncommitted,
                   "session-start" => :SessionStart,
                   "status-stop" => :StatusStop,
+                  "one-list" => :OneList,
                   "stamp" => :Stamp }.freeze
 
         # What a hook answers: the text for stdout, the text for stderr,
