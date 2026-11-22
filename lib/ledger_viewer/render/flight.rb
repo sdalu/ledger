@@ -115,7 +115,8 @@ module LedgerViewer
             # The facets, then the RAID line.
             def kase(piece)
                 facets = @kit.cases.facets(piece)
-                facets + @kit.raid.piece(piece, flight: true)
+                facets + @kit.raid.piece(piece, flight: true) +
+                    @kit.cases.commits(piece)
             end
 
             def comment(piece)

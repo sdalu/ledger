@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "ledger/commit_word"
+
 module Ledger
     module Checks
         # The rules of `check --final`: what `close` and the proposal to
@@ -26,7 +28,10 @@ module Ledger
                 "final-criteria" =>
                     "every criterion `[x]` with evidence or `[-]` with why; " \
                     "`bin/ledger criterion PATH D<n> --met EVIDENCE` or " \
-                    "`--unmet WHY`"
+                    "`--unmet WHY`",
+                "final-commits" =>
+                    "a warning only; `bin/ledger piece PATH P<n> --commits " \
+                    "SHA[,SHA...]` names the commits that landed it"
             }.freeze
 
             module_function
@@ -50,6 +55,17 @@ module Ledger
                 derive.pieces.filter_map do |piece|
                     next if derive.awaits(piece).empty?
                     "#{derive.ref(piece)} (#{derive.awaits_label(piece)})"
+                end
+            end
+
+            # Each piece given its commit word that holds no commit, a
+            # warning: the commits are the trace of what landed.
+            def commits(derive)
+                derive.pieces.filter_map do |piece|
+                    next if !CommitWord.given?(derive.snapshot, piece) ||
+                            derive.commits(piece).any?
+
+                    "#{derive.ref(piece)} given its commit word, no commit"
                 end
             end
 

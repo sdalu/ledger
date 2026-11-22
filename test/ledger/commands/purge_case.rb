@@ -20,6 +20,7 @@ class PurgeCase < CommandCase
         piece_criteria: { piece_id: :piece, position: 1, text: "c",
                           mark: " " },
         piece_scopes: { piece_id: :piece, position: 1, word: "w", text: "t" },
+        piece_commits: { piece_id: :piece, position: 1, sha: "a1b2c3d" },
         piece_briefs: { piece_id: :piece, version: 1, text: "b",
                         event_id: :event },
         piece_pictures: { piece_id: :piece, position: 1, role: "before",

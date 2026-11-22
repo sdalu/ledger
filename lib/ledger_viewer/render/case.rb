@@ -56,6 +56,16 @@ module LedgerViewer
                                                 reason:)
             end
 
+            # The commits that landed a piece, a muted line of monospace
+            # ids; "" when it holds none.
+            def commits(piece)
+                ids = piece.fetch("commits", [])
+                return "" if ids.empty?
+
+                list = ids.map { "<code>#{Text.escape(it)}</code>" }.join(", ")
+                %(<p class="no-picture commits">Commits: #{list}</p>)
+            end
+
             private
 
             def facet(case_of, key, label, icon)

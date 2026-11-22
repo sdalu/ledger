@@ -132,7 +132,8 @@ class JsonTest < JsonCase
              decisions links closed_questions pictures pieces questions refs
              noticed inbox asked status fails].freeze
     PIECE = %i[id status kept_reason until route route_text title detail
-               done_when evidence after for awaits scope rests_on_assumptions
+               done_when evidence commits after for awaits scope
+               rests_on_assumptions
                problem risk plan verified_by claim ready ready_since unsent
                stalled touched_at settled brief criteria returns assessments
                pictures no_picture picture_pending builds obsoleted_by

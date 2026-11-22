@@ -153,7 +153,7 @@ PATH new|P<n>` adds a piece with the next free id or changes one
 (`--title`, `--what` for the detail, `--status`, `--route`,
 `--done-when`, `--evidence`, `--after`, `--for`, `--by`, `--verified-by`,
 `--cause`, `--no-picture WHY`, `--picture-pending WHY`, `--picture-holds WHY`, `--no-commit WHY`, `--announce FILE`, `--status back --handback`, `--builds O<n>`,
-`--status obsolete --obsoleted-by P<n>`; an empty value clears a link); a piece not done that
+`--status obsolete --obsoleted-by P<n>`, `--commits SHA[,SHA...]` (appends the commits that landed it); an empty value clears a link); a piece not done that
 waits on an event to come, not on the user, is `--status deferred
 --until CONDITION`, the event kept on its line (`— until: three
 closures`) and in the viewer's remains until another status clears
@@ -365,6 +365,15 @@ also what the waker needs, registered by the user (The waker, below).
   absolute path the tool edited to `edits/SESSION_ID` beside the journal
   file (`LEDGER_JOURNAL` moves it), one path per line, no duplicates.
   It answers nothing; the standard library alone, no bundle.
+- **commit-record** (PostToolUse, Bash): after a command naming git, a
+  HEAD that moved since the session last saw it in that repository
+  (the first sight only remembers; kept in `heads/SESSION_ID` beside the
+  journal) gives the commits `old..new`. They are attached with `piece
+  --commits` to the one piece whose commit word this session filed and
+  that holds no commit, else to the one piece awaiting commit; when no
+  one piece is meant, one line names them so the session files them.
+  Never blocks; silent when nothing moved. `check --final` warns of a
+  piece given its commit word that holds no commit.
 - **uncommitted** (Stop): the recorded files a git repository still
   shows as changed (`git status --porcelain -- PATH`), in a repository
   whose project has a live ledger where no piece awaits commit, none

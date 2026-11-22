@@ -338,7 +338,8 @@ module Ledger
                       until: piece[:until], route: route(piece),
                       route_text: route_text(piece),
                       title: piece[:title], detail: piece[:detail],
-                      done_when: piece[:done_when], evidence: piece[:evidence] }
+                      done_when: piece[:done_when], evidence: piece[:evidence],
+                      commits: @derive.commits(piece) }
                 end
 
                 def route(piece)

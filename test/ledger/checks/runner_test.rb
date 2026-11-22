@@ -112,9 +112,9 @@ class ChecksRunnerTest < CheckCase
                 criteria-pieces case-rated verified-by assumptions-refuted
                 assumptions-settled].freeze
     FINAL = %w[final-pieces final-deferred final-awaits
-               final-criteria].freeze
+               final-criteria final-commits].freeze
 
-    def test_the_rules_run_in_order_and_final_adds_four
+    def test_the_rules_run_in_order_and_final_adds_five
         assert_equal ALWAYS, Ledger::Checks.run(snapshot).map(&:first)
         assert_equal ALWAYS + FINAL,
                      Ledger::Checks.run(snapshot, final: true).map(&:first)
@@ -136,18 +136,18 @@ class ChecksRunnerTest < CheckCase
         assert_equal (ALWAYS + FINAL).sort, Ledger::Checks::HINTS.keys.sort
     end
 
-    # The table as it stood before each module took its own hints:
-    # the rule names and a digest of every name and text, sorted.
+    # The table pinned: the rule names and a digest of every name and
+    # text, sorted.
     HINT_KEYS = %w[
         assumptions-refuted assumptions-settled case-rated codes criteria
-        criteria-pieces details final-awaits final-criteria final-deferred
-        final-pieces goal-revision goal-titled links open-choices
+        criteria-pieces details final-awaits final-commits final-criteria
+        final-deferred final-pieces goal-revision goal-titled links open-choices
         open-described open-picker pictures pictures-fresh pictures-options
         pieces-awaits pieces-order question-loop self-routed titles
         verified-by
     ].freeze
     HINT_DIGEST =
-        "7709829799348e9b102d464c45a98737894f2949ab3848da1c216b14cd1e8f4c"
+        "1ba4af0f4f04d523e4b7e9d50646b4c6e57629a98bcddb227ffd9e0517ee40e7"
 
     def test_the_hints_cover_exactly_the_rules_runner_defines
         hints = Ledger::Checks::HINTS
@@ -155,7 +155,7 @@ class ChecksRunnerTest < CheckCase
         assert_equal Ledger::Checks::RULES.map(&:name).sort, hints.keys.sort
     end
 
-    def test_the_merged_hints_are_the_table_from_before_the_split
+    def test_the_merged_hints_are_the_pinned_table
         hints = Ledger::Checks::HINTS
         joined = hints.sort.map { |name, text| "#{name}\0#{text}" }.join("\n")
 

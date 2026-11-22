@@ -2,6 +2,8 @@
 
 require "ledger/commands/piece_announce"
 require "ledger/commands/piece_builds"
+require "ledger/commands/piece_by"
+require "ledger/commands/piece_commits"
 require "ledger/commands/piece_flags"
 require "ledger/commands/piece_handback"
 require "ledger/text/awaits"
@@ -14,7 +16,7 @@ module Ledger
         # --evidence --after --for --problem --risk --plan --scope --awaits
         # --verified-by --session --by --cause --until --no-picture
         # --picture-pending --picture-holds --no-commit --builds
-        # --obsoleted-by]`:
+        # --obsoleted-by --commits]`:
         # add a piece or change one; `--status deferred --until
         # CONDITION` defers it; `--by X<n>` writes the decision's
         # led_to edge to it, `--status out` claims it for the session
@@ -27,7 +29,8 @@ module Ledger
         # deliberately left uncommitted ('' clears it); `--builds O<n>`
         # that it builds an open question, `--status obsolete
         # --obsoleted-by P<n>` that another piece replaces it
-        # (PieceBuilds); `--announce FILE`
+        # (PieceBuilds); `--commits SHA[,SHA...]` appends the commits
+        # that landed it (PieceCommits); `--announce FILE`
         # records a dispatch's ANNOUNCE block (PieceAnnounce), `--status
         # back --handback` a delegate's hand-back (PieceHandback).
         class Piece < CLI::Command
@@ -70,7 +73,9 @@ module Ledger
                                    "a change; '' clears it",
                 "builds" => "O<n>, the open question it builds; none clears",
                 "obsoleted-by" => "P<n>, the piece that replaces it, with " \
-                                  "--status obsolete"
+                                  "--status obsolete",
+                "commits" => "SHA[,SHA...], 7-40 hex digits, appended to " \
+                             "the commits that landed it"
             }.freeze
 
             private
@@ -138,7 +143,6 @@ module Ledger
         # awaited words and their scope, the led_to edge of `--by`, the
         # claim of `--status out`, and the return of `--cause`.
         class PieceWriter
-            BY = /\AX[1-9]\d*\z/
             # The flag of each piece_links kind and the column it fills.
             LINKS = { "after" => %w[P after_id],
                       "for" => %w[D criterion_id] }.freeze
@@ -158,7 +162,7 @@ module Ledger
                 id = save(old, row)
                 links(id)
                 PieceWords.new(@change, @db, id).sync(row.awaits, row.scopes)
-                by(id)
+                beside(id)
                 claim(id, row)
                 returned(id, row)
                 @change.own
@@ -240,20 +244,11 @@ module Ledger
 
             def row_of(ref) = @change.resolve(ref).last[:id]
 
-            # `--by X<n>`: the decision that led to the piece.
-            def by(id)
-                ref = @opts["by"]&.strip or return
-                raise Refused, "--by takes a decision id, X<n>" unless
-                    BY.match?(ref)
-
-                piece = "P#{@db[:pieces].where(id:).get(:n)}"
-                @change.link("led_to", ref, piece) unless led?(ref, id)
-            end
-
-            def led?(ref, id)
-                @db[:links].where(ledger_id: @change.ledger_id, kind: "led_to",
-                                  from_row: row_of(ref), to_kind: "P",
-                                  to_row: id).any?
+            # What a piece takes besides its own columns: the decision of
+            # `--by`, the commits of `--commits`.
+            def beside(id)
+                PieceBy.new(@change, @db, @opts).link(id)
+                PieceCommits.new(@change, @db, @opts).append(id)
             end
 
             def claim(id, row)

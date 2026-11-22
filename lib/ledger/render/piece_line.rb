@@ -8,9 +8,9 @@ module Ledger
         # A piece as its line in the Markdown: `- P7 [status] route —
         # title: detail`, an obsolete one's `— obsoleted by P<n>`, then
         # the fields in the order `piece` writes them, `— no commit:
-        # WHY`, `— picture: being redrawn (WHY)` and `— picture: holds
-        # (WHY)`, then `— dispatched: N× (last: …)` when
-        # a dispatch was announced (piece --announce).
+        # WHY`, `— commits: a1b2c3d, e4f5a6b`, `— picture: being redrawn
+        # (WHY)` and `— picture: holds (WHY)`, then `— dispatched: N×
+        # (last: …)` when a dispatch was announced (piece --announce).
         class PieceLine
             def initialize(snapshot, refs)
                 @refs = refs
@@ -18,6 +18,7 @@ module Ledger
                 @awaits = Refs.group(snapshot.piece_awaits, :piece_id)
                 @scopes = Refs.group(snapshot.piece_scopes, :piece_id)
                 @assessed = Refs.group(snapshot.piece_assessments, :piece_id)
+                @commits = Refs.group(snapshot.piece_commits, :piece_id)
             end
 
             def call(piece)
@@ -61,15 +62,22 @@ module Ledger
 
             # [[name, value, tail]] of the fields the piece has, in order.
             def fields(piece)
+                (first_fields(piece) + last_fields(piece))
+                    .reject { |_, value,| value.nil? || value.empty? }
+            end
+
+            def first_fields(piece)
                 [["until", piece[:until]],
                  ["problem", piece[:problem]], ["risk", piece[:risk]],
                  ["plan", piece[:plan]], ["scope", scope(piece)],
                  ["done when", piece[:done_when]], *links(piece),
-                 ["awaits", awaits(piece)], ["evidence", piece[:evidence]],
-                 ["no commit", piece[:no_commit]],
+                 ["awaits", awaits(piece)], ["evidence", piece[:evidence]]]
+            end
+
+            def last_fields(piece)
+                [["no commit", piece[:no_commit]], ["commits", commits(piece)],
                  ["picture", redrawn(piece)], ["picture", holds(piece)],
                  ["dispatched", dispatched(piece)]]
-                    .reject { |_, value,| value.nil? || value.empty? }
             end
 
             # "2\u00D7 (last: sonnet, medium, stakes low, risk 2/10)": the
@@ -87,6 +95,11 @@ module Ledger
                 risk = row[:risk_rating]&.then { "risk #{it}/10" }
                 parts = [row[:model], row[:effort], axis&.join(" "), risk]
                 parts.compact.join(", ")
+            end
+
+            def commits(piece)
+                rows = @commits.fetch(piece[:id], [])
+                rows.sort_by { it[:position] }.map { it[:sha] }.join(", ")
             end
 
             def redrawn(piece)

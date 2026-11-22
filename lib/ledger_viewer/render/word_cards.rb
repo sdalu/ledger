@@ -64,8 +64,12 @@ module LedgerViewer
             end
 
             # What the card says under its head: what an other word
-            # needs, then the piece's before/after or why it has none.
-            def below(piece) = needed(piece) + @kit.mockups.sides(piece)
+            # needs, the piece's before/after or why it has none, and the
+            # commits that landed it.
+            def below(piece)
+                needed(piece) + @kit.mockups.sides(piece) +
+                    @kit.cases.commits(piece)
+            end
 
             def needed(piece)
                 others = Reading.words(piece).select { it.first == "other" }

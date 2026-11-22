@@ -20,6 +20,7 @@ module Ledger
                   "finish" => :Finish,
                   "inbox" => :Inbox,
                   "edit-record" => :EditRecord,
+                  "commit-record" => :CommitRecord,
                   "uncommitted" => :Uncommitted,
                   "session-start" => :SessionStart,
                   "status-stop" => :StatusStop,

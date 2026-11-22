@@ -123,6 +123,12 @@ module Ledger
 
         def awaits_label(piece) = Text::Awaits.label(awaits(piece))
         def scopes(piece) = rows(:piece_scopes, :piece_id, piece)
+
+        # The ids of the commits that landed the piece, oldest first.
+        def commits(piece)
+            rows(:piece_commits, :piece_id, piece).map { it[:sha] }
+        end
+
         # The piece's before/after rows, before first.
         def pictures(piece) = rows(:piece_pictures, :piece_id, piece)
 

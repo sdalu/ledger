@@ -32,7 +32,10 @@ module Ledger
         # PREFIX opens the detail of a failure, JOIN joins its problems;
         # WARN is a warning rule's module (problems, final, notes,
         # compared).
-        Rule = Data.define(:name, :rule, :prefix, :join, :final, :warn) do
+        # ADVISORY: the rule passes whatever it finds and says it as a
+        # warning.
+        Rule = Data.define(:name, :rule, :prefix, :join, :final, :warn,
+                           :advisory) do
             def detail(problems) = "#{prefix}#{problems.join(join)}"
 
             # The problems a run reports; a warning rule's --final ones
@@ -51,13 +54,20 @@ module Ledger
         end
 
         def self.rule(name, rule, prefix: "", join: "; ", final: false)
-            Rule.new(name:, rule:, prefix:, join:, final:, warn: nil)
+            Rule.new(name:, rule:, prefix:, join:, final:, warn: nil,
+                     advisory: false)
+        end
+
+        # A `--final` rule that never fails: what it finds is a warning.
+        def self.advice(name, rule)
+            Rule.new(name:, rule:, prefix: "", join: "; ", final: true,
+                     warn: nil, advisory: true)
         end
 
         # A rule that warns on a plain check and fails `--final`.
         def self.warning(name, kind)
             Rule.new(name:, rule: kind.method(:problems), prefix: "",
-                     join: "; ", final: false, warn: kind)
+                     join: "; ", final: false, warn: kind, advisory: false)
         end
 
         RULES = [
@@ -93,7 +103,8 @@ module Ledger
                  prefix: "deferred: ", join: ", ", final: true),
             rule("final-awaits", Final.method(:awaits),
                  prefix: "the user's word still owed: ", final: true),
-            rule("final-criteria", Final.method(:criteria), final: true)
+            rule("final-criteria", Final.method(:criteria), final: true),
+            advice("final-commits", Final.method(:commits))
         ].freeze
 
         # The rules that answer [item, token] pairs: the write path
@@ -119,7 +130,9 @@ module Ledger
         def verdict(rule, derive, final)
             problems = rule.problems(derive, final)
             said = problems + rule.notes(derive)
-            [rule.name, problems.empty? || (!rule.warn.nil? && !final),
+            passes = problems.empty? || rule.advisory ||
+                     (!rule.warn.nil? && !final)
+            [rule.name, passes,
              said.empty? ? "" : rule.detail(said)]
         end
 
