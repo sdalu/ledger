@@ -448,7 +448,7 @@
   // fetched; the rest of the page must be as the server last sent it
   const PARTS = {
     ledger: [['header.ledger-head', () => 'head'], ['nav.question-nav', () => 'nav'],
-             ['h2[id] > .count', e => 'count:' + e.parentElement.id], ['section.waiting form.give-all', () => 'give-all'],
+             ['h2[id] > .count', e => 'count:' + e.parentElement.id], ['section.waiting form.give-all', e => 'give-all:' + e.querySelector('[name=refs]').value],
              ['[data-key]', e => e.dataset.key], ['details.done-fold[id]', e => e.id], ['li[id]', e => e.id]],
     index: [['p.queue-summary', () => 'summary'], ['[data-key]', e => e.dataset.key]],
   }[document.body.dataset.page];
@@ -773,13 +773,20 @@
   };
   // after the user's own send, the parts it drew again are as the server
   // sent them, and so is the rest of the page
+  // every group form is a part of its own, keyed by the pieces it names: the
+  // ones the page fetched replace those last shown
+  const rebaseGroups = parts => {
+    for (const k of [...last.parts.keys()]) if (k.startsWith('give-all:')) last.parts.delete(k);
+    for (const [k, el] of parts) if (k.startsWith('give-all:')) last.parts.set(k, norm(el.outerHTML));
+  };
   const rebase = (doc, keys) => {
     const mainNew = last && doc.querySelector('main');
     if (!mainNew) return;
     const parts = partsOf(mainNew);
     last.skel = skeleton(mainNew);
     for (const k of keys) {
-      if (parts.has(k)) last.parts.set(k, norm(parts.get(k).outerHTML)); else last.parts.delete(k);
+      if (k === 'give-all') rebaseGroups(parts);
+      else if (parts.has(k)) last.parts.set(k, norm(parts.get(k).outerHTML)); else last.parts.delete(k);
     }
   };
   // an answer or a word is sent with fetch: the answered card is swapped for
@@ -807,11 +814,19 @@
       if (sel.endsWith('.count')) a.textContent = b.textContent;
       else { const c = document.importNode(b, true); a.replaceWith(c); wire(c); }
     }
-    // the one-click bar for several pieces comes and goes with what still
-    // waits: a word sent on one card leaves it naming pieces already given
-    const bar = document.querySelector(giveAll), fresh = doc.querySelector(giveAll);
-    if (bar && !fresh) bar.remove();
-    else if (bar && fresh) bar.replaceWith(document.importNode(fresh, true));
+    // the one-click forms for sets of pieces come and go with what still
+    // waits: a word sent on one card leaves a form naming pieces already
+    // given. A form the server draws as shown stays as it is.
+    const bars = [...document.querySelectorAll(giveAll)], fresh = [...doc.querySelectorAll(giveAll)];
+    const shown = new Map(bars.map(f => [f.outerHTML, f]));
+    const kept = fresh.map(f => shown.get(f.outerHTML));
+    for (const f of bars) if (!kept.includes(f)) f.remove();
+    let at = document.querySelector('section.waiting > h2');
+    fresh.forEach((f, i) => {
+      const el = kept[i] || document.importNode(f, true);
+      if (at && at.nextElementSibling !== el) at.after(el);
+      at = el;
+    });
     // the head's count of sent entries nothing wakes a session for grows
     // with each send, and comes or goes with the first and the last
     const unread = document.querySelector('.ledger-head > .waker-unread'), now = doc.querySelector('.ledger-head > .waker-unread');

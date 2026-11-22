@@ -29,6 +29,7 @@ $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 require "ledger_viewer"
 
 require_relative "support/browser_fixture"
+require_relative "support/groups_fixture"
 require_relative "support/long_fixture"
 
 module BrowserRun
@@ -173,6 +174,7 @@ module BrowserRun
         SHIM = File.join(__dir__, "browser_session.cjs")
         VIEWER = File.join(__dir__, "browser", "viewer.cjs")
         PAGES = File.join(__dir__, "browser_pages.cjs")
+        GROUPS = File.join(__dir__, "browser", "groups.cjs")
         LONG = File.join(__dir__, "browser", "long.cjs")
 
         def initialize(core, browsers)
@@ -184,7 +186,8 @@ module BrowserRun
             shared = @browsers.map do |name, exe|
                 check(sandbox, cookie, name, exe)
             end
-            shared.all? & long_passes?(sandbox, cookie)
+            shared.all? & long_passes?(sandbox, cookie) &
+                groups_pass?(sandbox, cookie)
         end
 
         private
@@ -203,6 +206,28 @@ module BrowserRun
                 system(env(sandbox, cookie), "node", LONG,
                        "#{sandbox.base}/l/#{lid}", name)
             end.all?
+        end
+
+        # The group buttons check, once per browser, on a ledger of its
+        # own: two sets of three pieces awaiting the same words.
+        def groups_pass?(sandbox, cookie)
+            @browsers.map do |name, exe|
+                next true unless File.executable?(exe)
+
+                address = File.join(sandbox.dir, "groups-#{name}", ".claude",
+                                    "LEDGER.md")
+                build_groups(sandbox, address)
+                lid = Digest::SHA1.hexdigest(address)[0, 10]
+                system(env(sandbox, cookie), "node", GROUPS,
+                       "#{sandbox.base}/l/#{lid}", name)
+            end.all?
+        end
+
+        def build_groups(sandbox, address)
+            journal = Ledger::Journal.open(sandbox.journal)
+            GroupsFixture.build(journal, address)
+        ensure
+            journal&.close
         end
 
         def build_long(sandbox, address)

@@ -67,27 +67,24 @@ module LedgerViewer
                 html + answered
             end
 
-            # One word for every piece waiting, when they all await the
-            # same words.
+            # One word for every set of pieces awaiting the same words.
             def give_all
                 owing = @reading.unsent_words
-                names = shared(owing) or return ""
-                @scope.partial(
-                    "ledger/give_all",
-                    { lid: @lid, token: @token, count: owing.length, names:,
-                      refs: owing.map { |piece| piece["id"] }.join(" "),
-                      symbol: symbol(names),
-                      labels: names.map { |word| Terms::WORD_LABEL.fetch(word) } }
-                )
+                groups = Groups.of(owing)
+                groups.map do |names, pieces|
+                    form(names, pieces, pieces.length == owing.length)
+                end.join
             end
 
-            # The words every one of several pieces awaits, if they are the
-            # same and the user can give them with one click.
-            def shared(owing)
-                sets = owing.map { |piece| Reading.words(piece).map(&:first) }
-                            .uniq
-                sets.first if owing.length > 1 && sets.length == 1 &&
-                              !sets.first.include?("other")
+            def form(names, pieces, whole)
+                ids = pieces.map { it["id"] }
+                @scope.partial(
+                    "ledger/give_all",
+                    { lid: @lid, token: @token, count: pieces.length, names:,
+                      whole:, refs: ids.join(" "), line: Groups.line(ids),
+                      symbol: symbol(names),
+                      labels: names.map { Terms::WORD_LABEL.fetch(it) } }
+                )
             end
 
             def symbol(names)
@@ -101,6 +98,47 @@ module LedgerViewer
                 return "" if lines.empty?
 
                 @scope.partial("ledger/answered", lines:)
+            end
+        end
+
+        # The pieces owed a word, grouped by the words they await, in
+        # the page's order of each group's first piece.
+        module Groups
+            module_function
+
+            # {[words] => [pieces]} for every set of two or more pieces
+            # awaiting the same words, whatever their order; a set with
+            # `other` is not one a click can give.
+            def of(owing)
+                grouped = owing.group_by do |piece|
+                    Reading.words(piece).map(&:first).sort
+                end
+                grouped.reject! do |set, pieces|
+                    set.include?("other") || pieces.length < 2
+                end
+                grouped.values.to_h do |pieces|
+                    [Reading.words(pieces.first).map(&:first), pieces]
+                end
+            end
+
+            # The ids in the order given, a run of consecutive numbers as
+            # a range: `P3\u2013P5, P8`.
+            def line(ids)
+                runs(ids).flat_map do |run|
+                    next run if run.length < 3
+
+                    "#{run.first}\u2013#{run.last}"
+                end.join(", ")
+            end
+
+            def runs(ids)
+                ids.slice_when { |a, b| !successor?(a, b) }.to_a
+            end
+
+            def successor?(from, to)
+                one = from.match(/\A(\D+)(\d+)\z/)
+                two = to.match(/\A(\D+)(\d+)\z/)
+                one && two && one[1] == two[1] && one[2].to_i + 1 == two[2].to_i
             end
         end
     end

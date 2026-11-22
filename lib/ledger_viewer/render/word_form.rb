@@ -3,6 +3,7 @@
 require_relative "clock"
 require_relative "terms"
 require_relative "text"
+require_relative "word_buttons"
 
 module LedgerViewer
     module Render
@@ -111,34 +112,7 @@ module LedgerViewer
 
             private
 
-            def buttons(piece)
-                names = piece["awaits"].map { it["word"] }
-                lines = piece["scope"].to_h { [it["word"], it["text"]] }
-                all = names.length > 1 ? [combined(piece["id"], names)] : []
-                all + names.map do |word|
-                    choice(piece["id"], word, single(word), lines[word])
-                end
-            end
-
-            def combined(id, names)
-                labels = names.map { Terms::WORD_LABEL.fetch(it) }
-                inner = @scope.icon("list-checks") + labels.join(" + ")
-                choice(id, names.join(", "), inner, nil, "is-combined")
-            end
-
-            def single(word)
-                @scope.icon(Terms::WORD_ICON.fetch(word)) +
-                    Terms::WORD_LABEL.fetch(word)
-            end
-
-            def choice(id, value, inner, line, extra = nil)
-                said = value.gsub(", ", "-").gsub(" ", "-")
-                @scope.partial(
-                    "ledger/word_choice",
-                    { cls: ["word-choice", extra].compact.join(" "), value:,
-                      inner:, line: line || "", wid: "what-#{id}-#{said}" }
-                )
-            end
+            def buttons(piece) = WordButtons.new(@scope).of(piece)
         end
     end
 end
