@@ -105,6 +105,7 @@ Sequel.migration do
             String :before               # JSON row; nil: inserted
             String :after                # JSON row; nil: deleted
             index %i[tbl row_id]
+            index %i[event_id]           # the ledger's joins search, not scan (017)
         end
         create_table(:goals) do
             primary_key :id
