@@ -1,7 +1,9 @@
 # frozen_string_literal: true
 
 require "ledger/hooks/journal_name"
+require "ledger/hooks/launchers"
 require "ledger/hooks/program_rules"
+require "ledger/hooks/substitutions"
 require "ledger/hooks/words"
 
 module Ledger
@@ -13,15 +15,17 @@ module Ledger
         # journal's own method): a redirect into
         # the journal or a companion, then ProgramRules per segment; `sh
         # -c` and `eval` text is read as commands. A segment whose program
-        # is the launcher passes. Standard library alone: it runs before
+        # is the launcher passes, once no redirect of it names the journal;
+        # nice, timeout, env, sudo and the like are read through, and
+        # `$( )`, backticks and if/while/for bodies as commands. A launcher
+        # option the table does not know is refused when the segment names
+        # the journal. Standard library alone: it runs before
         # every Bash call.
         class JournalWrite
             COMMANDS = %w[piece ask answer word fact constraint decide noticed
                           criterion edit renumber choice mockup take undo
                           restore close].freeze
             SHELLS = %w[sh bash zsh dash].freeze
-            PREFIXES = %w[env nice command exec sudo].freeze
-            ASSIGNMENT = /\A\w+=/
             REDIRECT = /\A\d*>+\|?\z/
             ANY_REDIRECT = /\A\d*[<>]+[|&]?\z/
             DEPTH = 3
@@ -61,36 +65,43 @@ module Ledger
                 first_write(command, 0)
             end
 
-            # -> the journal word SEGMENT writes, or nil.
+            # -> the journal word SEGMENT writes, or nil. A segment whose
+            # launcher has an option the table does not know cannot be
+            # told from a writer: it is refused when it names the journal.
             def writes(segment, depth = 0)
-                words = segment.map(&:text)
-                at, program = program(words)
-                return if launcher?(words, at, program)
-
-                args = segment.drop(at + 1).reject { redirect?(it) }
-                redirected(segment) || nested(program, args, depth) ||
-                    @rules.call(program, args)
+                redirected(segment) || command_write(segment, depth)
             end
 
             private
 
+            def command_write(segment, depth)
+                words = segment.map(&:text)
+                at = Launchers.program_at(words)
+                return unclassified(segment) unless at
+
+                program = words[at] ? File.basename(words[at]) : ""
+                return if launcher?(words, at, program)
+
+                args = segment.drop(at + 1).reject { redirect?(it) }
+                nested(program, args, depth) || @rules.call(program, args)
+            end
+
+            def unclassified(segment)
+                segment.map(&:text).find { @name.match?(it) }
+            end
+
+            # A text read for substitutions first, then by segments; at
+            # the depth limit it is refused when it names the journal.
             def first_write(text, depth)
-                Words.segments(text).lazy.filter_map { writes(it, depth) }
-                     .first
+                return @name.mentions(text).first if depth > DEPTH
+                inner = Substitutions.in(text).lazy.filter_map do |part|
+                    first_write(part, depth + 1)
+                end
+                inner.first || Words.segments(text).lazy
+                                    .filter_map { writes(it, depth) }.first
             end
 
             def redirect?(word) = !word.quoted && ANY_REDIRECT.match?(word.text)
-
-            # -> [index of the program word, its basename], past variable
-            # assignments and a prefix (env, nice, exec, sudo).
-            def program(words)
-                at = words.index { |word| !prefix?(word) } || words.size
-                [at, words[at] ? File.basename(words[at]) : ""]
-            end
-
-            def prefix?(word)
-                ASSIGNMENT.match?(word) || PREFIXES.include?(word)
-            end
 
             # bin/ledger, or `sh bin/ledger`: the sanctioned writer.
             def launcher?(words, at, program)
@@ -109,7 +120,6 @@ module Ledger
 
             # `sh -c TEXT` and `eval TEXT`: the text read as commands.
             def nested(program, args, depth)
-                return if depth >= DEPTH
                 nested_texts(program, args).lazy
                                            .filter_map do |text|
                     first_write(text, depth + 1)
