@@ -15,7 +15,13 @@ require "ledger/pictures"
 class JournalTest < Minitest::Test
     ADDRESS = "/work/alpha/LEDGER.md"
 
+    # The variables as the suite set them: a teardown that deleted them
+    # would leave the tests after it reading the running session's
+    # transcript.
+    KEPT = %w[LEDGER_JOURNAL CLAUDE_CONFIG_DIR].freeze
+
     def setup
+        @suite_env = ENV.to_h.slice(*KEPT)
         @dir = Dir.mktmpdir("ledger-journal-test")
         ENV["LEDGER_JOURNAL"] = File.join(@dir, "state", "journal.db")
         # No real session's transcript is read: a test writes its own.
@@ -26,8 +32,7 @@ class JournalTest < Minitest::Test
 
     def teardown
         @journal.close
-        ENV.delete("LEDGER_JOURNAL")
-        ENV.delete("CLAUDE_CONFIG_DIR")
+        KEPT.each { ENV[it] = @suite_env[it] }
         FileUtils.rm_rf(@dir)
     end
 
