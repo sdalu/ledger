@@ -658,8 +658,8 @@ t('A2: the status pill\'s summary is at least 24 px', await p.evaluate(() => {
   const heldBatch = {};
   const arrived = new Promise(go => { heldBatch.arrived = go; });
   await p.route('**/say-batch', route => { heldBatch.route = route; heldBatch.arrived(); });
-  await p.locator('#piece-P3 .drop-fold > summary').click();
-  await p.locator('#piece-P3 button.a-drop').click();
+  await p.locator('#piece-P2 .drop-fold > summary').click();
+  await p.locator('#piece-P2 button.a-drop').click();
   sent = mark();
   await p.locator('.tray-bar .a-validate').click();
   await arrived;
@@ -675,7 +675,7 @@ t('A2: the status pill\'s summary is at least 24 px', await p.evaluate(() => {
   t('R1: when the batch lands only what was sent leaves: the added item is still in the tray and on its card',
     JSON.stringify(kept.items) === JSON.stringify([['O1', 'comment', 'added while sending']])
     && JSON.stringify(kept.cards) === JSON.stringify(['q-O1 Comment in the tray']) && since(sent) === 1
-    && /drop asked/.test(await p.textContent('#piece-P3')));
+    && /drop asked/.test(await p.textContent('#piece-P2')));
   await p.unroute('**/say-batch');
   await p.locator('.tray-bar .a-untray').click();
   rewind(sent);
