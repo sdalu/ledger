@@ -32,7 +32,8 @@
   wide.addEventListener('change', fitFolds);
   // the text last selected outside a form, for the quote buttons: a click
   // on the button empties the selection, so it is kept as it is made; the
-  // buttons stay disabled until there is something to quote
+  // buttons stay hidden (and disabled) until there is something to quote,
+  // a greyed button giving no reason why
   let quote = '';
   document.addEventListener('selectionchange', () => {
     const s = document.getSelection();
@@ -41,13 +42,53 @@
     const n = s.anchorNode && (s.anchorNode.nodeType === 1 ? s.anchorNode : s.anchorNode.parentElement);
     if (n && n.closest('form')) return;
     quote = t;
-    for (const b of document.querySelectorAll('button.a-quote')) b.disabled = false;
+    for (const b of document.querySelectorAll('button.a-quote')) { b.hidden = false; b.disabled = false; }
   });
+  // what batch mode says on the buttons and forms of a root, once the tray
+  // is known (below)
+  let labelBatch = () => {};
   // the controls that need script, woken in a root: the whole page on load,
   // a card swapped in after a send
   const wire = root => {
+    labelBatch(root);
+    // the proposed order as a list of titles moved up and down, written
+    // into the comma field (the form's own, kept for a page without
+    // script); a field typed in puts the ids it names first in the list
+    for (const list of root.querySelectorAll('ol.order-list')) {
+      const field = list.closest('details')?.querySelector('input[name="order"]');
+      if (!field) continue;
+      list.hidden = false;
+      const rows = () => [...list.children];
+      const ends = () => rows().forEach((li, at, all) => {
+        li.querySelector('.a-up').disabled = at === 0;
+        li.querySelector('.a-down').disabled = at === all.length - 1;
+      });
+      const write = () => {
+        field.value = rows().map(li => li.dataset.id).join(', ');
+        field.dispatchEvent(new Event('input', {bubbles: true}));
+      };
+      const read = () => {
+        const named = field.value.split(',').map(s => s.trim()).filter(Boolean);
+        const byId = new Map(rows().map(li => [li.dataset.id, li]));
+        for (const id of [...named].reverse()) if (byId.has(id)) list.prepend(byId.get(id));
+        ends();
+      };
+      list.addEventListener('click', e => {
+        const b = e.target.closest('button.a-up, button.a-down');
+        if (!b || b.disabled) return;
+        const li = b.closest('li'), up = b.classList.contains('a-up');
+        if (up) li.previousElementSibling.before(li); else li.nextElementSibling.after(li);
+        ends();
+        write();
+        // a button at an end of the list is disabled: the focus moves to its twin
+        (b.disabled ? li.querySelector(up ? '.a-down' : '.a-up') : b).focus();
+      });
+      field.addEventListener('input', e => { if (e.isTrusted) read(); });
+      field.addEventListener('change', read);
+      read();
+    }
     for (const b of root.querySelectorAll('button.a-quote')) {
-      b.hidden = false;
+      b.hidden = !quote;
       b.disabled = !quote;
       b.addEventListener('click', () => {
         if (!quote) return;
@@ -78,6 +119,30 @@
       };
       radio.addEventListener('change', sync);
       sync();
+    }
+    // a comment written on an option that is not the one picked is said,
+    // beside it, so that it is not mistaken for the answer's; nothing is
+    // blocked, the comment goes with the answer as it is
+    for (const form of root.querySelectorAll('form.say')) {
+      const tiles = [...form.querySelectorAll('.choice')].filter(c => c.querySelector('textarea'));
+      if (!tiles.length) continue;
+      const warn = () => {
+        for (const c of tiles) {
+          const ta = c.querySelector('textarea');
+          const off = ta.value.trim() !== '' && !c.querySelector('input[type="radio"]').checked;
+          let w = c.querySelector('.comment-unchosen');
+          if (off && !w) {
+            w = document.createElement('p');
+            w.className = 'comment-unchosen';
+            w.setAttribute('role', 'status');
+            w.textContent = 'This option is not your choice';
+            ta.after(w);
+          } else if (!off && w) w.remove();
+        }
+      };
+      form.addEventListener('input', warn);
+      form.addEventListener('change', warn);
+      warn();
     }
     // Cancel on a request closes its fold and gives the focus back to the
     // trash that opened it; without script the trash closes it as well
@@ -152,6 +217,8 @@
       const t = [...f.querySelectorAll('textarea, input[type="text"]')].find(x => x.name === name);
       if (t) {
         t.value = value;
+        // what reads the field (the order list, the unchosen-option line) follows it
+        t.dispatchEvent(new Event('change', {bubbles: true}));
         const fold = t.closest('details');
         if (fold) fold.open = true;
         typed++;
@@ -781,7 +848,7 @@
   });
   // the tray: with batch mode on, a word, a comment or a drop on a card
   // waits in it instead of being sent; its bar at the page's foot lists
-  // them, and Validate sends them all in one write. The switch and the
+  // them, and Send all sends them all in one write. The switch and the
   // tray are kept per ledger in localStorage; without it they last as
   // long as the page
   const local = {
@@ -806,6 +873,35 @@
     if (/^P\d+$/.test(ref)) return word === 'drop' ? 'drop' : word ? 'word' : 'comment';
     if (/^O\d+$/.test(ref)) return f.elements.comment ? 'comment' : word === 'drop' ? 'drop' : '';
     return '';
+  };
+  // with batch mode on, a button whose act goes to the tray says so
+  // ("Commit to tray"), and an answer form, which the tray does not take,
+  // says its answer still goes at once
+  labelBatch = root => {
+    for (const f of root.querySelectorAll('form.say')) {
+      if (!/\/say$/.test(new URL(f.action).pathname)) continue;
+      const subs = [...f.querySelectorAll('button[type="submit"]')];
+      // the label is the button's last text, after its icon: rewritten in
+      // place, so that what it says and its accessible name stay one text
+      for (const b of subs) {
+        const label = [...b.childNodes].filter(n => n.nodeType === 3 && n.nodeValue.trim()).pop();
+        if (!label || !trayKind(f, b)) continue;
+        if (!('label' in b.dataset)) b.dataset.label = label.nodeValue;
+        label.nodeValue = b.dataset.label + (batch ? ' to tray' : '');
+      }
+      const answer = /^O\d+$/.test(f.elements.ref ? f.elements.ref.value : '') && f.closest('li[id]')
+        && !f.closest('.picture-ask') && subs.length && subs.every(b => !trayKind(f, b));
+      if (!answer) continue;
+      let n = f.querySelector(':scope > .batch-at-once');
+      if (!n) {
+        n = document.createElement('p');
+        n.className = 'batch-at-once';
+        n.textContent = 'Batch mode is on: this answer is still sent at once, not put in the tray.';
+        const row = f.querySelector(':scope > .actions');
+        if (row) row.before(n); else f.append(n);
+      }
+      n.hidden = !batch;
+    }
   };
   const firstLine = s => (s || '').trim().split('\n')[0];
   const lineOf = i => {
@@ -874,7 +970,7 @@
     count.textContent = tray.length + ' in the tray';
     const acts = document.createElement('div');
     acts.className = 'tray-acts';
-    const ok = button('a-validate', 'Validate');
+    const ok = button('a-validate', 'Send all (' + tray.length + ')');
     ok.disabled = gone > 0;
     ok.addEventListener('click', validate);
     const empty = button('a-empty', 'Empty tray');
@@ -964,7 +1060,7 @@
     acts.append(q, yes, keep);
     keep.focus();
   };
-  // Validate: every item in one request, one write; refused, nothing is
+  // Send all: every item in one request, one write; refused, nothing is
   // written and the tray keeps them all, the refused ones marked
   const validate = async () => {
     if (sending || !tray.length || tray.some(i => i.gone)) return;
@@ -1037,6 +1133,7 @@
         ? 'words, comments and drops wait in the tray until you validate them'
         : 'each word, comment and drop is sent at once';
       state.textContent = ', batch ' + (batch ? 'on' : 'off');
+      labelBatch(document);
     };
     box.addEventListener('change', () => {
       batch = box.checked;

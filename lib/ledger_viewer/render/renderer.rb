@@ -6,6 +6,7 @@ require_relative "index"
 require_relative "notices"
 require_relative "ledger_page"
 require_relative "page"
+require_relative "reading"
 require_relative "stamp"
 require_relative "views"
 require_relative "why"
@@ -49,12 +50,9 @@ module LedgerViewer
             # `entry`: what led to it, what it led to (LinksGraph). Raises
             # LinksGraph::Error when the ledger has no such item.
             def links(entry, id)
-                view = LinksGraph.call(@ledgers.read(entry), id)
-                href = lambda do |to|
-                    Why.path(entry.id, to) if Why::STARTABLE.match?(to)
-                end
-                body = @views.render("ledger/links", @scope, { view:, href: })
                 name = Helpers.project_name(entry.project, entry.path)
+                locals = links_locals(entry, id, @ledgers.read(entry), name)
+                body = @views.render("ledger/links", @scope, locals)
                 @page.html(title: "Why #{id} — #{name}", body:,
                            stamp: Stamp.of(@ledgers.all),
                            styles: [@links_css])
@@ -74,6 +72,19 @@ module LedgerViewer
             end
 
             private
+
+            # The links page's parts: its view, the links of its ids to
+            # their pages, the crumbs back to the ledger, and the way to
+            # the start's own row on the ledger page.
+            def links_locals(entry, id, data, name)
+                lid = entry.id
+                href = lambda do |to|
+                    Why.path(lid, to) if Why::STARTABLE.match?(to)
+                end
+                { view: LinksGraph.call(data, id), href:,
+                  crumbs: Why.crumbs(lid, name),
+                  card: Why.card(lid, id, Reading.new(data).decision_ids) }
+            end
 
             # public/links.css, beside the viewer's stylesheet.
             def links_css(config)

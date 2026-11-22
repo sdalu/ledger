@@ -494,7 +494,10 @@ What the page takes, all as inbox entries, of the four kinds
   hook and *Your messages* show it as *picture asked for O3 (svg)*.
 - **A comment on a planned piece**, before it goes out, and with two or
   more planned, **a proposed order**, refused unless it names each
-  planned piece once.
+  planned piece once. With script the order is a list of the pieces'
+  titles, each with up and down buttons (44 px targets) that rewrite
+  the comma field below it; the field stays, and is the whole form
+  without script.
 - **A word on a piece** the ledger says awaits one (`— awaits: start`,
   on a planned or kept piece; `commit, deploy`, `other (what)`; the
   words are start, commit, deploy, push, merge): its card under Waiting
@@ -505,6 +508,8 @@ What the page takes, all as inbox entries, of the four kinds
   the piece does not await. A piece may carry `— scope: commit = what it
   authorises | deploy = …` (`piece --scope`, only for words it awaits,
   pruned as words are given), shown under each word's button. The
+  piece's evidence, when it has one, sits just above the buttons, with
+  a link to its row in the record. The
   comment folds below the words with its own *Send comment* and
   *Quote selection*, named *Comment on P<n>*. An answer or a word
   is sent with `fetch` when the page has script: the answered card is
@@ -541,11 +546,14 @@ What the page takes, all as inbox entries, of the four kinds
   piece, a comment on a piece or a question (*Ask about*) and a drop of
   either go into the tray instead of being sent: the card says *Word
   commit in the tray* (*Comment*, *Drop*) with *Remove*, its form
-  closed as after a send. Answers, notes, Close, Abandon, pictures asked
-  and the order are still sent at once. A bar sticks to the page's foot
+  closed as after a send. Each button whose act goes to the tray says
+  so while batch mode is on (*Commit to tray*, *Send comment to tray*,
+  *Ask to drop P2 to tray*). Answers, notes, Close, Abandon, pictures
+  asked and the order are still sent at once, and an answer form says
+  so above its Send. A bar sticks to the page's foot
   while the tray holds something: *N in the tray*, each item's id, kind
-  and text cut at one line with its *Remove*, then *Validate* and
-  *Empty tray* (which asks again inside the bar). *Validate* posts the
+  and text cut at one line with its *Remove*, then *Send all (N)* and
+  *Empty tray* (which asks again inside the bar). *Send all* posts the
   whole tray in one request (`POST /l/ID/say-batch`: token, Origin and
   Host as `/say`, `items` the JSON list of the forms trayed); each item
   is checked by the rules of its own send, in the tray's order, an item
@@ -557,7 +565,7 @@ What the page takes, all as inbox entries, of the four kinds
   marks those. Sent, the tray empties and the cards, the head's next
   step, the tiles, the side list and the Waiting count are drawn again.
   The tray is kept per ledger across a reload; an item whose card is no
-  longer on the page says so in the bar, and *Validate* waits until it
+  longer on the page says so in the bar, and *Send all* waits until it
   is removed. Batch mode off, everything is sent at once as before.
 - **The close of the ledger**, only while its status line ends with
   `done: propose close`: the head reads *Ready to close.* and offers
@@ -585,13 +593,16 @@ What the page takes, all as inbox entries, of the four kinds
   it with `ledger close PATH --abandon --take N<n>`.
 - **A note** per ledger.
 
-Every box has a *Quote last selection* button, enabled once text on
+Every box has a *Quote last selection* button, hidden until text on
 the page has been selected: it goes in as a `>` quote, a blank line
 after it, so several quotes and comments leave as one entry; the
 button sits under the box it fills, in a row of its own, so Send stands
 alone. A question's choice is required: Send is refused with none
 picked, and a choice whose text says `in your comment` opens its
-comment on being picked, says what to write there and requires it. A
+comment on being picked, says what to write there and requires it.
+Every option keeps its comment fold; text written in the comment of an
+option that is not the one picked says *This option is not your
+choice* beside it, and is still sent with the answer. A
 card's status is one pill that opens, on a tap, to what the status
 means after the word, in the same pill; an
 item id is drawn in two halves (the letter pale, the number on the
@@ -687,7 +698,8 @@ A piece awaiting commit, deploy, push or merge shows what the word
 changes: `bin/ledger mockup PATH FILE --piece P<n> --before` (or
 `--after`) places one file as that side, and its card under Waiting on
 you draws the pair as one tile, *Before* on the left and *After* on the
-right, each opening full size; a side already placed is refused unless
+right (on a card narrower than 36rem, a phone's, *Before* over *After*
+at the card's width), each opening full size; a side already placed is refused unless
 `--replace` takes it away (its blob stays). A piece with nothing to
 show says why with `bin/ledger piece PATH P<n> --no-picture WHY`, drawn
 on its card as a muted line `no picture: WHY`. `check`'s `pictures` rule

@@ -30,6 +30,22 @@ class WhyRouteTest < ViewerTest
         end
     end
 
+    def test_the_page_leads_back_to_the_ledger_and_the_item_on_it
+        sign_in
+        https why("P1")
+        body = last_response.body
+
+        all = %(<p class="crumbs"><a href="/">All ledgers</a>)
+
+        assert_includes body, %(#{all} / <a href="/l/#{@lid}">)
+        assert_includes body,
+                        %(Why <a class="id-link" href="/l/#{@lid}#piece-P1">)
+        https why("X1")
+
+        assert_includes last_response.body,
+                        %(Why <a class="id-link" href="/l/#{@lid}#dec-0">)
+    end
+
     def test_the_page_carries_the_links_stylesheet_after_the_viewers
         sign_in
         https why("P1")

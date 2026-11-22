@@ -21,10 +21,20 @@ module LedgerViewer
                 spec = SayForm::BLANK.with(ref: "order", order: list,
                                            label: LABEL)
                 form = @kit.say.html(spec)
-                @kit.scope.partial("ledger/flight_order", lid: @kit.lid, form:)
+                @kit.scope.partial("ledger/flight_order",
+                                   lid: @kit.lid, list: list_of(list), form:)
             end
 
             private
+
+            # The pieces as a list of titles to move up and down, which
+            # the script shows; the comma field stays for a page without
+            # it.
+            def list_of(ids)
+                titles = @reading.pieces.to_h { [it["id"], it["title"]] }
+                @kit.scope.partial("ledger/order_list",
+                                   pieces: ids.map { [it, titles[it].to_s] })
+            end
 
             # The planned pieces in an order the server accepts: a piece
             # after those it waits for, the ledger's order otherwise.

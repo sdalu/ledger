@@ -13,6 +13,7 @@
     align-items: start;
   }
   .links-head h1 { overflow-wrap: anywhere; }
+  .links-none { margin-block-start: var(--space-l); }
 }
 
 @layer components {

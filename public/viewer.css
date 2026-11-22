@@ -757,6 +757,8 @@
 
   /* what an `other (…)` word needs, said on its card */
   .entries > li > .needed { margin-block-start: var(--space-xs); font-weight: 600; }
+  /* what the word rests on, read just above the buttons that give it */
+  .entries li .word-evidence { margin-block-start: var(--space-s); font-size: 0.875rem; overflow-wrap: anywhere; }
   /* why a piece awaiting a word shows no before/after: said, not pressed */
   .entries li .no-picture { margin-block-start: var(--space-xs); font-size: 0.875rem; color: var(--muted); }
   /* the way to a piece's or a decision's links page: a quiet icon beside its
@@ -1057,6 +1059,18 @@
       overflow-wrap: anywhere;
     }
     &.is-pair figcaption { max-inline-size: 30rem; }
+    /* a pair on a narrow card (the card is the container) stacks Before over
+       After at the card's width rather than running off its side; a page
+       side is then drawn at that width, unscaled, its top showing */
+    &.is-pair {
+      @container (inline-size < 36rem) {
+        flex: 1 1 100%;
+        & .sides { flex-direction: column; gap: var(--space-xs); }
+        & button.a-expand { box-sizing: border-box; inline-size: 100%; block-size: auto; aspect-ratio: 3 / 2; }
+        & iframe { inline-size: 100%; block-size: 100%; transform: none; }
+        & figcaption { max-inline-size: none; }
+      }
+    }
     & .figure-full[hidden] { display: none; }
   }
 
@@ -1327,6 +1341,43 @@
     color: var(--accent);
   }
 
+  /* the proposed order as titles to move: each row its id and title, then
+     up and down as 44 px targets; a long title wraps, never the row */
+  .order-list {
+    display: grid;
+    gap: var(--space-xs);
+    margin-block-start: var(--space-xs);
+    padding: 0;
+    list-style: none;
+    &[hidden] { display: none; }
+    & > li {
+      display: flex;
+      align-items: center;
+      gap: var(--space-s);
+      padding: var(--space-xs) var(--space-xs) var(--space-xs) var(--space-s);
+      border: 1px solid var(--rule);
+      border-radius: var(--radius);
+      background: var(--panel);
+    }
+    & .order-text { flex: 1; min-inline-size: 0; overflow-wrap: anywhere; }
+    & .order-moves { display: flex; flex: none; gap: var(--space-xs); }
+    & button {
+      display: inline-grid;
+      place-items: center;
+      min-inline-size: 2.75rem;
+      min-block-size: 2.75rem;
+      padding: 0;
+      border: 1px solid var(--edge);
+      border-radius: var(--radius);
+      color: var(--accent);
+      background: var(--panel);
+      cursor: pointer;
+      &:hover { border-color: var(--accent); }
+      &:disabled { cursor: default; opacity: 0.4; }
+      & .icon { inline-size: 1.25rem; block-size: 1.25rem; }
+    }
+  }
+
   /* the filled button of a form: a word, a send, the word for all */
   :is(.say, .give-all) button {
     display: inline-flex;
@@ -1369,6 +1420,16 @@
       font-size: 0.8125rem;
       font-weight: 600;
       color: var(--ink);
+    }
+    /* batch mode on: an answer still goes at once, said above its Send */
+    & .batch-at-once { font-size: 0.8125rem; color: var(--muted); }
+    /* a comment on an option not picked: said beside it, in words, not
+       blocked */
+    & .comment-unchosen {
+      margin-block-start: var(--space-xs);
+      font-size: 0.8125rem;
+      font-weight: 600;
+      color: var(--ask);
     }
     /* a draft brought back after a refresh, said once at the top */
     & .draft-note {

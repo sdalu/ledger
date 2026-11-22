@@ -5,6 +5,7 @@ require_relative "reading"
 require_relative "terms"
 require_relative "text"
 require_relative "why"
+require_relative "word_evidence"
 
 module LedgerViewer
     module Render
@@ -20,9 +21,7 @@ module LedgerViewer
 
             def html(piece)
                 last = @reading.sent_words[piece["id"]]
-                prior = @reading.unfiled_on(piece["id"]).select { it["word"] }
-                ids = prior.map { it["id"] }
-                form = @kit.word.word(piece, ids, last)
+                form = form(piece, last)
                 needed = below(piece)
                 return receipt(piece, last, needed, form) if last
 
@@ -30,6 +29,14 @@ module LedgerViewer
             end
 
             private
+
+            # The word buttons, the evidence they rest on just above them.
+            def form(piece, last)
+                prior = @reading.unfiled_on(piece["id"]).select { it["word"] }
+                ids = prior.map { it["id"] }
+                WordEvidence.html(@scope, piece) +
+                    @kit.word.word(piece, ids, last)
+            end
 
             def card(piece)
                 @scope.partial(

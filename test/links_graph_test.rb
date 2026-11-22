@@ -160,12 +160,13 @@ end
 class LinksPageTest < Minitest::Test
     ROOT = File.expand_path("..", __dir__)
     HREF = ->(found) { "/links/#{found}" if found.match?(/\A[PX]/) }
+    CRUMBS = '<p class="crumbs">crumbs</p>'
 
     def render(id, href: HREF)
         views = LedgerViewer::Render::Views.new(File.join(ROOT, "views"))
         view = LedgerViewer::LinksGraph.call(LinksFixture.document, id)
         views.render("ledger/links", LedgerViewer::Render::Scope.new(views),
-                     { view:, href: })
+                     { view:, href:, crumbs: CRUMBS, card: "/card/#{id}" })
     end
 
     def test_the_page_shows_the_words_verbatim_and_escaped
@@ -193,6 +194,35 @@ class LinksPageTest < Minitest::Test
 
     def test_an_empty_side_says_so
         assert_includes render("P2"), "Nothing is linked after P2."
+    end
+
+    def test_the_heading_chip_leads_to_the_card_after_the_crumbs
+        html = render("P1")
+
+        assert html.start_with?(CRUMBS)
+        assert_includes html, %(<h1 id="links-title">Why ) +
+                              %(<a class="id-link" href="/card/P1">)
+    end
+end
+
+# A why page with nothing linked either way: one line, the way back, and
+# none of the empty columns' lines.
+class LinksEmptyPageTest < Minitest::Test
+    ROOT = LinksPageTest::ROOT
+
+    def html
+        doc = LinksFixture.document.merge(links: [])
+        views = LedgerViewer::Render::Views.new(File.join(ROOT, "views"))
+        view = LedgerViewer::LinksGraph.call(doc, "P1")
+        views.render("ledger/links", LedgerViewer::Render::Scope.new(views),
+                     { view:, href: ->(_) {}, crumbs: "", card: "/c" })
+    end
+
+    def test_it_says_so_in_one_line_with_the_way_back
+        assert_includes html, %(<p class="links-none">Nothing is linked ) +
+                              %(to P1, before or after it. <a href="/c">)
+        refute_includes html, "Each line below"
+        refute_includes html, "links-columns"
     end
 
     def test_the_page_is_written_for_the_browser_check

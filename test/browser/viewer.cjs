@@ -48,7 +48,7 @@ const [base, ledger, which] = process.argv.slice(2);
     waiting: document.querySelector('#waiting .count')?.textContent,
     sent: !!document.querySelector('#sent + ul #q-O3'),
     head: !!document.querySelector('#q-O1 > .card-head > h3.text'),
-    quoteOff: [...document.querySelectorAll('button.a-quote')].every(x => !x.hidden && x.disabled),
+    quoteOff: [...document.querySelectorAll('button.a-quote')].every(x => x.hidden && x.disabled && !x.checkVisibility()),
     figure: !!document.querySelector('#q-O1 pre.figure-text'),
   }));
   t('shadows render (light-dark holds colours only)', s.shadow !== 'none');
@@ -58,7 +58,8 @@ const [base, ledger, which] = process.argv.slice(2);
   t('an answered question is the session\'s turn', s.sent && s.waiting === '2');
   t('id and title one card head', s.head);
   t('text figure drawn in the card', s.figure);
-  t('quote disabled until a selection', s.quoteOff);
+  // N7: no greyed button with no reason: the quote button is hidden (and disabled) until a selection
+  t('quote hidden until a selection', s.quoteOff);
 // A1: an id is used once, so each label names its own control
 t('A1: no id repeats on the ledger page', await p.evaluate(() => {
   const seen = new Set();
@@ -143,6 +144,7 @@ t('A2: the status pill\'s summary is at least 24 px', await p.evaluate(() => {
   });
   await p.waitForTimeout(200);
   t('quote enabled once text is selected', await p.evaluate(() => !document.querySelector('button.a-quote').disabled));
+  t('N7: quote shown once text is selected', await p.evaluate(() => [...document.querySelectorAll('button.a-quote')].every(x => !x.hidden)));
 
   await p.click('.ledger-head a[href="#say-note"]');
   t('Leave a note opens the box under the goal', await p.evaluate(() => {
@@ -842,6 +844,114 @@ t('A2: the status pill\'s summary is at least 24 px', await p.evaluate(() => {
       return cs.color === probe('var(--muted)') && cs.color !== probe('var(--accent)') && cs.textDecorationLine === 'none';
     }));
   }
+  // N1: the why page leads back: the ledger page's crumbs, and its heading chip lands on the card;
+  // P4 has nothing linked either way, which the page says in one line with the way back
+  await p.setViewportSize({width: 1300, height: 900});
+  await p.goto(base + page + '/why/P4');
+  t('N1: the why page has the crumbs All ledgers / the ledger', await p.evaluate(l => {
+    const a = [...document.querySelectorAll('.crumbs a')];
+    return a.length === 2 && a[0].getAttribute('href') === '/' && a[0].textContent === 'All ledgers' && a[1].getAttribute('href') === l;
+  }, page));
+  t('N1: an empty why page says so in one line with the way back, no empty helper lines', await p.evaluate(l => {
+    const n = document.querySelector('.links-none');
+    return !!n && /^Nothing is linked to P4, before or after it\./.test(n.textContent)
+      && n.querySelector('a').getAttribute('href') === l + '#piece-P4'
+      && !document.querySelector('.links-columns') && !/Each line below/.test(document.body.textContent);
+  }, page));
+  await Promise.all([p.waitForNavigation(), p.click('#links-title a.id-link')]);
+  await p.waitForTimeout(300);
+  t('N1: the heading chip lands on the piece\'s card on the ledger page, its fold opened', await p.evaluate(() => {
+    const el = document.getElementById('piece-P4'), r = el && el.getBoundingClientRect();
+    return location.hash === '#piece-P4' && !!r && el.closest('details').open && r.top >= -1 && r.top < innerHeight;
+  }));
+  // N2: the evidence a word rests on sits directly above its buttons, with a link to the record's row
+  t('N2: the evidence sits directly above the word buttons, linking to its row in the record', await p.evaluate(() => {
+    const ev = document.querySelector('#p-P4 > .word-evidence'), f = ev && ev.nextElementSibling;
+    const a = ev && ev.querySelector('a[href="#piece-P4"]');
+    const buttons = document.querySelector('#p-P4 .word-choices');
+    return !!ev && /suite green/.test(ev.textContent) && !!a && /record/.test(a.textContent)
+      && f.matches('form.say') && f.contains(buttons) && ev.getBoundingClientRect().bottom <= buttons.getBoundingClientRect().top;
+  }));
+  // N5: the order as titles with up and down, which rewrite the comma field; the field fits at 390 px
+  await p.setViewportSize({width: 390, height: 844});
+  await p.goto(base + page);
+  await p.evaluate(() => { document.querySelector('details.order-fold').open = true; });
+  const order = () => p.evaluate(() => ({
+    rows: [...document.querySelectorAll('ol.order-list > li')].map(li => li.dataset.id).join(', '),
+    field: document.querySelector('input[name="order"]').value,
+    titled: [...document.querySelectorAll('ol.order-list > li')].every(li => li.querySelector('.order-text').textContent.trim().length > 4),
+    targets: [...document.querySelectorAll('ol.order-list button')].every(b => { const r = b.getBoundingClientRect(); return r.width >= 44 && r.height >= 44; }),
+    fits: (() => { const f = document.querySelector('input[name="order"]'), r = f.getBoundingClientRect();
+      return r.right <= f.form.getBoundingClientRect().right + 0.5 && document.documentElement.scrollWidth <= innerWidth; })(),
+  }));
+  const o1 = await order();
+  await p.locator('ol.order-list > li:last-child .a-up').click();
+  const o2 = await order();
+  await p.locator('ol.order-list > li:first-child .a-down').click();
+  const o3 = await order();
+  t('N5: the planned pieces are a list of titles, up and down 44 px targets, the field fitting at 390 px',
+    o1.rows === o1.field && o1.rows.split(', ').length > 1 && o1.titled && o1.targets && o1.fits);
+  t('N5: up and down move a piece and rewrite the comma field', o2.rows === o2.field && o2.field !== o1.field
+    && o2.field.split(', ').reverse().join(', ') === o1.field.split(', ').slice(-2).join(', ') && o3.field === o1.field);
+  // N3: on a 390 px card the before/after pair stacks, Before over After at the card's width, its caption wrapping
+  t('N3: the pair stacks Before over After at the card\'s width at 390 px', await p.evaluate(() => {
+    const t = document.querySelector('#p-P4 .mock-tile.is-pair'), s = [...t.querySelectorAll('.side')].map(x => x.getBoundingClientRect());
+    const card = t.closest('li').getBoundingClientRect(), cap = t.querySelector('figcaption').getBoundingClientRect();
+    return s.length === 2 && Math.abs(s[0].left - s[1].left) < 1 && s[1].top >= s[0].bottom - 1
+      && s[0].width > card.width * 0.8 && s[0].right <= card.right && cap.right <= card.right
+      && /before/i.test(t.querySelectorAll('.side')[0].textContent + t.querySelectorAll('.side')[0].querySelector('[aria-label]')?.getAttribute('aria-label'));
+  }));
+  await p.setViewportSize({width: 1300, height: 900});
+  await p.waitForTimeout(100);
+  t('N3: a wide card keeps the pair side by side', await p.evaluate(() => {
+    const s = [...document.querySelectorAll('#p-P4 .mock-tile.is-pair .side')].map(x => x.getBoundingClientRect());
+    return s.length === 2 && s[1].left >= s[0].right - 1 && Math.abs(s[0].top - s[1].top) < 1;
+  }));
+  // N6: a comment written on an option not chosen says so beside it; nothing is blocked
+  await p.goto(base + page);
+  await p.evaluate(() => { document.querySelectorAll('#q-O1 input[name="choice"]')[0].click(); });
+  await p.evaluate(() => { document.querySelectorAll('#q-O1 .choice details')[1].open = true; });
+  await p.fill('#q-O1 .choice:nth-of-type(2) textarea', 'about the other one');
+  t('N6: writing on an option not chosen shows "this option is not your choice" beside that comment', await p.evaluate(() => {
+    const c = document.querySelectorAll('#q-O1 .choice'), w = c[1].querySelector('.comment-unchosen');
+    return !!w && /this option is not your choice/i.test(w.textContent) && w.previousElementSibling === c[1].querySelector('textarea')
+      && w.getAttribute('role') === 'status' && !c[0].querySelector('.comment-unchosen');
+  }));
+  await p.evaluate(() => { document.querySelectorAll('#q-O1 input[name="choice"]')[1].click(); });
+  t('N6: choosing that option takes the warning away', await p.evaluate(() => !document.querySelector('#q-O1 .comment-unchosen')));
+  await p.evaluate(() => { const lid = location.pathname.split('/')[2]; sessionStorage.removeItem('draft:' + lid + ':O1'); });
+  // N4: batch mode on, each button whose act goes to the tray says so, an answer says it still goes at once,
+  // and the tray's button reads Send all with its count
+  await p.goto(base + page);
+  await p.evaluate(() => { document.querySelector('.ledger-head .ledger-details').open = true; });
+  const labels = () => p.evaluate(() => ({
+    commit: document.querySelector('#p-P4 button[name="word"][value="commit"]').innerText.trim(),
+    comment: document.querySelector('#p-P4 button.a-comment').textContent.trim(),
+    drop: document.querySelector('#piece-P2 button.a-drop')?.textContent.trim() || '',
+    answer: document.querySelector('#q-O1 > form.say .batch-at-once')?.checkVisibility() || false,
+    answerSend: document.querySelector('#q-O1 > form.say > .actions button[type="submit"]').textContent.trim(),
+  }));
+  const off = await labels();
+  await p.check('#batch-mode');
+  const on = await labels();
+  t('N4: batch mode on, the buttons going to the tray read "… to tray", not before',
+    off.commit === 'Commit' && on.commit === 'Commit to tray' && /^Send comment to tray$/.test(on.comment)
+    && /to tray$/.test(on.drop) && !/to tray/.test(off.comment + off.drop));
+  t('N4: an answer form says its answer is still sent at once, its Send unchanged', on.answer && !off.answer
+    && on.answerSend === off.answerSend && await p.evaluate(() =>
+      /still sent at once/.test(document.querySelector('#q-O1 > form.say .batch-at-once').textContent)));
+  await p.locator('#p-P4 button[name="word"][value="commit"]').click();
+  await p.locator('#piece-P2 .drop-fold > summary').click();
+  await p.locator('#piece-P2 button.a-drop').click();
+  t('N4: the tray\'s button reads "Send all (2)"', await p.evaluate(() =>
+    document.querySelector('.tray-bar .a-validate').textContent === 'Send all (2)'));
+  await p.locator('.tray-bar .a-untray').first().click();
+  t('N4: its count follows the tray: "Send all (1)"', await p.evaluate(() =>
+    document.querySelector('.tray-bar .a-validate').textContent === 'Send all (1)'));
+  await p.locator('.tray-bar .a-untray').first().click();
+  await p.evaluate(() => { document.querySelector('.ledger-head .ledger-details').open = true; });
+  await p.uncheck('#batch-mode');
+  t('N4: batch mode off, the labels are back', JSON.stringify(await labels()) === JSON.stringify(off));
   // P67: every queue row carries its wait (the journal dates each item), and every title starts at the same x at 1300 px
   await p.setViewportSize({width: 1300, height: 900});
   await p.goto(base + '/');
