@@ -43,7 +43,9 @@ const [url, which] = process.argv.slice(2);
   // a group's chip: its tooltip on hover tells the piece, a click goes to its card
   const chip = p.locator('form.give-all').nth(1).locator('.give-all-refs a.id-link').first();
   await chip.hover();
-  await p.waitForTimeout(300);
+  // the tip shows on hover after the engine's own delay, longer in Firefox at times: wait for it, bounded
+  await p.waitForFunction(() => document.querySelectorAll('form.give-all')[1]
+    .querySelector('.give-all-refs a.id-link')?.nextElementSibling?.checkVisibility(), null, {timeout: 3000}).catch(() => {});
   const tipShown = await p.evaluate(() => {
     const a = document.querySelectorAll('form.give-all')[1].querySelector('.give-all-refs a.id-link');
     const tip = a.nextElementSibling;
