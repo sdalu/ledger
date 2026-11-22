@@ -534,7 +534,13 @@ module Ledger
                     since = !closed && @asked["O#{question[:n]}"]
                     { preparing: (@derive.ref(piece) if piece),
                       preparing_status: (piece[:status] if piece),
+                      held_by: held_by(question, closed),
                       asked_since: (Json.time(since) if since) }
+                end
+
+                def held_by(question, closed)
+                    held = !closed && @derive.held_by(question)
+                    @derive.ref(held) if held
                 end
             end
         end

@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "ledger/commands/ask_by"
 require "ledger/text/options"
 require "ledger/text/picker"
 require "ledger/text/risk"
@@ -39,7 +40,8 @@ module Ledger
             FLAGS = {
                 "title" => "a short name, at most 60 characters",
                 "choices" => "'label = effect; cost | ...', two to eight",
-                "by" => "P<n>, the piece that answers or draws it",
+                "by" => "P<n>, the piece that answers or draws it; none " \
+                        "clears it (ask PATH O<n> --by none)",
                 "items" => "'S4 | S5': one answer per item",
                 "see" => "F<n>,C<n>,... the items it points to",
                 "problem" => "what is wrong and where",
@@ -70,12 +72,26 @@ module Ledger
             end
 
             def run(path, question)
+                return relink(path, question.strip) if AskBy.question?(question)
+
                 opts = check(question)
                 result = write(path) do |change|
                     AskWriter.new(change, journal.db, @opts, path)
                              .call(question.strip, opts)
                 end
                 report(result, path, opts)
+                0
+            end
+
+            # `ask PATH O<n> --by P<n>|none`: the by link of an open
+            # question, set, changed or cleared; nothing else of it.
+            def relink(path, ref)
+                result = write(path) do |change|
+                    AskBy.new(change, @opts).relink(ref)
+                end
+                emit(result, path, first: ref,
+                                   lines: [Render::Markdown.line(result.after,
+                                                                 ref)])
                 0
             end
 
@@ -222,15 +238,12 @@ module Ledger
             def ids(value) = value.to_s.split(/[,\s]+/).reject(&:empty?)
 
             def by
-                ref = @opts["by"]&.strip or return
-                refuse("--by names a piece, P<n>") unless
-                    ref.match?(/\AP[1-9]\d*\z/)
-                row = @change.resolve(ref).last
-                if row[:status] == "dropped"
-                    refuse("--by #{ref}: that piece is dropped and will " \
-                           "prepare nothing")
+                value = @opts["by"]&.strip or return
+                if value == "none"
+                    refuse("--by none clears an existing question: `ask " \
+                           "PATH O<n> --by none`")
                 end
-                @by = row[:id]
+                @by = AskBy.piece(@change, value)
             end
         end
 

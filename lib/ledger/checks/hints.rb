@@ -3,6 +3,7 @@
 require "ledger/checks/assumptions"
 require "ledger/checks/fresh"
 require "ledger/checks/option_pictures"
+require "ledger/checks/loops"
 
 module Ledger
     module Checks
@@ -107,6 +108,7 @@ module Ledger
                 "every criterion `[x]` with evidence or `[-]` with why; " \
                 "`bin/ledger criterion PATH D<n> --met EVIDENCE` or " \
                 "`--unmet WHY`"
-        }.merge(*[Assumptions, Fresh, OptionPictures].map { it::HINTS }).freeze
+        }.merge(*[Assumptions, Fresh, OptionPictures, Loops]
+                    .map { it::HINTS }).freeze
     end
 end

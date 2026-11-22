@@ -3,6 +3,7 @@
 require "json"
 
 require "ledger/journal"
+require "ledger/preparing"
 require "ledger/raid"
 require "ledger/ready"
 require "ledger/snapshot"
@@ -20,6 +21,8 @@ module Ledger
     # Requiring this file loads the check rules too: the status line
     # proposes closing only when `--final` passes.
     class Derive
+        include Preparing
+
         include Raid
         include Ready
 
@@ -121,18 +124,6 @@ module Ledger
 
         def open_questions = snapshot.questions.select { it[:closed_at].nil? }
         def qref(question) = "O#{question[:n]}"
-
-        # The piece that still prepares QUESTION: its `by` piece, then the
-        # pieces its pending pictures name, the first not settled; nil
-        # when the question is answerable.
-        def preparer(question) = preparers(question).find { !settled?(it) }
-        def answerable?(question) = preparer(question).nil?
-
-        def preparers(question)
-            pending = rows(:question_pictures, :question_id, question)
-                      .filter_map { it[:pending_id] }
-            [question[:by_id], *pending].compact.map { piece(it) }
-        end
 
         # The options as "LABEL = effect; cost" strings, the shape the
         # picker grammar reads.

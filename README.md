@@ -162,7 +162,10 @@ it; `ask PATH --title TITLE "question"
 WHY) [--replaces O<n>]` puts a question under Open (it refuses one
 without a picture decision or breaking the picker grammar,
 `check`'s `open-picker`; `--replaces` closes O<n> in the same write, a
-Decision `by me`; `--dry-run` also prints the card's picker); `answer
+Decision `by me`; `--dry-run` also prints the card's picker; `ask PATH
+O<n> --by P<n>|none` sets, changes or clears the `--by` link of an open
+question, and `check`'s `question-loop` fails a question asked by a piece
+that awaits the user's word, which the write refuses to create); `answer
 PATH O<n> --decision TEXT [--take N<n>…]` files the answer as a Decision
 `by user`, prefixed `O<n>:`, closes the question and takes the viewer
 entries, in one write; `word PATH P<n> --word W [--take N<n>…]` files
@@ -504,7 +507,11 @@ What the page takes, all as inbox entries, of the four kinds
   it; the status line names it `being prepared: O9 (P36)`, and its wait
   starts only once it can be answered. When that piece is deferred the
   card says *Waits for P36, deferred until CONDITION* instead of that
-  the piece is still preparing.
+  the piece is still preparing. A question whose `by` piece awaits the
+  user's word (a loop `check` reports as `question-loop`) is not
+  waiting for it: it is drawn answerable, with its picker, and its meta
+  line says *P36 waits for your start; this question can be answered
+  now*.
 - **A comment on a question**, not an answer (to ask for more before
   answering): below an open question's answer form, a fold *Ask about
   O<n>* with its own *Send question*; the entry carries `comment: true`

@@ -27,7 +27,18 @@ module LedgerViewer
                 by = question["by"].to_s
                 [since && "waiting #{Age.of(Ledger::Text.waited(since))}, " \
                           "since #{Text.minute(since)}",
-                 (by.empty? ? nil : "prepared by #{by}")].compact.join(" · ")
+                 (by.empty? ? nil : "prepared by #{by}"),
+                 held(question)].compact.join(" · ")
+            end
+
+            # A question whose `by` piece awaits the user's word is
+            # answered now: the piece moves only once that word is given.
+            def held(question)
+                id = question["held_by"] or return
+                piece = @reading.pieces.find { it["id"] == id }
+                words = Terms.awaits_label(Reading.words(piece))
+                "#{id} waits for your #{words}; this question can be " \
+                    "answered now"
             end
 
             def unready(question)

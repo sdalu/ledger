@@ -138,7 +138,7 @@ class JsonTest < JsonCase
                pictures no_picture picture_pending line].freeze
     QUESTION = %i[id title detail problem risk recommend choices items by see
                   pictures rests_on_assumptions preparing preparing_status
-                  asked_since line].freeze
+                  held_by asked_since line].freeze
 
     EMPTY = {
         schema: 1, kind: "ledger",

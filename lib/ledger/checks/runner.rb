@@ -8,6 +8,7 @@ require "ledger/checks/fresh"
 require "ledger/checks/goal"
 require "ledger/checks/hints"
 require "ledger/checks/links"
+require "ledger/checks/loops"
 require "ledger/checks/open"
 require "ledger/checks/option_pictures"
 require "ledger/checks/pieces"
@@ -69,6 +70,7 @@ module Ledger
             rule("open-picker", Open.method(:picker)),
             rule("self-routed", Pieces.method(:self_routed)),
             rule("links", Links.method(:problems)),
+            rule("question-loop", Loops.method(:problems)),
             rule("pieces-awaits", Awaits.method(:problems)),
             rule("pictures", Sides.method(:problems),
                  prefix: "no before/after: "),

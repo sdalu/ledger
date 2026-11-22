@@ -32,6 +32,7 @@ require_relative "support/browser_fixture"
 require_relative "support/choices_fixture"
 require_relative "support/groups_fixture"
 require_relative "support/long_fixture"
+require_relative "support/loop_fixture"
 require_relative "support/risk_fixture"
 
 module BrowserRun
@@ -180,6 +181,7 @@ module BrowserRun
         LONG = File.join(__dir__, "browser", "long.cjs")
         CHOICES = File.join(__dir__, "browser", "choices.cjs")
         RISK = File.join(__dir__, "browser", "risk.cjs")
+        LOOP = File.join(__dir__, "browser", "loop.cjs")
         # [tag, fixture, script] of the checks that each run on a ledger
         # of their own, once per browser, after the shared checks, which
         # read the index's first queue entry and must not meet them; the
@@ -187,6 +189,7 @@ module BrowserRun
         # last.
         OWN = [["long", LongFixture, LONG], ["groups", GroupsFixture, GROUPS],
                ["choices", ChoicesFixture, CHOICES],
+               ["loop", LoopFixture, LOOP],
                ["risk", RiskFixture, RISK]].freeze
 
         def initialize(core, browsers)

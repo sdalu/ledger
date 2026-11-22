@@ -46,6 +46,22 @@ class FeedbackStatesTest < ViewerTest
         assert_includes card("q-O2"), "P1 (planned) is still preparing"
     end
 
+    # The commands refuse the loop, so P1's awaits row is written past
+    # them, as a ledger of older words holds it.
+    def test_a_question_held_by_a_piece_awaiting_start_is_answerable
+        ledger("piece", "P1", "--status", "planned")
+        id = @journal.db[:pieces].where(n: 1).get(:id)
+        @journal.db[:piece_awaits].insert(piece_id: id, position: 0,
+                                          word: "start")
+        sign_in
+        part = card("q-O2")
+
+        assert_includes part, "P1 waits for your start; this question can " \
+                              "be answered now"
+        assert_includes part, 'type="radio"'
+        refute_includes part, "still preparing"
+    end
+
     def head
         https "/l/#{@lid}"
         last_response.body[%r{<header class="ledger-head">.*?</header>}m]
