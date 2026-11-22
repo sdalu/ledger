@@ -4,6 +4,7 @@ require "ledger/checks/assumptions"
 require "ledger/checks/codes"
 require "ledger/checks/criteria"
 require "ledger/checks/final"
+require "ledger/checks/fresh"
 require "ledger/checks/goal"
 require "ledger/checks/hints"
 require "ledger/checks/links"
@@ -16,20 +17,45 @@ module Ledger
     # the order they are printed, `case-rated` and
     # the new `verified-by` after them, the `--final` rules last. Each
     # rule answers its problems for a Derive of the snapshot; a rule
-    # passes when it has none.
+    # passes when it has none. A warning rule's problems fail `--final`
+    # only: a plain check passes it with them as its detail, and so with
+    # the notes it announces; the write path compares the problems its
+    # module answers for that (`compared`).
     #
     #     Ledger::Checks.run(snapshot, final: true)
     #     # => [["goal-titled", true, ""], ["criteria", false, "need …"]]
     #     Ledger::Write.run(journal, address, cmd, argv,
     #                       checks: Ledger::Checks) { … }
     module Checks
-        # PREFIX opens the detail of a failure, JOIN joins its problems.
-        Rule = Data.define(:name, :rule, :prefix, :join, :final) do
+        # PREFIX opens the detail of a failure, JOIN joins its problems;
+        # WARN is a warning rule's module (problems, final, notes,
+        # compared).
+        Rule = Data.define(:name, :rule, :prefix, :join, :final, :warn) do
             def detail(problems) = "#{prefix}#{problems.join(join)}"
+
+            # The problems a run reports; a warning rule's --final ones
+            # are its own.
+            def problems(derive, final)
+                warn && final ? warn.final(derive) : rule.call(derive)
+            end
+
+            # What a warning rule announces; [] for any other.
+            def notes(derive) = warn ? warn.notes(derive) : []
+
+            # The problems the write path compares.
+            def compared(derive)
+                warn ? warn.compared(derive) : rule.call(derive)
+            end
         end
 
         def self.rule(name, rule, prefix: "", join: "; ", final: false)
-            Rule.new(name:, rule:, prefix:, join:, final:)
+            Rule.new(name:, rule:, prefix:, join:, final:, warn: nil)
+        end
+
+        # A rule that warns on a plain check and fails `--final`.
+        def self.warning(name, kind)
+            Rule.new(name:, rule: kind.method(:problems), prefix: "",
+                     join: "; ", final: false, warn: kind)
         end
 
         RULES = [
@@ -45,6 +71,7 @@ module Ledger
             rule("pieces-awaits", Awaits.method(:problems)),
             rule("pictures", Sides.method(:problems),
                  prefix: "no before/after: "),
+            warning("pictures-fresh", Fresh),
             rule("titles", ->(d) { Pieces.titles(d) + Open.titles(d) }),
             rule("details", ->(d) { Pieces.details(d) + Open.details(d) }),
             rule("codes", Codes.method(:problems)),
@@ -76,14 +103,20 @@ module Ledger
         module_function
 
         # -> [[name, ok, detail]] for every rule that runs, in order;
-        # FINAL adds the rules of `check --final`.
+        # FINAL adds the rules of `check --final`. A rule that passes
+        # with a detail warns.
         def run(snapshot, final: false)
             derive = Derive.new(snapshot)
             RULES.select { final || !it.final }.map do |rule|
-                problems = rule.rule.call(derive)
-                [rule.name, problems.empty?,
-                 problems.empty? ? "" : rule.detail(problems)]
+                verdict(rule, derive, final)
             end
+        end
+
+        def verdict(rule, derive, final)
+            problems = rule.problems(derive, final)
+            said = problems + rule.notes(derive)
+            [rule.name, problems.empty? || (!rule.warn.nil? && !final),
+             said.empty? ? "" : rule.detail(said)]
         end
 
         # -> [[name, detail]] of the rules that fail.
@@ -97,7 +130,7 @@ module Ledger
         def call(snapshot)
             derive = Derive.new(snapshot)
             compared.filter_map do |rule|
-                problems = rule.rule.call(derive)
+                problems = rule.compared(derive)
                 next if problems.empty?
 
                 [rule.name, rule.detail(problems),

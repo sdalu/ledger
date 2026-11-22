@@ -56,4 +56,17 @@ class PiecePicturesTest < ViewerTest
                               %(&lt;wording&gt; change</p>)
         refute_includes html, "mock-tile"
     end
+
+    def test_a_redraw_is_a_muted_line_where_the_pair_sat
+        ledger("piece", *PIECE)
+        side("before")
+        side("after")
+        ledger("piece", "P1", "--awaits", "commit",
+               "--picture-pending", "the <order> changed")
+        html = card
+
+        assert_includes html, %(<p class="no-picture">Picture being ) +
+                              %(redrawn: the &lt;order&gt; changed</p>)
+        refute_includes html, "mock-tile"
+    end
 end

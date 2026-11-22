@@ -7,7 +7,8 @@ require "ledger/pictures"
 module Ledger
     module Commands
         # `mockup --piece P<n> --before|--after`: one file placed as one
-        # side of a piece's before/after.
+        # side of a piece's before/after; it ends the redraw `piece
+        # --picture-pending` announced.
         module MockupPiece
             ID = /\AP[1-9]\d*\z/
 
@@ -63,7 +64,14 @@ module Ledger
                 Pictures::Sides.new(change, journal.db)
                                .call(row, role, item,
                                      replace: @opts.fetch(:replace, false))
+                redrawn(change, row)
                 change.summary = "placed #{item.name} as #{piece} #{role}"
+            end
+
+            def redrawn(change, row)
+                return unless row[:picture_pending]
+
+                change.update(:pieces, row[:id], picture_pending: nil)
             end
         end
 

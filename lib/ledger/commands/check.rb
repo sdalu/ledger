@@ -37,18 +37,23 @@ module Ledger
                 results.all? { it[1] } ? 0 : 1
             end
 
+            # A rule that passes with a detail warns: the line says so and
+            # the exit status stays.
             def plain(results, status)
                 results.each do |name, ok, detail|
-                    mark = ok ? "ok  " : "FAIL"
-                    @out.puts "#{mark} #{name}#{detail_of(ok, detail)}"
+                    @out.puts "#{mark(ok, detail)} #{name}#{detail_of(detail)}"
                     @out.puts "  hint: #{hint(name)}" if @opts[:hints] && !ok
                 end
                 @out.puts status
             end
 
-            def detail_of(ok, detail)
-                ok || detail.empty? ? "" : " -- #{detail}"
+            def mark(ok, detail)
+                return "FAIL" unless ok
+
+                detail.empty? ? "ok  " : "warn"
             end
+
+            def detail_of(detail) = detail.empty? ? "" : " -- #{detail}"
 
             def hint(name)
                 Checks::HINTS.fetch(name, "no hint for this report")

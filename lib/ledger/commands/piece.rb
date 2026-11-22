@@ -8,13 +8,17 @@ module Ledger
     module Commands
         # `piece PATH new|P<n> [--status --route --title --what --done-when
         # --evidence --after --for --problem --risk --plan --scope --awaits
-        # --verified-by --session --by --cause --until --no-picture]`:
+        # --verified-by --session --by --cause --until --no-picture
+        # --picture-pending --picture-holds]`:
         # add a piece or change one; `--status deferred --until
         # CONDITION` defers it; `--by X<n>` writes the decision's
         # led_to edge to it, `--status out` claims it for the session
         # (U12), `--status planned` on a piece out or back records its
         # return with `--cause`, `--no-picture WHY` says why it needs no
-        # before/after.
+        # before/after, `--picture-pending WHY` that its picture is being
+        # redrawn (the next `mockup --piece` clears it, as does ''),
+        # `--picture-holds WHY` that the picture still shows it after a
+        # change, as of this write.
         class Piece < CLI::Command
             USAGE = "PATH TARGET"
             SYNOPSIS = "PATH new|P<n> [--FIELD VALUE...]"
@@ -45,7 +49,11 @@ module Ledger
                 "cause" => "why a piece out or back goes back to planned: " \
                            "brief, split, depth, contract or env",
                 "until" => "the event a deferred piece waits on, with " \
-                           "--status deferred"
+                           "--status deferred",
+                "picture-pending" => "why its picture is being redrawn; " \
+                                     "'' clears it",
+                "picture-holds" => "why its picture still shows it after " \
+                                   "a change; '' clears it"
             }.freeze
 
             private
@@ -160,7 +168,7 @@ module Ledger
             end
 
             def save(old, row)
-                columns = row.columns
+                columns = row.columns(at: @change.at)
                 return update(old, columns) if old
 
                 n = @change.next_id("P")
@@ -358,7 +366,9 @@ module Ledger
                          peer: nil }.freeze
             PROSE = { "done-when" => :done_when, "evidence" => :evidence,
                       "problem" => :problem, "risk" => :risk,
-                      "plan" => :plan, "verified-by" => :verified_by }.freeze
+                      "plan" => :plan, "verified-by" => :verified_by,
+                      "picture-pending" => :picture_pending,
+                      "picture-holds" => :picture_holds }.freeze
             ROUTE = "--route (`sonnet, effort: medium[, skills: c]` or " \
                     "`peer: SESSION`) or --status 'kept: REASON'"
 
@@ -420,19 +430,6 @@ module Ledger
                 end
             end
 
-            # Why the piece needs no before/after; an empty why is
-            # refused, and none is ever cleared.
-            def no_picture
-                return unless @opts.key?("no-picture")
-
-                why = @opts["no-picture"].strip
-                if why.empty?
-                    refuse("--no-picture says why the piece needs no " \
-                           "picture")
-                end
-                @row[:no_picture] = why
-            end
-
             # The status given, stripped; `--until` is refused without
             # `--status deferred`.
             def stated
@@ -451,6 +448,44 @@ module Ledger
                 refuse(UNTIL) if condition.empty?
                 @row.merge!(status: "deferred", kept_reason: nil,
                             until: condition)
+            end
+        end
+
+        # The picture flags of `piece`: why it needs none, and whether the
+        # picture is being redrawn or still holds, never both in one
+        # write.
+        module PiecePicture
+            # The columns a write sets, `picture_holds_at` dated AT when
+            # `--picture-holds` gives a why: pictures-fresh measures from
+            # then.
+            def holds_at(columns, at)
+                return columns unless @opts.key?("picture-holds")
+
+                columns.merge(picture_holds_at: (at if columns[:picture_holds]))
+            end
+
+            private
+
+            # Why the piece needs no before/after; an empty why is
+            # refused, and none is ever cleared.
+            def no_picture
+                exclusive
+                return unless @opts.key?("no-picture")
+
+                why = @opts["no-picture"].strip
+                if why.empty?
+                    refuse("--no-picture says why the piece needs no " \
+                           "picture")
+                end
+                @row[:no_picture] = why
+            end
+
+            def exclusive
+                return unless @opts.key?("picture-pending") &&
+                              @opts.key?("picture-holds")
+
+                refuse("--picture-pending and --picture-holds are " \
+                       "exclusive: the picture is redrawn or it holds")
             end
         end
 
@@ -500,6 +535,7 @@ module Ledger
         class PieceRow
             include PieceFlags
             include PieceCause
+            include PiecePicture
 
             COLUMNS = (%i[status kept_reason until dash title detail
                           risk_rating no_picture] +
@@ -527,9 +563,9 @@ module Ledger
 
             # The columns to write: a claimed piece reaches `out` through
             # Change#status, which checks the holder; any other status set
-            # clears the claim.
-            def columns
-                out = @row.dup
+            # clears the claim. AT dates a `--picture-holds`.
+            def columns(at: nil)
+                out = holds_at(@row.dup, at)
                 if claim?
                     out.delete(:status)
                     out[:status] = "planned" if @old.nil? || kept?(@old)

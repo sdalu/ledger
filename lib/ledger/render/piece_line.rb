@@ -7,7 +7,8 @@ module Ledger
     module Render
         # A piece as its line in the Markdown: `- P7 [status] route —
         # title: detail`, then the fields in the order `piece` writes
-        # them.
+        # them, `— picture: being redrawn (WHY)` and `— picture: holds
+        # (WHY)` last.
         class PieceLine
             def initialize(snapshot, refs)
                 @refs = refs
@@ -54,8 +55,21 @@ module Ledger
                  ["problem", piece[:problem]], ["risk", piece[:risk]],
                  ["plan", piece[:plan]], ["scope", scope(piece)],
                  ["done when", piece[:done_when]], *links(piece),
-                 ["awaits", awaits(piece)], ["evidence", piece[:evidence]]]
+                 ["awaits", awaits(piece)], ["evidence", piece[:evidence]],
+                 ["picture", redrawn(piece)], ["picture", holds(piece)]]
                     .reject { |_, value,| value.nil? || value.empty? }
+            end
+
+            def redrawn(piece)
+                why = piece[:picture_pending] or return
+
+                "being redrawn (#{why})"
+            end
+
+            def holds(piece)
+                why = piece[:picture_holds] or return
+
+                "holds (#{why})"
             end
 
             def links(piece)

@@ -148,7 +148,7 @@ Every item has a writer, and no ledger is edited by hand. `piece
 PATH new|P<n>` adds a piece with the next free id or changes one
 (`--title`, `--what` for the detail, `--status`, `--route`,
 `--done-when`, `--evidence`, `--after`, `--for`, `--by`, `--verified-by`,
-`--cause`, `--no-picture WHY`; an empty value clears a link); a piece not done that
+`--cause`, `--no-picture WHY`, `--picture-pending WHY`, `--picture-holds WHY`; an empty value clears a link); a piece not done that
 waits on an event to come, not on the user, is `--status deferred
 --until CONDITION`, the event kept on its line (`— until: three
 closures`) and in the viewer's remains until another status clears
@@ -718,6 +718,33 @@ on its card as a muted line `no picture: WHY`. `check`'s `pictures` rule
 fails such a piece with neither both sides nor a reason, so the write
 that makes it await the word is refused until one is given; `start` and
 `other (…)` ask for none. `undo` takes a placed side back.
+
+A picture shows its item as it was when placed. `check`'s
+`pictures-fresh` rule names each item whose words were reworded since: a
+piece with a picture whose plan, detail or problem now differs from what
+it held when its latest picture was placed, an open question with a
+picture whose detail, problem or choices (one added, dropped or
+reworded) do. A field first set after the picture is no change, and a
+rewording taken back (`undo`) is none either; status, evidence, risk,
+links, awaits and route never count. The line names the item, the
+fields and the picture's time, `P81: plan, problem changed after its
+last picture (2026-11-22 09:45)`. It is a `warn` line on a plain
+`check`, leaving the exit status as it is, and a failure on `check
+--final`. While the picture is redrawn, `bin/ledger piece PATH P<n>
+--picture-pending WHY` says so: a plain check announces the piece
+(`P81: picture being redrawn (WHY)`) instead of warning, `--final`
+still fails it until the redraw, its line in `show` ends `— picture:
+being redrawn (WHY)`, its card draws the muted line `Picture being
+redrawn: WHY` in place of the before/after, and the next `mockup
+--piece P<n>` clears it (`--picture-pending ''` by hand). When the
+picture still shows the piece after a change, `bin/ledger piece PATH
+P<n> --picture-holds WHY` says so: the check then measures from that
+write instead of the last picture, so a later rewording makes it stale
+again, and its line ends `— picture: holds (WHY)`; one write never
+carries both flags. A write that leaves a piece stale, awaiting commit,
+deploy, push or merge and not being redrawn is refused; it passes with
+`--picture-pending WHY` or `--picture-holds WHY` in the same write, or
+once a new picture is placed.
 
 It writes inbox entries, never a ledger's items: under each open
 question an answer box, and one note box per ledger, each send filed

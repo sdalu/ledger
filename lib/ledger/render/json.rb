@@ -319,6 +319,7 @@ module Ledger
                           row.slice(:role, :name)
                       end,
                       no_picture: piece[:no_picture],
+                      picture_pending: piece[:picture_pending],
                       line: @markdown.line("P#{piece[:n]}") }
                 end
 

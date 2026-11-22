@@ -440,6 +440,21 @@ Sequel.migration do
 end
 ```
 
+```ruby
+# frozen_string_literal: true
+
+# lib/ledger/migrations/008_picture_pending.rb (sketch)
+Sequel.migration do
+    change do
+        alter_table(:pieces) do
+            add_column :picture_pending, String # P, NULL or non-empty
+            add_column :picture_holds, String   # P, NULL or non-empty
+            add_column :picture_holds_at, Integer # ms, set with holds
+        end
+    end
+end
+```
+
 **An assumption.** What the plan takes as true without having checked
 it, recorded so that it is checked before it bites: unlike a fact it is
 unverified, unlike a decision it is a belief, not a choice. `assume PATH
@@ -463,6 +478,17 @@ something the user sees shows it: `mockup PATH FILE --piece P<n>
 after); `piece P<n> --no-picture WHY` stores in `pieces.no_picture` why
 it needs none. Both go through the write path, so `undo` and `restore`
 take a side or a reason back; the blobs stay, as for a question (S1).
+`piece P<n> --picture-pending WHY` stores in `pieces.picture_pending`
+(migration 008) why the picture is being redrawn; the next `mockup
+--piece P<n>` sets it back to NULL in its own write, as does an empty
+WHY. `piece P<n> --picture-holds WHY` stores the why in
+`pieces.picture_holds` and the write's time in `pieces.picture_holds_at`
+(both migration 008, cleared together by an empty WHY): pictures-fresh
+measures from the later of that time and the last picture. When a
+picture was placed, and what a field held then, are read
+from `event_rows` (`Ledger::Stamps`, carried by the Snapshot beside its
+rows): a picture row's last write, and the after of the field's row's
+last write by that time (a question's choices, the rows alive then).
 
 **A goal's done mark.** Every Goal block is live until it is marked
 done: a ledger that takes each new request as a revised block keeps
@@ -751,7 +777,7 @@ command's refusal, exit 2, nothing written.
 | `inbox PATH [--wait [--timeout S] \| --follow [--quiet S]]` | the pending entries, or "inbox: nothing pending", each headed `N<n> (TIME, KIND):` with KIND one of `answer to O3`, `comment on question O3, not an answer`, `picture asked for O3 (svg)` (on O<n> or P<n>), `comment on piece P4`, `word on P4: commit`, `proposed order of the planned pieces`, the close or abandon word, `note` (`lib/ledger/hooks/entry.rb`, `KINDS`); polls the ledger's newest event id each second | `--wait` timeout exit 1 |
 | `take PATH N<n>…` | `taken: …; pending: …`; one `take` event setting `taken_id` | unknown id; "already taken at TIME: another session filed it" |
 | `waker PATH on\|off` | `waker on: ADDRESS`, status line; one `waker` event setting `ledgers.waker` (section 8) | a word but on or off |
-| `piece PATH new\|P<n> [--status --route --title --what --done-when --evidence --after --for --problem --risk --plan --scope --awaits --verified-by --session --by X<n> --cause C --until CONDITION --claim --no-picture WHY --dry-run]` | the new id (new), `claimed: P<n> from HOLDER` (`--claim`), the piece line (a deferred one with `— until: CONDITION`), status line | target shape; no such piece; title, detail; scope grammar or a word not awaited; new without title; awaiting without problem and rated risk; no route and not kept; a return (`--status planned` from out or back) without `--cause` or with a cause not in `brief`, `split`, `depth`, `contract`, `env`; `--cause` on any other change; `--status deferred` without `--until` or with it empty, `--until` without `--status deferred` (any other status clears `until`); out without a session, or out under another holder; `--claim` on a new piece, with `--status`, without a session, or on a piece not out; verified without `--verified-by`; an empty `--no-picture`; checks (`pictures`: awaiting commit, deploy, push or merge without a before and an after or a reason) |
+| `piece PATH new\|P<n> [--status --route --title --what --done-when --evidence --after --for --problem --risk --plan --scope --awaits --verified-by --session --by X<n> --cause C --until CONDITION --claim --no-picture WHY --picture-pending WHY --picture-holds WHY --dry-run]` | the new id (new), `claimed: P<n> from HOLDER` (`--claim`), the piece line (a deferred one with `— until: CONDITION`), status line | target shape; no such piece; title, detail; scope grammar or a word not awaited; new without title; awaiting without problem and rated risk; no route and not kept; a return (`--status planned` from out or back) without `--cause` or with a cause not in `brief`, `split`, `depth`, `contract`, `env`; `--cause` on any other change; `--status deferred` without `--until` or with it empty, `--until` without `--status deferred` (any other status clears `until`); out without a session, or out under another holder; `--claim` on a new piece, with `--status`, without a session, or on a piece not out; verified without `--verified-by`; an empty `--no-picture`; `--picture-pending` with `--picture-holds`; checks (`pictures`: awaiting commit, deploy, push or merge without a before and an after or a reason; `pictures-fresh`: awaiting commit, deploy, push or merge, not `--picture-pending`, with a plan, detail or problem reworded since its latest picture) |
 | `ask PATH QUESTION --title [--choices --by --items --see --problem --risk --recommend] (--mockup N \| --pending P \| --no-picture WHY) [--replaces O<n>] [--dry-run]` | the id, the line, a warning at 7–8 options, the picker card (dry run), status line | title, detail; problem and rated risk; empty question; not exactly one picture decision; pending piece missing or dropped; no picture of that name in the journal; `--by` dropped; option grammar; `--items` without `--choices`; `--replaces` not open or with an untaken entry; checks |
 | `answer PATH O<n> --decision [--date] [--take N…] [--replaces X<n>] [--dry-run]` | the id (`X<n>`), the decision line, the take line, status line | not open; empty decision; unknown or already taken entry; checks |
 | `word PATH P<n> --word W [--date] [--take N…] [--dry-run]` | the id (`X<n>`), the decision line, the piece line, the take line, status line | not P<n>; no piece; empty; awaits no word; a word not awaited; unknown or taken entry; checks |
@@ -816,6 +842,7 @@ per rule, its commands spelled for `bin/ledger`
 | links | every link names a row of this ledger, and `after` never loops | `checks/links.rb` |
 | pieces-awaits | `start` only on a planned or kept piece, a finishing word on a settled one, a scope only for a word awaited | `checks/pieces.rb` |
 | pictures | a piece awaiting commit, deploy, push or merge has a `before` and an `after` placed (`mockup --piece`) or a `no_picture` reason; `start` and `other` are exempt, a word given leaves with its awaits row; the detail is `no before/after: P4 (awaits commit; has before)` | `checks/sides.rb` |
+| pictures-fresh | no picture older than what it shows: a piece with a picture whose plan, detail or problem, an open question with a picture whose detail, problem or choices (added, dropped or reworded) differ from what they held when its latest picture was placed, a field then empty not counted; the detail is `P81: plan, problem changed after its last picture (2026-11-22 09:45)`; a warning only (`warn` line, the rule passing) on a plain check, a failure on `--final`; a piece with `picture_pending` is announced instead on a plain check, `P81: picture being redrawn (WHY)`, and still fails `--final` while stale; the write path compares only stale pieces awaiting commit, deploy, push or merge and not pending, `P81 (awaits commit): … — set --picture-pending WHY, --picture-holds WHY, or place a new picture first`; a piece's `picture_holds_at`, while `picture_holds` is set, stands for its last picture when later | `checks/fresh.rb`, times in `stamps.rb` |
 | titles | pieces in flight and open questions: the title rule | `checks/pieces.rb`, `checks/open.rb` |
 | details | a detail not mostly ids | same |
 | codes | no code of one or two capitals and digits (W1, S4) standing alone whose letter is not a kind (P O D C F X N Z E L G A), unless an open question's `— see:` names an item whose words hold it; read in the latest Goal block's title, short and context (its id `G<n>` in the detail), pieces in flight (title, detail, problem, plan), open questions (title, detail, problem, risk, recommend), decisions (body, note), facts (text, pointer), constraints' where and noticed lines; not in the Goal quote, a constraint's quote, double quotes, `` `code` `` or a URL; the detail is `ID: CODE, …`; a write is refused only for a code it adds (section 2) | `checks/codes.rb`, tokens in `text/codes.rb` |
@@ -879,7 +906,7 @@ other reader through `--json`; the hooks read the `Snapshot` and the
 | links | `[{kind, from, to}]`, visible ids at both ends |
 | closed_questions | the `questions` shape plus `closed_at`, the rows with `closed_at` set, oldest first (the graph page reads them) |
 | pictures | `[{name, files: [{path, type, size}]}]` |
-| pieces | `[{id, status, kept_reason, until, route: {model, effort, skills, peer} \| null, route_text, title, detail, done_when, evidence, after: [P], for: [D], awaits: [{word, what}], scope: [{word, text}], rests_on_assumptions: [A], problem, risk: {rating, text}, plan, verified_by, claim: {session, since} \| null, ready, ready_since, unsent, stalled, touched_at, settled, brief: {version, at} \| null, criteria: [{text, mark, evidence}], returns: [{cause, from, at, actor}], pictures: [{role, name}], no_picture, line}]` (`returns` oldest first, `pictures` before first) |
+| pieces | `[{id, status, kept_reason, until, route: {model, effort, skills, peer} \| null, route_text, title, detail, done_when, evidence, after: [P], for: [D], awaits: [{word, what}], scope: [{word, text}], rests_on_assumptions: [A], problem, risk: {rating, text}, plan, verified_by, claim: {session, since} \| null, ready, ready_since, unsent, stalled, touched_at, settled, brief: {version, at} \| null, criteria: [{text, mark, evidence}], returns: [{cause, from, at, actor}], pictures: [{role, name}], no_picture, picture_pending, line}]` (`returns` oldest first, `pictures` before first) |
 | questions | `[{id, title, detail, problem, risk: {rating, text}, recommend, choices: [{label, effect, cost, text}], items, by, see: [ids], pictures: [{name} \| {pending}], rests_on_assumptions: [A], preparing: P \| null, preparing_status, asked_since, line}]` |
 | refs | `{id: {kind, line}}` for C, D, F, P and X |
 | noticed | `[line]` |

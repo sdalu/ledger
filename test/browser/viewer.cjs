@@ -381,7 +381,7 @@ t('A2: the status pill\'s summary is at least 24 px', await p.evaluate(() => {
   await p.evaluate(() => { document.querySelector('#p-P4 details.comment-box').open = true; });
   await p.fill('#say-P4-word', 'my words, not sent');
   await p.click('h1');
-  run('piece', 'P4', '--plan', 'commit it, then deploy the build on Friday');
+  run('piece', 'P4', '--risk', '2/10 — the fix waits, it ships on Friday');
   await p.waitForSelector('#p-P4 .changed-line', {timeout: 6000}).catch(() => {});
   t('V7: a held card keeps its text and says "Changed since you started" as a polite status', await p.evaluate(() => {
     const c = document.getElementById('p-P4'), l = c.querySelector('.changed-line');
@@ -458,8 +458,9 @@ t('A2: the status pill\'s summary is at least 24 px', await p.evaluate(() => {
       && document.activeElement === c.querySelector('.drop-fold > summary') && scrollY === y;
   }, heldWas));
   run('undo');
-  // F3: the changed line names what changed: a held card's plan, then
-  // its title and risk
+  // F3: the changed line names what changed: a held card's plan, with
+  // the redraw of its picture the same write declares, then its title
+  // and risk
   await p.goto(base + page);
   await p.waitForTimeout(1500);
   await p.evaluate(() => { document.querySelector('#p-P4 details.comment-box').open = true; });
@@ -468,11 +469,11 @@ t('A2: the status pill\'s summary is at least 24 px', await p.evaluate(() => {
   const lineOf = () => document.querySelector('#p-P4 .changed-line > span')?.textContent || '';
   const flagged = () => !!document.querySelector('#p-P4 .changed-line');
   const unflagged = () => !document.querySelector('#p-P4 .changed-line');
-  run('piece', 'P4', '--plan', 'commit it, then deploy the build on Monday');
+  run('piece', 'P4', '--plan', 'commit it, then deploy the build on Monday', '--picture-pending', 'the plan moved');
   await p.waitForFunction(flagged, null, {timeout: 6000}).catch(() => {});
   const planSaid = await p.evaluate(lineOf);
-  t('F3: a card with a draft, its plan changed elsewhere, reads "Changed since you started: plan" (' + planSaid + ')',
-    planSaid === 'Changed since you started: plan');
+  t('F3: a card with a draft, its plan changed elsewhere and its picture set to redraw, reads "Changed since you started: plan, picture and more" (' + planSaid + ')',
+    planSaid === 'Changed since you started: plan, picture and more');
   run('undo');
   await p.waitForFunction(unflagged, null, {timeout: 6000}).catch(() => {});
   run('piece', 'P4', '--title', 'fix the reorder for good', '--risk', '3/10 — the fix waits longer');
@@ -1232,6 +1233,28 @@ t('A2: the status pill\'s summary is at least 24 px', await p.evaluate(() => {
   }));
   await p.goto('about:blank');
   await p.setViewportSize({width: 1300, height: 900});
+  // P21: a piece whose picture is being redrawn shows a muted line where its before/after sat
+  const redraw = path.join(path.dirname(ledger), '..', '..', 'redraw', '.claude', 'LEDGER.md');
+  const fs = require('fs');
+  fs.mkdirSync(path.dirname(redraw), {recursive: true});
+  runOn(redraw, 'new', '--goal', 'a ledger for the redraw line', '--title', 'Redraw ledger', '--short', 'redraw line', '--date', '2026-11-19');
+  runOn(redraw, 'piece', 'new', '--route', 'sonnet, effort: low', '--title', 'Reorder the list', '--problem', 'not committed',
+    '--risk', '2/10 — a reload', '--status', 'verified', '--verified-by', 'me', '--evidence', 'green');
+  for (const role of ['before', 'after']) {
+    const svg = path.join(path.dirname(redraw), role + '.svg');
+    fs.writeFileSync(svg, '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"/>');
+    runOn(redraw, 'mockup', svg, '--piece', 'P1', '--' + role);
+  }
+  runOn(redraw, 'piece', 'P1', '--awaits', 'commit', '--picture-pending', 'the order changed');
+  const redrawId = require('crypto').createHash('sha1').update(redraw).digest('hex').slice(0, 10);
+  await p.goto(base + '/l/' + redrawId);
+  t('P21: a picture being redrawn is a muted line "Picture being redrawn: WHY" on the card, the pair not drawn', await p.evaluate(() => {
+    const card = document.querySelector('#p-P1'), line = card && card.querySelector('p.no-picture');
+    if (!line) return false;
+    const r = line.getBoundingClientRect(), muted = getComputedStyle(line).color, ink = getComputedStyle(card).color;
+    return line.textContent === 'Picture being redrawn: the order changed' && r.height > 0 && muted !== ink
+      && !card.querySelector('.mock-tile');
+  }));
   // D2: a question held by a deferred piece says what it waits for, not that it is preparing options;
   // last, because a piece and a question are not taken back
   run('piece', 'new', '--route', 'sonnet, effort: low', '--title', 'Wait for the API');

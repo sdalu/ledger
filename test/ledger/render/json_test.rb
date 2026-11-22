@@ -135,7 +135,7 @@ class JsonTest < JsonCase
                done_when evidence after for awaits scope rests_on_assumptions
                problem risk plan verified_by claim ready ready_since unsent
                stalled touched_at settled brief criteria returns pictures
-               no_picture line].freeze
+               no_picture picture_pending line].freeze
     QUESTION = %i[id title detail problem risk recommend choices items by see
                   pictures rests_on_assumptions preparing preparing_status
                   asked_since line].freeze

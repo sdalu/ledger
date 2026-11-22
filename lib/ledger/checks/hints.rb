@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "ledger/checks/assumptions"
+require "ledger/checks/fresh"
 
 module Ledger
     module Checks
@@ -105,6 +106,6 @@ module Ledger
                 "every criterion `[x]` with evidence or `[-]` with why; " \
                 "`bin/ledger criterion PATH D<n> --met EVIDENCE` or " \
                 "`--unmet WHY`"
-        }.merge(Assumptions::HINTS).freeze
+        }.merge(Assumptions::HINTS, Fresh::HINTS).freeze
     end
 end

@@ -29,14 +29,21 @@ module LedgerViewer
             end
 
             # A piece's before/after, drawn side by side, and its reason
-            # for none, a muted line; "" when it has neither.
+            # for none, a muted line; "" when it has neither. While the
+            # picture is being redrawn, a muted line says why in place of
+            # the pair.
             def sides(piece)
                 names = piece.fetch("pictures", [])
                              .to_h { [it["role"], it["name"]] }
                 why = piece["no_picture"].to_s
-                reason = %(<p class="no-picture">no picture: ) \
-                         "#{Text.escape(why)}</p>"
-                "#{pair(piece, names)}#{reason unless why.empty?}"
+                reason = muted("no picture: ", why) unless why.empty?
+                "#{redrawn(piece) || pair(piece, names)}#{reason}"
+            end
+
+            # The line of a picture being redrawn; nil when it is not.
+            def redrawn(piece)
+                why = piece["picture_pending"].to_s
+                muted("Picture being redrawn: ", why) unless why.empty?
             end
 
             # The before/after tile in a strip of its own.
@@ -48,6 +55,10 @@ module LedgerViewer
             end
 
             private
+
+            def muted(label, why)
+                %(<p class="no-picture">#{label}#{Text.escape(why)}</p>)
+            end
 
             # {name => its files} of the ledger's pictures.
             def files(reading)

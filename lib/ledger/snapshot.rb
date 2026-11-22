@@ -1,10 +1,14 @@
 # frozen_string_literal: true
 
+require "ledger/stamps"
+
 module Ledger
     # One ledger's rows as plain Ruby values: the ledger row and, per
     # table, its rows as hashes in id order. The shape every reader uses,
     # and the before and after of a write. Pictures come without their
-    # bytes, which stay in the journal.
+    # bytes, which stay in the journal. Its Stamps, when the events
+    # last wrote what a picture shows, ride along outside the rows: two
+    # snapshots are equal by their rows alone.
     class Snapshot
         # Keyed by ledger_id.
         LEDGER_TABLES = %i[goals criteria constraints facts decisions links
@@ -30,7 +34,7 @@ module Ledger
             ledger = db[:ledgers].where(id: ledger_id).first
             raise Unknown, "no ledger L#{ledger_id}" unless ledger
             tables = TABLES.to_h { [it, rows(db, it, ledger_id)] }
-            new(ledger, tables)
+            new(ledger, tables, stamps: Stamps.read(db, ledger_id))
         end
 
         def self.rows(db, table, ledger_id)
@@ -49,11 +53,12 @@ module Ledger
             { key => db[parent].where(ledger_id:).select(:id) }
         end
 
-        attr_reader :ledger, :tables
+        attr_reader :ledger, :tables, :stamps
 
-        def initialize(ledger, tables)
+        def initialize(ledger, tables, stamps: Stamps::NONE)
             @ledger = ledger.freeze
             @tables = tables.freeze
+            @stamps = stamps
             freeze
         end
 
