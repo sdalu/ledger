@@ -1292,6 +1292,20 @@ t('the status pill is as tall as the id chip beside it', await p.evaluate(() => 
     return line.textContent === 'Picture being redrawn: the order changed' && r.height > 0 && muted !== ink
       && !card.querySelector('.mock-tile');
   }));
+  // a comment sent alone on a piece card leaves its box empty: what was sent is no draft
+  await p.goto(base + page);
+  const commented = await p.evaluate(() => document.querySelector('li.is-card form.say .comment-box')?.closest('li').id);
+  const before = mark();
+  await p.evaluate(id => { document.querySelector('#' + id + ' .comment-box').open = true; }, commented);
+  await p.fill(`#${commented} .comment-box textarea`, 'a comment alone');
+  await p.click(`#${commented} button.a-comment`);
+  await p.waitForLoadState("load");
+  await p.waitForTimeout(2500);
+  t('a comment sent alone leaves its comment box empty, after the page is drawn again', await p.evaluate(id => {
+    const ta = document.querySelector('#' + id + ' .comment-box textarea');
+    return !!ta && ta.value === '';
+  }, commented) && since(before) > 0);
+  rewind(before);
   // D2: a question held by a deferred piece says what it waits for, not that it is preparing options;
   // last, because a piece and a question are not taken back
   run('piece', 'new', '--route', 'sonnet, effort: low', '--title', 'Wait for the API');

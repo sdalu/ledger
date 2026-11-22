@@ -984,6 +984,12 @@
       if (r.ok && r.redirected) doc = new DOMParser().parseFromString(await r.text(), 'text/html');
     } catch (err) { doc = null; }
     const land = async (doc, url) => {
+      // the send landed: what was typed in its form is sent, no longer a
+      // draft to keep across the reload or the redraw that follows
+      for (const [g, ref] of formsIn(card)) {
+        if (g === f) try { sessionStorage.removeItem('draft:' + lid + ':' + ref); } catch (err) {}
+      }
+      f.reset();
       // a question asked about a card, or a picture asked of it, leaves it
       // answerable: only that part is drawn again, so an answer being
       // written on the card stays
