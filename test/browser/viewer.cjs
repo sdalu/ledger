@@ -1231,6 +1231,19 @@ t('A2: the status pill\'s summary is at least 24 px', await p.evaluate(() => {
       m.every(x => x.ratio >= 4.5));
   }
   await p.emulateMedia({colorScheme: null});
+  // a risk's label sits on the baseline of the words after it: a zero-height
+  // inline block placed after each lands on its baseline
+  const offsets = await p.evaluate(() => {
+    const probe = () => { const s = document.createElement('span'); s.style.cssText = 'display:inline-block;width:0;height:0'; return s; };
+    return [...document.querySelectorAll('.raid-part.risk')].filter(r => r.querySelector('.rating') && r.lastChild.nodeType === 3).map(r => {
+      const a = probe(); r.querySelector('.rating').lastChild.after(a);
+      const b = probe(); r.append(b);
+      const d = Math.abs(b.getBoundingClientRect().top - a.getBoundingClientRect().top);
+      a.remove(); b.remove(); return d;
+    });
+  });
+  t(`a risk's "risk N/10" shares the baseline of its words (largest offset ${Math.max(...offsets).toFixed(1)} px)`,
+    offsets.length > 0 && offsets.every(d => d <= 0.5));
   // V2: every waiting card has one filled button, the only word included; here and on the fixture's page
   const primaries = () => p.evaluate(() => [...document.querySelectorAll('li.is-card form.say .word-choices')].map(w => {
     const bs = [...w.querySelectorAll('button')], panel = getComputedStyle(w.closest('li')).backgroundColor;

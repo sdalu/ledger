@@ -852,13 +852,16 @@
      element), none of them a state colour */
   .rating {
     display: inline-flex;
-    align-items: center;
+    /* the label shares the baseline of the text that follows it; only
+       the bar, which has no text, is centred on the line */
+    align-items: baseline;
     gap: var(--space-xs);
-    vertical-align: middle;
+    vertical-align: baseline;
     font: 600 var(--text-xs)/1.5 var(--font-mono);
     color: var(--risk, var(--muted));
     & .meter {
       display: inline-flex;
+      align-self: center;
       gap: 2px;
       & > span {
         inline-size: 0.55rem;
