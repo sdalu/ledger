@@ -98,6 +98,8 @@ class PurgeCase < CommandCase
         db[:session_ledgers].insert(session_id: "s#{id}", ledger_id: id)
         db[:wakes].insert(ledger_id: id, session_id: "s#{id}", at: 1,
                           path: "socket", outcome: "posted")
+        db[:outcomes].insert(ledger_id: id, at: 1, kind: "refusal",
+                             rule: "usage")
     end
 
     # Only on the ledger purged, so the other one's checks still pass.
@@ -112,6 +114,9 @@ class PurgeCase < CommandCase
     def counts(id) = Ledger::Purge.new(db, id).counts
 
     def totals = db.tables.to_h { [it, db[it].count] }
+
+    # The totals a refusal leaves alone: all but the outcome it records.
+    def kept = totals.except(:outcomes)
 
     def backups = Dir.glob("#{@journal.path}.before-purge-*")
 end

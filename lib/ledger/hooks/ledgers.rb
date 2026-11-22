@@ -4,6 +4,7 @@ require "sequel"
 
 require "ledger"
 require "ledger/derive"
+require "ledger/hooks/places"
 require "ledger/render/markdown"
 
 module Ledger
@@ -32,12 +33,7 @@ module Ledger
                 db&.disconnect
             end
 
-            def places(payload)
-                cwd = payload["cwd"].to_s
-                cwd = Dir.pwd if cwd.empty?
-                [cwd, File.join(cwd, ".claude"), payload["scratchpad_dir"].to_s]
-                    .reject(&:empty?).uniq
-            end
+            def places(payload) = Places.of(payload)
 
             def rows(db, places)
                 db[:ledgers].where(place: places, closed_at: nil).all

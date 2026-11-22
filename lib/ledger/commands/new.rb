@@ -130,7 +130,9 @@ module Ledger
                     fail!("--confirmed: no live ledger sits here to confirm " \
                           "a second one beside")
                 end
-                fail!(refusal) if @words.nil? || @words.empty?
+                return unless @words.nil? || @words.empty?
+
+                raise Refused.new(refusal, rule: "second-ledger")
             end
 
             # The decision by user quoting the words, in the new ledger's

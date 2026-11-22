@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "ledger/hooks/ledgers"
+require "ledger/outcomes"
 
 module Ledger
     module Hooks
@@ -33,25 +34,45 @@ module Ledger
 
             module_function
 
+            # Each run's verdict is recorded (Outcomes.hook): sent-back
+            # with the rules failed, or let-through and why.
             def call(payload)
-                return Answer.pass if payload["stop_hook_active"]
-                lines = Ledgers.read(payload).flat_map do |found|
-                    failures(found).map { "#{found.address}: #{it}" }
+                if payload["stop_hook_active"]
+                    Outcomes.hook("finish", payload, "let-through", "retry")
+                    return Answer.pass
                 end
+                verdicts = Ledgers.read(payload).map { verdict(it) }
+                record(payload, verdicts)
+                lines = verdicts.flat_map(&:last)
                 return Answer.pass if lines.empty?
                 Answer.refuse([STEPS, *lines].join("\n"))
             end
 
-            # -> the `--final` FAIL lines of a ledger whose work is over;
-            # none when deferred pieces are all it fails on.
-            def failures(found)
-                return [] unless over?(found.derive)
+            def record(payload, verdicts)
+                return if verdicts.empty?
+
+                sent = verdicts.reject { it.last.empty? }
+                verdict = sent.empty? ? "let-through" : "sent-back"
+                why = (sent.empty? ? verdicts : sent).map(&:first).uniq
+                Outcomes.hook("finish", payload, verdict, why.join("; "))
+            end
+
+            # -> [why, the `--final` FAIL lines] of a ledger, the lines
+            # only when its work is over and deferred pieces are not all
+            # it fails on.
+            def verdict(found)
+                return ["work not over", []] unless over?(found.derive)
                 failed = Checks.run(found.snapshot, final: true)
                                .reject { |_, ok, _| ok }
-                return [] if waiting?(found.derive, failed.map(&:first))
-                failed.map do |name, _, detail|
-                    detail.empty? ? "FAIL #{name}" : "FAIL #{name} -- #{detail}"
-                end
+                names = failed.map(&:first)
+                return ["final passes", []] if failed.empty?
+                return ["deferred-only", []] if waiting?(found.derive, names)
+                ["final fails: #{names.join(", ")}",
+                 failed.map { "#{found.address}: #{line(*it)}" }]
+            end
+
+            def line(name, _ok, detail)
+                detail.empty? ? "FAIL #{name}" : "FAIL #{name} -- #{detail}"
             end
 
             # Deferred pieces failing, alone or with criteria that wait on

@@ -65,9 +65,28 @@ module Ledger
             return Answer.pass unless payload.is_a?(Hash)
 
             require "ledger/hooks/#{name.tr("-", "_")}"
-            const_get(NAMES.fetch(name)).call(payload)
+            answer = const_get(NAMES.fetch(name)).call(payload)
+            denied(name, payload, answer)
+            answer
         rescue StandardError, ScriptError
             Answer.pass
+        end
+
+        # A PreToolUse deny recorded as a refusal under the hook's name,
+        # its reason the detail; the recorder never raises nor prints
+        # here, so the answer stays the hook's.
+        def denied(name, payload, answer)
+            output = answer.out && JSON.parse(answer.out)["hookSpecificOutput"]
+            return unless output.is_a?(Hash) &&
+                          output["permissionDecision"] == "deny"
+
+            require "ledger/outcomes"
+            Outcomes.record(kind: "refusal", rule: name,
+                            places: Places.of(payload),
+                            detail: output["permissionDecisionReason"],
+                            err: nil)
+        rescue StandardError, ScriptError
+            nil
         end
     end
 end

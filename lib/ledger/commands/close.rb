@@ -12,7 +12,8 @@ module Ledger
         # abandoned (Abandon: its open pieces dropped, its open questions
         # closed, in the same event). `--take` files the entries that
         # asked for it (the viewer's Close or Abandon) in the same event.
-        # A close done prints its after-action block (AfterAction) first.
+        # A close done prints its after-action block (AfterAction) first,
+        # the block its event keeps as summary.
         class Close < CLI::Command
             include Taking
 
@@ -45,8 +46,7 @@ module Ledger
             def abandon? = @opts.fetch(:abandon, false)
 
             def run(path)
-                id, noticed = closing(path)
-                AfterAction.lines(journal.db, id).each { @out.puts it }
+                id, noticed = closed(path)
                 done = abandon? ? "abandoned" : "closed"
                 @out.puts "#{done}: #{Address.parse(path)} (L#{id})"
                 carry(noticed)
@@ -57,15 +57,28 @@ module Ledger
                 1
             end
 
+            # The close written, its after-action block printed; -> the
+            # write's value.
+            def closed(path)
+                result = closing(path)
+                @out.puts result.event[:summary]
+                result.value
+            end
+
             # The one write: the entries --take names taken, an abandon's
-            # drops and decisions, then the close.
+            # drops and decisions, then the close, its after-action block
+            # (AfterAction) stored as the event's summary.
             def closing(path)
                 ids = takes
                 write(path) do |change|
                     take(change, ids)
                     Abandon.write(change, journal.db) if abandon?
-                    close(change)
-                end.value
+                    close(change).tap do
+                        change.summary = AfterAction.lines(journal.db,
+                                                           change.ledger_id)
+                                                    .join("\n")
+                    end
+                end
             end
 
             # -> [ledger id, noticed lines]; Unfinished when a rule fails.

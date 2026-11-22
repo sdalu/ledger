@@ -2,6 +2,7 @@
 
 require "ledger/inbox"
 require "ledger/hooks/ledgers"
+require "ledger/outcomes"
 
 module Ledger
     module Hooks
@@ -45,11 +46,26 @@ module Ledger
 
             module_function
 
+            # Each run's verdict is recorded (Outcomes.hook).
             def call(payload)
-                return Answer.pass if payload["stop_hook_active"]
-                parts = parts(Ledgers.read(payload))
-                return Answer.pass if parts.empty?
+                return through(payload, "retry") if payload["stop_hook_active"]
+                found = Ledgers.read(payload)
+                parts = parts(found)
+                return through(payload, "nothing pending") if parts.empty?
+                Outcomes.hook("inbox", payload, "sent-back",
+                              "pending #{pending(found).join(", ")}")
                 Answer.refuse("#{STEPS}\n#{parts.join("\n")}")
+            end
+
+            def through(payload, why)
+                Outcomes.hook("inbox", payload, "let-through", why)
+                Answer.pass
+            end
+
+            def pending(found)
+                found.flat_map do |ledger|
+                    ledger.derive.pending_entries.map { "N#{it[:n]}" }
+                end
             end
 
             # "ADDRESS:\n" and the pending entries, per ledger that has any.

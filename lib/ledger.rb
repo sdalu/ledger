@@ -11,7 +11,17 @@ module Ledger
     class Error < StandardError; end
 
     # A write refused before anything was written (the command's exit 2).
-    class Refused < Error; end
+    # Its rule names it in the outcomes a writer's refusal records: the
+    # one given, else the class's own word (refused, unknown, claimed,
+    # locked).
+    class Refused < Error
+        def initialize(message = nil, rule: nil)
+            super(message)
+            @rule = rule
+        end
+
+        def rule = @rule || self.class.name.split("::").last.downcase
+    end
 
     # The write lock was not given within the busy timeout.
     class Locked < Refused

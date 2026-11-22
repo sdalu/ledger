@@ -2,6 +2,8 @@
 
 require "json"
 
+require "ledger/flag_outcomes"
+
 module Ledger
     module Commands
         # `check [--final] [--peek] [--fix-hints] [--json] PATH`: every
@@ -33,6 +35,7 @@ module Ledger
                 results = Checks.run(snapshot,
                                      final: @opts.fetch(:final, false))
                 status = beat(ledger, status_line(snapshot))
+                record_flags(snapshot)
                 @opts[:json] ? json(results, status) : plain(results, status)
                 results.all? { it[1] } ? 0 : 1
             end
@@ -82,6 +85,15 @@ module Ledger
                                                       ledger[:beat_count])
                 store(ledger, line, count, owner && session)
                 text
+            end
+
+            # The pieces' flags that moved since the last check, recorded
+            # (FlagOutcomes); a peek is a read and records nothing.
+            def record_flags(snapshot)
+                return if @opts[:peek]
+
+                derive = Derive.read(journal.db, snapshot)
+                FlagOutcomes.new(journal.db, derive).record(err: @err)
             end
 
             def store(ledger, line, count, session)

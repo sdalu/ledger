@@ -4,6 +4,7 @@ require "json"
 
 require "ledger/abandon"
 require "ledger/commands/stats_assessed"
+require "ledger/commands/stats_outcomes"
 require "ledger/stats"
 
 module Ledger
@@ -13,7 +14,8 @@ module Ledger
         # one by its address, any one by L<id>; over every ledger, a last
         # line counts the closed ones, finished and abandoned (Abandon).
         # The dispatches announced get a section of their own, `by
-        # assessment` (StatsAssessed).
+        # assessment` (StatsAssessed), the outcomes recorded a section
+        # `outcomes` (StatsOutcomes).
         # Reads only: no event, no beat.
         class Stats < CLI::Command
             USAGE = "[PATH]"
@@ -34,14 +36,18 @@ module Ledger
             def run(path = nil)
                 ids = ledgers(path)
                 stats = Ledger::Stats.new(journal.db, ids)
-                assessed = StatsAssessed.new(
-                    Ledger::Stats::Assessments.new(journal.db, ids,
-                                                   stats.tracks)
-                )
+                assessed = assessed(stats, ids)
+                @outcomes = StatsOutcomes.new(journal.db, ids, all: path.nil?)
                 closed = path ? nil : closed_counts
                 return json(stats.groups, assessed, closed) if @opts[:json]
 
                 text(stats.groups, assessed, closed)
+            end
+
+            def assessed(stats, ids)
+                StatsAssessed.new(Ledger::Stats::Assessments.new(journal.db,
+                                                                 ids,
+                                                                 stats.tracks))
             end
 
             # Over every ledger, the closed ones: {finished:, abandoned:}.
@@ -70,17 +76,19 @@ module Ledger
                 @out.puts JSON.generate(
                     schema: Render::Json::SCHEMA, kind: "stats",
                     groups: groups.map { group(it) },
-                    assessments: assessed.json, **({ closed: } if closed)
+                    assessments: assessed.json, outcomes: @outcomes.json,
+                    **({ closed: } if closed)
                 )
                 0
             end
 
-            # The route table, the section by assessment, the closed
-            # ledgers last.
+            # The route table, the sections by assessment and of the
+            # outcomes, the closed ledgers last.
             def text(groups, assessed, closed)
                 @out.puts table(groups)
-                section = assessed.text
-                @out.puts "", section if section
+                [assessed.text, @outcomes.text].compact.each do |section|
+                    @out.puts "", section
+                end
                 @out.puts closed_line(closed) if closed
                 0
             end

@@ -30,7 +30,7 @@ module Ledger
         # rows that point at them.
         OWN = %i[links pictures noticed inbox_entries decisions facts
                  criteria constraints goals counters session_ledgers
-                 wakes].freeze
+                 wakes outcomes].freeze
 
         TABLES = [
             *CHILDREN.flat_map { |owner, kids| owned(owner, kids) },

@@ -27,6 +27,11 @@ module Ledger
                    decide noticed criterion edit piece ask answer word choice
                    renumber undo restore inbox take mockup survey stats
                    waker purge vacuum githook gate-stamp brief].freeze
+        # The words that write to the journal: their refusals are the
+        # practice's, recorded in outcomes (RefusalOutcomes).
+        WRITERS = %w[new goal fact assume constraint decide noticed criterion
+                     edit piece ask answer word choice renumber undo restore
+                     take mockup close purge vacuum waker].freeze
         # Words of other pieces of the build: refused as not built yet.
         NOT_BUILT = [].freeze
 
@@ -57,11 +62,19 @@ module Ledger
             Commands.named(word).new(words, out: @out, err: @err).call
         rescue Worse => e
             e.message.lines(chomp: true).each { @err.puts refused(word, it) }
-            2
+            outcome(word, words, e)
         rescue Refused, OptionParser::ParseError => e
-            refuse(word, e.message)
+            outcome(word, words, e, refuse(word, e.message))
         rescue Sequel::ConstraintViolation => e
-            refuse(word, "refused, #{e.message}")
+            outcome(word, words, e, refuse(word, "refused, #{e.message}"))
+        end
+
+        # A writer word's refusal recorded in outcomes; -> STATUS.
+        def outcome(word, words, error, status = 2)
+            if WRITERS.include?(word)
+                Commands::RefusalOutcomes.new(words, err: @err).record(error)
+            end
+            status
         end
 
         # A line "FAIL rule -- detail" of a Worse, as the refusal quotes it.
@@ -226,7 +239,8 @@ module Ledger
                 required = tokens.count { !it.start_with?("[") }
                 return args if args.size.between?(required, tokens.size)
 
-                refuse("usage: ledger #{self.class.word} #{self.class::USAGE}")
+                raise Refused.new("usage: ledger #{self.class.word} " \
+                                  "#{self.class::USAGE}", rule: "usage")
             end
 
             def journal = @journal ||= Journal.open
@@ -234,7 +248,9 @@ module Ledger
 
             # The option NAME, refused when it was not given.
             def need(name)
-                @opts.fetch(name) { refuse("--#{name} is required") }
+                @opts.fetch(name) do
+                    raise Refused.new("--#{name} is required", rule: "usage")
+                end
             end
 
             # TEXT stripped, refused when empty or holding a line break.
@@ -257,6 +273,7 @@ module Ledger
     end
 end
 
+require "ledger/commands/refusal_outcomes"
 require "ledger/commands/new"
 require "ledger/commands/goal"
 require "ledger/commands/check"

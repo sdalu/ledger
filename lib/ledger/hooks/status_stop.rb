@@ -4,6 +4,7 @@ require "fileutils"
 
 require "ledger/hooks/edit_record"
 require "ledger/hooks/ledgers"
+require "ledger/outcomes"
 
 module Ledger
     module Hooks
@@ -22,10 +23,19 @@ module Ledger
                 return Answer.pass unless EditRecord::BARE.match?(id)
 
                 text = lines(Ledgers.read(payload))
-                return Answer.pass if text.empty? || shown(id) == text
+                return through(payload, "nothing in flight") if text.empty?
+                return through(payload, "status unchanged") if
+                    shown(id) == text
 
                 remember(id, text)
+                through(payload, "status shown")
                 Answer.json(systemMessage: text)
+            end
+
+            # The stop let through, recorded with WHY (Outcomes.hook).
+            def through(payload, why)
+                Outcomes.hook("status-stop", payload, "let-through", why)
+                Answer.pass
             end
 
             # The status lines of the ledgers with a piece out or back.

@@ -25,10 +25,12 @@ module Ledger
                 found = transcript or return unchecked("word")
                 return if found.heard_since?(since)
 
-                refuse("no message of the user's in this session's " \
-                       "transcript since #{stamp(since)}: the word is " \
-                       "theirs to give; file it once they give it, or " \
-                       "take the viewer's entry (--take N<n>)")
+                raise Refused.new(
+                    "no message of the user's in this session's transcript " \
+                    "since #{stamp(since)}: the word is theirs to give; " \
+                    "file it once they give it, or take the viewer's " \
+                    "entry (--take N<n>)", rule: "word-gate"
+                )
             end
 
             # A warning unless QUOTE stands in a message of the user's or

@@ -131,8 +131,10 @@ time out, the returns by cause; then, once a dispatch was announced, a
 section `by assessment`, one table by highest axis and one by model:
 the dispatches, the pieces first dispatched there, those of them
 verified with no return, and each return by cause, laid on the piece's
-last dispatch before it; and over every ledger a last line
-`closed ledgers: N finished, M abandoned`; it writes nothing. `--json` on `check`,
+last dispatch before it; then the outcomes recorded (refusals by
+writer words and hooks, flags on and off, Stop hooks' verdicts) counted
+by kind and rule, overall and per ledger; and over every ledger a last
+line `closed ledgers: N finished, M abandoned`; it writes nothing. `--json` on `check`,
 `status`, `show` and `stats` prints JSON v1: one object whose first key
 is `"schema": 1`, which the viewer and any other reader take and refuse
 in any other number. `check --fix-hints` prints, after each FAIL line, one indented

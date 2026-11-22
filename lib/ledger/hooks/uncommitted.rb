@@ -6,6 +6,7 @@ require "open3"
 
 require "ledger/hooks/edit_record"
 require "ledger/hooks/ledgers"
+require "ledger/outcomes"
 
 module Ledger
     module Hooks
@@ -26,17 +27,32 @@ module Ledger
 
             module_function
 
+            # Each run's verdict is recorded (Outcomes.hook), but one
+            # with no session id to read a record by.
             def call(payload)
-                return Answer.pass if payload["stop_hook_active"]
+                return through(payload, "retry") if payload["stop_hook_active"]
 
                 id = payload["session_id"].to_s
                 return Answer.pass unless EditRecord::BARE.match?(id)
 
                 paths = named(payload, EditRecord.record(id))
-                return Answer.pass if paths.empty? || sent?(id, paths)
+                return through(payload, "nothing uncommitted") if paths.empty?
+                return through(payload, "already named") if sent?(id, paths)
 
+                send_back(payload, id, paths)
+            end
+
+            # PATHS named back once, remembered and recorded.
+            def send_back(payload, id, paths)
                 remember(id, paths)
+                Outcomes.hook("uncommitted", payload, "sent-back",
+                              "#{paths.size} files uncommitted")
                 Answer.refuse(format(STEPS, paths: paths.join(", ")))
+            end
+
+            def through(payload, why)
+                Outcomes.hook("uncommitted", payload, "let-through", why)
+                Answer.pass
             end
 
             # The recorded paths, still changed, in repositories that
