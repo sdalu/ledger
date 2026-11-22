@@ -21,8 +21,9 @@ module Ledger
             assumptions: %i[assumption_links assumption_sees],
             questions: %i[question_choices question_items question_pictures
                           question_sees],
-            pieces: %i[piece_awaits piece_briefs piece_criteria piece_links
-                       piece_pictures piece_returns piece_scopes]
+            pieces: %i[piece_assessments piece_awaits piece_briefs
+                       piece_criteria piece_links piece_pictures piece_returns
+                       piece_scopes]
         }.freeze
 
         # The tables with a ledger_id column of their own, after the

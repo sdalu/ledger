@@ -29,7 +29,11 @@ class PurgeCase < CommandCase
                            criterion_id: :criterion },
         question_items: { question_id: :question, position: 1, text: "i" },
         question_sees: { question_id: :question, position: 1,
-                         piece_id: :piece }
+                         piece_id: :piece },
+        piece_assessments: { ledger_id: :ledger, piece_id: :piece,
+                             event_id: :event, what: "w", why: "y",
+                             model: "sonnet", risk_text: "r", mode: "m",
+                             mode_attended: true, block: "b" }
     }.freeze
 
     OWNERS = { piece: :pieces, question: :questions,
@@ -91,6 +95,7 @@ class PurgeCase < CommandCase
     # Only on the ledger purged, so the other one's checks still pass.
     def leftovers(id)
         ids = OWNERS.transform_values { db[it].where(ledger_id: id).get(:id) }
+                    .merge(ledger: id)
         LEFTOVERS.each do |table, row|
             db[table].insert(row.transform_values { ids.fetch(it, it) })
         end
