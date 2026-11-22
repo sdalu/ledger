@@ -44,23 +44,37 @@ module Ledger
             @id = id
         end
 
-        # -> { table => rows } for every table, zero counts included.
+        # -> { table => rows } for every table, zero counts included,
+        # then the blobs that go with the ledger's pictures.
         def counts
             TABLES.to_h { |table, *spec| [table, rows(table, *spec).count] }
+                  .merge(picture_blobs: blobs.count)
         end
 
         # Deletes every row counted, in one transaction the caller holds;
         # -> the counts. A piece's builds_id points at a question, which
-        # goes before the pieces: cleared first, the cycle is broken.
+        # goes before the pieces: cleared first, the cycle is broken. The
+        # blobs are named before the pictures go, and deleted after them,
+        # which point at them.
         def delete
             @db[:pieces].where(ledger_id: @id).exclude(builds_id: nil)
                         .update(builds_id: nil)
-            TABLES.to_h do |table, *spec|
-                [table, rows(table, *spec).delete]
-            end
+            gone = blobs.select_map(:sha256)
+            TABLES.to_h { |table, *spec| [table, rows(table, *spec).delete] }
+                  .merge(picture_blobs: @db[:picture_blobs]
+                                            .where(sha256: gone).delete)
         end
 
         private
+
+        # The blobs of the ledger's pictures that no other ledger's
+        # picture points to: a content placed in two ledgers stays.
+        def blobs
+            pictures = @db[:pictures].select(:sha256)
+            @db[:picture_blobs]
+                .where(sha256: pictures.where(ledger_id: @id))
+                .exclude(sha256: pictures.exclude(ledger_id: @id))
+        end
 
         def rows(table, column, owner)
             return @db[table].where(column => @id) unless owner

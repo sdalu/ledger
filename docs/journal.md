@@ -296,13 +296,18 @@ Sequel.migration do
             foreign_key :fact_id, :facts
             foreign_key :piece_id, :pieces
         end
-        create_table(:pictures) do       # S1: a mockup's files, as blobs
+        create_table(:picture_blobs) do  # S1: each distinct file once (019)
+            String :sha256, primary_key: true # lower-case hex of the bytes
+            File :bytes, null: false     # the file, byte for byte
+            Integer :size, null: false   # length(bytes)
+        end
+        create_table(:pictures) do       # S1: a mockup's files
             primary_key :id
             foreign_key :ledger_id, :ledgers, null: false
             String :name, null: false    # the mockup's name (`mockup: NAME`)
             String :path, null: false    # "" for one file; else its path in the directory
             String :type, null: false    # the served content type (MOCKUP_TYPES)
-            File :bytes, null: false     # the file, byte for byte
+            foreign_key :sha256, :picture_blobs, null: false # its bytes (019)
             foreign_key :event_id, :events, null: false   # the mockup command
             unique %i[ledger_id name path]
         end
@@ -643,6 +648,7 @@ schema makes impossible (section 5):
 | questions | `risk_rating BETWEEN 0 AND 10` |
 | question_sees, question_pictures | exactly one target column set |
 | pictures | `name <> ''`; `type` in the served list |
+| picture_blobs | `sha256` 64 lower-case hex digits (019) |
 | links | `kind` and its ends: answers X→O; replaces X→X or O→O; rests_on X→F or C; led_to X→P or O; `to_row` set |
 | assumptions | `text`, `check` `<> ''`; `state IN ('open','confirmed','refuted')`; `fact_id` NULL while open; `n` unique per ledger |
 | assumption_sees | exactly one target column set |
@@ -661,6 +667,17 @@ a non-unique column). `links.to_row` is a row id in the table
 constraints, `P` pieces); SQLite cannot key one column to five tables,
 so the rule `links` (section 5) proves the target exists, and the
 writer resolves it inside the transaction.
+
+**A picture's bytes are stored once** (migration 019): `picture_blobs`
+holds each distinct file under the SHA-256 of its bytes, and a
+`pictures` row points to one by `sha256`. A writer stores the blob
+when the journal does not hold that content yet and points to it
+(`Pictures.blob`); a reader joins through the pointer. A file placed
+again, by `--replace`, a redraw or another ledger, adds a row and no
+bytes. Migration 019 moved the rows already there, one blob per
+distinct content, and dropped `pictures.bytes`, by rebuilding the table
+in the migration's one transaction; the file keeps the freed pages
+(about twice its size) until a `VACUUM`.
 
 **A ledger's address** is the path its file had:
 `PLACE/LEDGER.md` or `PLACE/LEDGER-NAME.md`, resolved against the
@@ -761,8 +778,8 @@ equals its *after*; inbox entries are never reverted (the user's
 channel, and the takes, are never undone). The revert is itself an
 event (`undo`, `undoes` = that event). One level: when the last such
 event is an undo, "nothing to undo". A `pictures` row is never written
-to `event_rows` (its bytes would double the journal) and never
-reverted: undoing a `mockup` event puts back the question's
+to `event_rows` and never reverted (a picture placed is kept, so an
+undo or a restore can show it again): undoing a `mockup` event puts back the question's
 `question_pictures` rows, or the piece's `piece_pictures` rows, alone;
 the blobs stay, as the files on disk stayed (S1).
 
@@ -883,7 +900,7 @@ command's refusal, exit 2, nothing written.
 | `renumber PATH OLD NEW [--dry-run]` | NEW, `renumbered OLD -> NEW: its heading and N reference(s)`, status line | shapes; kinds differ; same; OLD heads nothing; untaken entry about OLD; NEW given before (counter) or referenced; checks |
 | `undo PATH [--dry-run]` | `undone: ADDRESS is back as it was before E<n>`, status line | nothing to undo; a row changed since |
 | `restore PATH [--to E<n>] [--dry-run]` | `restored: ADDRESS is back as at E<n>`, status line; without `--to` the ledger's last ten events (`E<n>  time  actor  command  summary`) | no `--to` (it lists them); E<n> not this ledger's; nothing after it; a row changed since |
-| `purge L<n> [--confirmed]` | a closed ledger removed from the journal, irreversibly: the journal is first copied (SQLite online backup) to `journal.db.before-purge-L<n>-YYYYMMDD-HHMMSS` beside it, then one transaction deletes every row of the ledger in every table (`lib/ledger/purge.rb`, in child-first order; a test fails when a table pointing at a ledger is not listed); prints `purged L<n>: PLACE NAME, closed TIME`, the row count per table and `backup: PATH`. No event is written (nothing remains to hold one) and `undo`, `restore` cannot take it back: the backup is the way back. Without `--confirmed`: `would remove L<n>: …` and the counts, exit 2, nothing written | not `L<n>`; no such ledger; a live ledger; the backup name exists; no `--confirmed` (exit 2 after the counts) |
+| `purge L<n> [--confirmed]` | a closed ledger removed from the journal, irreversibly: the journal is first copied (SQLite online backup) to `journal.db.before-purge-L<n>-YYYYMMDD-HHMMSS` beside it, then one transaction deletes every row of the ledger in every table (`lib/ledger/purge.rb`, in child-first order; a test fails when a table pointing at a ledger is not listed), then the `picture_blobs` its pictures pointed to that no remaining picture points to (a content another ledger placed stays); prints `purged L<n>: PLACE NAME, closed TIME`, the row count per table and `backup: PATH`. No event is written (nothing remains to hold one) and `undo`, `restore` cannot take it back: the backup is the way back. Without `--confirmed`: `would remove L<n>: …` and the counts, exit 2, nothing written | not `L<n>`; no such ledger; a live ledger; the backup name exists; no `--confirmed` (exit 2 after the counts) |
 | `vacuum [--dry-run]` | the journal file compacted: a write lock is first taken and released at once (5 s busy timeout, `lib/ledger/vacuum.rb`), then the journal is copied (SQLite online backup) to `journal.db.before-vacuum-YYYYMMDD-HHMMSS` beside it, then `VACUUM` and `PRAGMA wal_checkpoint(TRUNCATE)` run; prints `before:` and `after:` (bytes on disk, journal plus `-wal`, and the logical size) and `backup: PATH`. No event is written and `undo`, `restore` cannot take it back: the backup is the way back. With `--dry-run`: `page_count`, `freelist_count`, `page_size`, the logical size and the bytes on disk, nothing written | the backup name exists; another session holds the write lock (`another session is writing the journal; try again`; no backup is made) |
 
 | `gate-stamp [PATH] [--tree TREE]` | `stamped TREE`: the tree id of PATH's git index (the current directory by default) appended to `<journal dir>/stamps/<repo id>` (last 50 kept; repo id = first 16 hex digits of SHA-256 of the working tree's real path), when it equals TREE (taken by the gate before it ran; the index tree itself when omitted). When it does not, `nothing stamped` on stderr, exit 0, nothing written. Not a ledger word: no journal is opened (`lib/ledger/gate_stamp.rb`) | PATH not a git working tree |

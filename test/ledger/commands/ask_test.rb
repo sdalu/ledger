@@ -48,8 +48,9 @@ class AskTest < AskCase
 
     def test_a_mockup_placed_in_the_journal
         Ledger::Write.run(@journal, BETA, "mockup", []) do |change|
+            sha256 = Ledger::Pictures.blob(db, "<svg/>")
             change.insert(:pictures, name: "panel.svg", path: "",
-                                     type: "image/svg+xml", bytes: "<svg/>")
+                                     type: "image/svg+xml", sha256:)
         end
         ask("--mockup", "panel.svg")
         assert_includes markdown, "— mockup: panel.svg"

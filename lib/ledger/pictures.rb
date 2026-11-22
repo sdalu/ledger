@@ -1,11 +1,13 @@
 # frozen_string_literal: true
 
+require "digest"
 require "find"
 
 module Ledger
     # A mockup's files as the journal keeps them (docs/journal.md, S1):
-    # one `pictures` row per file, the bytes as they are on disk, nothing
-    # written back to a disk. A file placed alone is a name with path ""; a
+    # one `pictures` row per file, pointing to its bytes as they are on
+    # disk, stored once per content in `picture_blobs`; nothing written
+    # back to a disk. A file placed alone is a name with path ""; a
     # directory is one name (its own) with a row per file, `path` the
     # file's place under it.
     module Pictures
@@ -31,6 +33,16 @@ module Ledger
         Item = Data.define(:name, :path, :type, :bytes) do
             def file = path.empty? ? name : "#{name}/#{path}"
             def extension = File.extname(path.empty? ? name : path).downcase
+        end
+
+        # The SHA-256 naming BYTES, stored in DB's picture_blobs unless
+        # a picture already brought the same content.
+        def self.blob(db, bytes)
+            sha256 = Digest::SHA256.hexdigest(bytes)
+            db[:picture_blobs].insert_conflict
+                              .insert(sha256:, bytes: Sequel.blob(bytes),
+                                      size: bytes.bytesize)
+            sha256
         end
 
         # The one file a name opens on: the only page, else the only image,
@@ -177,7 +189,8 @@ module Ledger
             def store(item)
                 @change.insert(:pictures, name: item.name, path: item.path,
                                           type: item.type,
-                                          bytes: Sequel.blob(item.bytes))
+                                          sha256: Pictures.blob(@db,
+                                                                item.bytes))
             end
 
             def show(question_id, names, replace)

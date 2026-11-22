@@ -52,7 +52,7 @@ class MockupTest < MockupCase
 
     def test_a_file_is_stored_byte_for_byte
         mockup(file("shot.png"))
-        row = db[:pictures].first
+        row = db[:pictures].join(:picture_blobs, sha256: :sha256).first
         assert_equal ["shot.png", "", "image/png", PNG],
                      [row[:name], row[:path], row[:type], row[:bytes].to_s.b]
     end
@@ -303,5 +303,26 @@ class MockupPieceTest < MockupCase
                                          "directory")
         assert_refused("mockup", BETA, png, "--question", "O1", "--before",
                        "--before and --after are for --piece")
+    end
+end
+
+# `mockup`: a picture's bytes stored once by their content.
+class MockupBlobsTest < MockupCase
+    OTHER = "\x89PNG\r\n\x00\x00".b
+
+    def test_the_same_bytes_placed_twice_are_one_blob
+        mockup(file("a.png"), file("b.png"))
+        mockup(file("c.png"))
+        assert_equal 3, db[:pictures].count
+        assert_equal [Digest::SHA256.hexdigest(PNG)],
+                     db[:picture_blobs].select_map(:sha256)
+    end
+
+    def test_replace_then_undo_brings_the_old_picture_back_unchanged
+        mockup(file("a.png"))
+        mockup(file("b.png", OTHER), "--replace")
+        ok("undo", BETA)
+        assert_equal ["a.png"], names
+        assert_equal({ "a.png" => PNG, "b.png" => OTHER }, picture_bytes)
     end
 end

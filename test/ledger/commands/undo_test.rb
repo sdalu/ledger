@@ -150,8 +150,7 @@ class UndoRowsTest < UndoCase
         ok("mockup", BETA, file, "--question", "O1")
         ok("undo", BETA)
         assert_empty db[:question_pictures].all
-        assert_equal [PNG], db[:pictures].select_map(:bytes).map(&:to_s)
-                                         .map(&:b)
+        assert_equal({ "shot.png" => PNG }, picture_bytes)
     end
 end
 

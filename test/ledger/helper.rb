@@ -7,6 +7,7 @@ require "minitest/autorun"
 require "tmpdir"
 
 require "ledger"
+require "ledger/pictures"
 
 # A journal in a temporary directory, named through LEDGER_JOURNAL as a
 # command would find it, with one live ledger; nothing under
@@ -31,6 +32,13 @@ class JournalTest < Minitest::Test
     end
 
     def db = @journal.db
+
+    # {name => bytes} of the pictures (each path), read through the
+    # blob each row points to.
+    def picture_bytes
+        db[:pictures].join(:picture_blobs, sha256: :sha256)
+                     .to_hash(:name, :bytes).transform_values { it.to_s.b }
+    end
 
     # One write on the fixture ledger, as a command would run it.
     def write(command = "piece", argv = [], **, &)

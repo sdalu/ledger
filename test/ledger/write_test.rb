@@ -178,7 +178,7 @@ class WriteBytesTest < JournalTest
     def test_a_picture_keeps_its_bytes_and_stays_out_of_the_history
         write("mockup") { picture(it) }
 
-        assert_bytes BYTES, db[:pictures].get(:bytes).to_s
+        assert_bytes BYTES, picture_bytes.fetch("m")
         assert_empty event_rows
         refute_includes snapshot.pictures[0], :bytes
     end
@@ -191,7 +191,7 @@ class WriteBytesTest < JournalTest
 
     def picture(change)
         change.insert(:pictures, name: "m", path: "", type: "image/png",
-                                 bytes: Sequel.blob(BYTES))
+                                 sha256: Ledger::Pictures.blob(db, BYTES))
     end
 end
 

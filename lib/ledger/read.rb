@@ -68,9 +68,9 @@ module Ledger
 
         # {picture id => bytes}: the lengths, never the blobs.
         def sizes(db, ledger_id)
-            size = Sequel.function(:length, :bytes).as(:size)
-            db[:pictures].where(ledger_id:).select(:id, size).all
-                         .to_h { [it[:id], it[:size]] }
+            db[:pictures].join(:picture_blobs, sha256: :sha256)
+                         .where(ledger_id:)
+                         .select_map([Sequel[:pictures][:id], :size]).to_h
         end
 
         # The last event's time.

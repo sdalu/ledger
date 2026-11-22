@@ -32,10 +32,23 @@ class PurgeRowsTest < PurgeCase
 
     def test_nothing_of_another_ledger_goes
         ok("purge", "L#{@beta}", "--confirmed")
-        assert_equal @gamma_counts, counts(@gamma)
+        # The PNG both placed is now gamma's alone: its blob counts with
+        # gamma's own.
+        assert_equal @gamma_counts.merge(picture_blobs: 2), counts(@gamma)
         snapshot = Ledger::Snapshot.read(db, @gamma)
         assert_empty(Ledger::Checks.run(snapshot).reject { it[1] })
     end
+
+    def test_a_purge_keeps_the_blobs_another_ledger_uses
+        own = db[:pictures].where(ledger_id: @beta).select_map(:sha256)
+        ok("purge", "L#{@beta}", "--confirmed")
+        kept = db[:picture_blobs].select_map(:sha256)
+        assert_equal pointed, kept.sort
+        assert_equal [1, 1], [(own & kept).size, @beta_counts[:picture_blobs]]
+    end
+
+    # The blobs the pictures left point to.
+    def pointed = db[:pictures].distinct.order(:sha256).select_map(:sha256)
 
     def test_the_journal_is_sound_after_a_purge
         ok("purge", "L#{@beta}", "--confirmed")

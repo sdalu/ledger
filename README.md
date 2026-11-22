@@ -298,7 +298,8 @@ items, from the journal: `L<n>` is the id `close` prints (and the dry run
 shows), the only word that names a ledger that way for a write. The journal is
 first copied with SQLite's online backup to
 `journal.db.before-purge-L<n>-YYYYMMDD-HHMMSS` beside it (refused if that name
-exists), then the rows go in one transaction; it prints the counts and the
+exists), then the rows go in one transaction, with the picture contents no
+other ledger's picture shares; it prints the counts and the
 backup path. Without `--confirmed` it prints the ledger's place, name, closed
 time and the row counts per table and exits 2, writing nothing; a live ledger
 or an unknown id is refused. It is irreversible: the purge is no event of any
@@ -822,7 +823,8 @@ ledger shows only the pictures its questions name.
 
 `bin/ledger mockup PATH FILE|DIR... --question O<n> [--name NAME]`
 places them. The files are read into the journal as `pictures` rows (the
-bytes as they are, with the content type the viewer serves), whatever
+bytes as they are, with the content type the viewer serves; each distinct
+content stored once, so a file placed again costs no bytes), whatever
 directory or worktree the command runs in, so a peer drawing in a
 worktree lands it in the ledger it names; nothing is written on disk. A
 FILE is stored by its name, a DIR as one name with a row per file, its

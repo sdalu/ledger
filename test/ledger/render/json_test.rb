@@ -94,7 +94,7 @@ class JsonCase < RenderTest
         change.insert(:question_pictures, question_id: pending, position: 0,
                                           name: "pic")
         change.insert(:pictures, name: "pic", path: "", type: "image/png",
-                                 bytes: Sequel.blob("12345"))
+                                 sha256: Ledger::Pictures.blob(db, "12345"))
     end
 
     def decision(change)

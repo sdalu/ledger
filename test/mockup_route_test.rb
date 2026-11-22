@@ -59,6 +59,18 @@ class MockupRouteTest < ViewerTest
         assert_includes last_response.headers["Content-Type"], "text/css"
     end
 
+    # A copy of pic.svg under another name is one blob, served as both.
+    def test_every_picture_is_served_as_placed
+        place("copy.svg" => "<svg/>")
+        sign_in
+        PICTURES.merge("copy.svg" => "<svg/>").each do |name, body|
+            https "/m/#{@lid}/#{name}"
+
+            assert_equal body, last_response.body, name
+        end
+        assert_equal 4, @journal.db[:picture_blobs].count
+    end
+
     # The /m/k/TOKEN/LID the page draws its pictures from.
     def keyed
         last_response.body[%r{/m/k/[\w.-]+/#{@lid}}] or flunk "no keyed path"

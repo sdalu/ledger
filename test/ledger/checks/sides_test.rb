@@ -10,7 +10,7 @@ class SidesChecksTest < CheckCase
     def picture(piece_id, role)
         name = "#{role}-#{piece_id}.png"
         @rows.insert(:pictures, name:, path: "", type: "image/png",
-                                bytes: Sequel.blob("png"))
+                                sha256: Ledger::Pictures.blob(db, "png"))
         @rows.insert(:piece_pictures, piece_id:, position: 0, role:, name:)
     end
 

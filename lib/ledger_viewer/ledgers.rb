@@ -47,7 +47,7 @@ module LedgerViewer
         # The bytes and type of a picture's file, or nil: NAME is a
         # picture of the ledger, PATH its file under it ("" for one file).
         def picture(entry, name, path)
-            @journal.db[:pictures]
+            @journal.db[:pictures].join(:picture_blobs, sha256: :sha256)
                     .where(ledger_id: entry.ledger_id, name:, path:)
                     .select(:type, :bytes).first
         end

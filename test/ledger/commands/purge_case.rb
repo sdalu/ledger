@@ -74,11 +74,15 @@ class PurgeCase < CommandCase
                              actor: "cli")
     end
 
+    # O1 shows two pictures: the PNG both ledgers place, one blob in the
+    # journal, and one of the ledger's own bytes.
     def question(address)
         ok("ask", address, *QUESTION)
-        png = File.join(@dir, "#{File.dirname(address).tr("/", "_")}.png")
-        File.binwrite(png, PNG)
-        ok("mockup", address, png, "--question", "O1")
+        stem = File.join(@dir, File.dirname(address).tr("/", "_"))
+        File.binwrite("#{stem}.png", PNG)
+        File.binwrite("#{stem}-own.png", PNG + address.b)
+        ok("mockup", address, "#{stem}.png", "#{stem}-own.png",
+           "--question", "O1")
     end
 
     def piece(address)

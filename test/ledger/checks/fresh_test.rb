@@ -21,14 +21,14 @@ class FreshCase < CheckCase
     def picture(piece_id, role = "after")
         name = "#{role}-#{piece_id}-#{db[:pictures].count}.png"
         @rows.insert(:pictures, name:, path: "", type: "image/png",
-                                bytes: Sequel.blob("png"))
+                                sha256: Ledger::Pictures.blob(db, "png"))
         @rows.insert(:piece_pictures, piece_id:, position: 0, role:, name:)
     end
 
     def question_picture(question_id)
         name = "q-#{question_id}-#{db[:pictures].count}.png"
         @rows.insert(:pictures, name:, path: "", type: "image/png",
-                                bytes: Sequel.blob("png"))
+                                sha256: Ledger::Pictures.blob(db, "png"))
         @rows.insert(:question_pictures, question_id:, position: 0, name:)
     end
 
