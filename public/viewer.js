@@ -885,9 +885,12 @@
       // place, so that what it says and its accessible name stay one text
       for (const b of subs) {
         const label = [...b.childNodes].filter(n => n.nodeType === 3 && n.nodeValue.trim()).pop();
-        if (!label || !trayKind(f, b)) continue;
+        const kind = label && trayKind(f, b);
+        if (!kind) continue;
         if (!('label' in b.dataset)) b.dataset.label = label.nodeValue;
-        label.nodeValue = b.dataset.label + (batch ? ' to tray' : '');
+        // a drop to the tray is no request yet: "Drop P2 to tray"
+        const said = kind === 'drop' ? 'Drop ' + f.elements.ref.value : b.dataset.label;
+        label.nodeValue = batch ? said + ' to tray' : b.dataset.label;
       }
       const answer = /^O\d+$/.test(f.elements.ref ? f.elements.ref.value : '') && f.closest('li[id]')
         && !f.closest('.picture-ask') && subs.length && subs.every(b => !trayKind(f, b));
@@ -1009,7 +1012,7 @@
     const note = document.createElement('p');
     note.className = 'tray-says';
     note.setAttribute('role', 'status');
-    note.textContent = says || (gone ? 'Remove the items no longer on the page to validate.' : '');
+    note.textContent = says || (gone ? 'Remove the items no longer on the page to send them all.' : '');
     bar.append(head, list, note);
   };
   const toTray = (f, sub, kind) => {
@@ -1130,7 +1133,7 @@
     const sayMode = () => {
       box.checked = batch;
       sw.querySelector('.batch-says').textContent = batch
-        ? 'words, comments and drops wait in the tray until you validate them'
+        ? 'words, comments and drops wait in the tray until you send them all'
         : 'each word, comment and drop is sent at once';
       state.textContent = ', batch ' + (batch ? 'on' : 'off');
       labelBatch(document);

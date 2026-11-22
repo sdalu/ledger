@@ -548,7 +548,7 @@ What the page takes, all as inbox entries, of the four kinds
   commit in the tray* (*Comment*, *Drop*) with *Remove*, its form
   closed as after a send. Each button whose act goes to the tray says
   so while batch mode is on (*Commit to tray*, *Send comment to tray*,
-  *Ask to drop P2 to tray*). Answers, notes, Close, Abandon, pictures
+  *Drop P2 to tray*). Answers, notes, Close, Abandon, pictures
   asked and the order are still sent at once, and an answer form says
   so above its Send. A bar sticks to the page's foot
   while the tray holds something: *N in the tray*, each item's id, kind

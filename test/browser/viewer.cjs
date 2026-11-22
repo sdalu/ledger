@@ -599,7 +599,7 @@ t('A2: the status pill\'s summary is at least 24 px', await p.evaluate(() => {
   await plain.close();
   rewind(sent);
   // P25: batch mode off by default; on, a word, a comment and a drop wait in the tray, each card saying so; one
-  // removed, the tray kept across a reload, the rest sent by one Validate as one write; off again, sent at once
+  // removed, the tray kept across a reload, the rest sent by one Send all as one write; off again, sent at once
   await p.goto(base + page);
   const posts = [];
   const count = r => { if (r.method() === 'POST') posts.push(new URL(r.url()).pathname); };
@@ -649,9 +649,9 @@ t('A2: the status pill\'s summary is at least 24 px', await p.evaluate(() => {
   sent = mark();
   await p.locator('.tray-bar .a-validate').click();
   await p.waitForSelector('.tray-bar', {state: 'detached'});
-  t('P25: Validate sends the rest in one request, one write, and empties the tray', JSON.stringify(posts) ===
+  t('P25: Send all sends the rest in one request, one write, and empties the tray', JSON.stringify(posts) ===
     JSON.stringify([page + '/say-batch']) && since(sent) === 1);
-  t('P25: after Validate the cards and the counts are drawn again', await p.evaluate(() =>
+  t('P25: after Send all the cards and the counts are drawn again', await p.evaluate(() =>
     document.getElementById('p-P4').classList.contains('is-receipt') && /drop asked/.test(document.getElementById('piece-P2').textContent)
     && !document.querySelector('.tray-line') && !document.querySelector('.stale-note')));
   rewind(sent);
@@ -681,8 +681,8 @@ t('A2: the status pill\'s summary is at least 24 px', await p.evaluate(() => {
   await p.unroute('**/say-batch');
   await p.locator('.tray-bar .a-untray').click();
   rewind(sent);
-  posts.length = 1; // the P25 checks after this block read the first Validate's post and what follows
-  // an item whose card is gone is said, and blocks Validate until removed
+  posts.length = 1; // the P25 checks after this block read the first Send all's post and what follows
+  // an item whose card is gone is said, and blocks Send all until removed
   await p.evaluate(() => localStorage.setItem('tray:' + location.pathname.split('/')[2], JSON.stringify(
     [{id: 'x1', ref: 'O9', kind: 'comment', card: 'q-O9', form: 0, fields: {ref: 'O9', comment: '1', text: 'gone'}}])));
   await p.reload();
@@ -936,7 +936,9 @@ t('A2: the status pill\'s summary is at least 24 px', await p.evaluate(() => {
   const on = await labels();
   t('N4: batch mode on, the buttons going to the tray read "… to tray", not before',
     off.commit === 'Commit' && on.commit === 'Commit to tray' && /^Send comment to tray$/.test(on.comment)
-    && /to tray$/.test(on.drop) && !/to tray/.test(off.comment + off.drop));
+    && on.drop === 'Drop P2 to tray' && off.drop === 'Ask to drop P2' && !/to tray/.test(off.comment + off.drop));
+  t('N4: the switch says the tray waits until you send them all; no "validate" on the page', await p.evaluate(() =>
+    /until you send them all$/.test(document.querySelector('.batch-says').textContent) && !/validat/i.test(document.body.innerText)));
   t('N4: an answer form says its answer is still sent at once, its Send unchanged', on.answer && !off.answer
     && on.answerSend === off.answerSend && await p.evaluate(() =>
       /still sent at once/.test(document.querySelector('#q-O1 > form.say .batch-at-once').textContent)));

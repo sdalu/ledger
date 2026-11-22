@@ -1184,7 +1184,7 @@
     & .batch-says { color: var(--muted); }
   }
 
-  /* the tray's buttons: Validate filled, the others outlined */
+  /* the tray's buttons: Send all filled, the others outlined */
   :is(.tray-bar, .tray-line) button {
     min-block-size: 2.75rem;
     padding-inline: var(--space-s);
@@ -1266,7 +1266,7 @@
   }
 
   /* the tray: at the page's foot while it holds something, what it holds,
-     Validate and Empty */
+     Send all and Empty */
   .tray-bar {
     position: sticky;
     inset-block-end: 0;
