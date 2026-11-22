@@ -27,6 +27,11 @@
     --ask: light-dark(oklch(45% 0.14 55), oklch(81% 0.13 75));
     --fail: light-dark(oklch(46% 0.18 25), oklch(76% 0.15 25));
     --ok: light-dark(oklch(43% 0.12 150), oklch(77% 0.12 150));
+    /* the risk meter: three colours no state uses, so a rating does not
+       read as done (green) or your turn (brown) */
+    --risk-low: light-dark(oklch(47% 0.05 230), oklch(78% 0.05 230));
+    --risk-mid: light-dark(oklch(50% 0.12 92), oklch(84% 0.14 95));
+    --risk-high: light-dark(oklch(46% 0.18 25), oklch(76% 0.15 25));
     /* text on a filled --accent or --ask: their lightness flips by theme */
     --on-state: light-dark(oklch(100% 0 0), oklch(15% 0.02 250));
     --track: light-dark(oklch(91% 0.01 250), oklch(32% 0.016 250));
@@ -843,8 +848,8 @@
   }
 
   /* a risk's rating: ten steps filled to it, then 'risk N/10', muted when
-     low, in ink when mid, red only when high (set by the risk's own
-     element): the state colours stay for the states */
+     low, mid and high in the three risk colours (set by the risk's own
+     element), none of them a state colour */
   .rating {
     display: inline-flex;
     align-items: center;
@@ -869,9 +874,9 @@
     }
   }
   :is(.raid-part.risk, .raid-list > li) {
-    &.is-low { --risk: var(--muted); }
-    &.is-mid { --risk: var(--ink); }
-    &.is-high { --risk: var(--fail); }
+    &.is-low { --risk: var(--risk-low); }
+    &.is-mid { --risk: var(--risk-mid); }
+    &.is-high { --risk: var(--risk-high); }
   }
 
   /* a card's RAID line: its risk, the assumptions it rests on, its issues

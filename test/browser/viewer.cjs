@@ -1192,7 +1192,7 @@ t('A2: the status pill\'s summary is at least 24 px', await p.evaluate(() => {
       const bg = getComputedStyle(n).backgroundColor;
       const band = (e.closest('.is-low, .is-mid, .is-high').className.match(/is-(low|mid|high)/) || [])[1];
       const ink = rgb(getComputedStyle(e).color).join();
-      return {band, text: e.lastChild.textContent, ink, want: token({low: 'muted', mid: 'ink', high: 'fail'}[band]),
+      return {band, text: e.lastChild.textContent, ink, want: token('risk-' + band),
         states: ['ok', 'ask'].map(token), ratio: ratio(rgb(getComputedStyle(e).color), rgb(bg))};
     });
   });
@@ -1203,7 +1203,7 @@ t('A2: the status pill\'s summary is at least 24 px', await p.evaluate(() => {
     await p.goto(base + '/l/' + shownId);
     await p.evaluate(() => { for (const f of document.querySelectorAll('details.done-fold')) f.open = true; });
     const m = await meters();
-    t(`V1 ${scheme}: each meter reads "risk N/10", muted when low, in ink when mid, red only when high, never a state colour`,
+    t(`V1 ${scheme}: each meter reads "risk N/10" in its band's own risk colour, never a state colour`,
       ['low', 'mid', 'high'].every(b => m.some(x => x.band === b))
       && m.every(x => /^risk \d+\/10$/.test(x.text) && x.ink === x.want && !x.states.includes(x.ink)));
     t(`V1 ${scheme}: every meter's text is at least 4.5:1 on what is behind it (lowest ${Math.min(...m.map(x => x.ratio)).toFixed(2)})`,
