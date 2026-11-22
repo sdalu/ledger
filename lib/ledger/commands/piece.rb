@@ -4,6 +4,7 @@ require "ledger/commands/piece_announce"
 require "ledger/commands/piece_builds"
 require "ledger/commands/piece_by"
 require "ledger/commands/piece_commits"
+require "ledger/commands/piece_ready"
 require "ledger/commands/piece_flags"
 require "ledger/commands/piece_gates"
 require "ledger/commands/piece_handback"
@@ -113,7 +114,19 @@ module Ledger
                 result = save(path, target, session)
                 lines = [Render::Markdown.line(result.after, result.value)]
                 emit(result, path, first: first(target, result), lines:)
+                landed(result, target)
                 0
+            end
+
+            # `now ready: P<a>, P<b>` after the status line of a landing
+            # (--commits) that frees started pieces; nothing when none.
+            def landed(result, target)
+                return if result.dry || !@opts.key?("commits") ||
+                          !ID.match?(target)
+
+                n = target.delete_prefix("P").to_i
+                names = PieceReady.names(result.after, n)
+                @out.puts "now ready: #{names.join(", ")}" unless names.empty?
             end
 
             # One dispatch's assessment: no checked item changes, so the

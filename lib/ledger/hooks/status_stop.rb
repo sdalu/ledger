@@ -13,6 +13,11 @@ module Ledger
         # for the session, it is printed as the hook's systemMessage (the
         # text `check --peek` gives). It never blocks. The last text
         # shown is kept in `status/SESSION_ID` beside the journal file.
+        # It does refuse while a piece is ready and started (planned,
+        # awaiting no word, not held) in the session's ledgers: the stop
+        # is sent back naming it, until it goes out or is held with a
+        # reason, so that a piece whose wait just settled is not left
+        # unsent.
         module StatusStop
             LIVE = %w[out back].freeze
 
@@ -22,7 +27,15 @@ module Ledger
                 id = payload["session_id"].to_s
                 return Answer.pass unless EditRecord::BARE.match?(id)
 
-                text = lines(Ledgers.read(payload))
+                found = Ledgers.read(payload)
+                ready = unsent(found)
+                return send_back(payload, ready) unless ready.empty?
+
+                show(payload, id, lines(found))
+            end
+
+            # The status TEXT, shown once per distinct text.
+            def show(payload, id, text)
                 return through(payload, "nothing in flight") if text.empty?
                 return through(payload, "status unchanged") if
                     shown(id) == text
@@ -30,6 +43,24 @@ module Ledger
                 remember(id, text)
                 through(payload, "status shown")
                 Answer.json(systemMessage: text)
+            end
+
+            # The refs of the ready, started and unheld pieces of FOUND.
+            def unsent(found)
+                found.flat_map do |ledger|
+                    derive = ledger.derive
+                    derive.pieces.select { derive.ready?(it) }
+                          .map { derive.ref(it) }
+                end
+            end
+
+            # The stop sent back naming REFS, recorded with the reason.
+            def send_back(payload, refs)
+                list = refs.join(", ")
+                Outcomes.hook("status-stop", payload, "sent-back",
+                              "ready and started: #{list}")
+                Answer.refuse("ready and started, not sent: #{list}; send " \
+                              "it or hold it with a reason (piece --hold)")
             end
 
             # The stop let through, recorded with WHY (Outcomes.hook).

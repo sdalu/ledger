@@ -83,7 +83,7 @@ class HookOutcomesTest < HookTest
     end
 
     def test_status_stop_records_its_verdict
-        write("import") { piece(it) }
+        write("import") { piece(it, hold: "for the user") }
         hook("status-stop", session_id: "s1")
 
         assert_equal [["status-stop", "let-through: nothing in flight"]],
@@ -91,7 +91,7 @@ class HookOutcomesTest < HookTest
     end
 
     def test_a_let_through_is_written_only_when_it_changes
-        write("import") { piece(it) }
+        write("import") { piece(it, hold: "for the user") }
         2.times { hook("status-stop", session_id: "s1") }
         hook("status-stop", session_id: "s2")
 

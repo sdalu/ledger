@@ -161,7 +161,7 @@ PATH new|P<n>` adds a piece with the next free id or changes one
 (`--title`, `--what` for the detail, `--status`, `--route`,
 `--done-when`, `--evidence`, `--after`, `--for`, `--by`, `--verified-by`,
 `--cause`, `--no-picture WHY`, `--picture-pending WHY`, `--picture-holds WHY`, `--no-commit WHY`, `--hold WHY`, `--announce FILE`, `--status back --handback`, `--builds O<n>`,
-`--status obsolete --obsoleted-by P<n>`, `--commits SHA[,SHA...]` (appends the commits that landed it), `--[no-]irreversible` (its step cannot be taken back: 3 more on the step risk of each word it awaits, `— irreversible` on its line), `--gate "NAME: STATE (DETAIL)"` (a gate's state, queued, running, passed or failed, one per name, a later state replacing it: `— gates: unit failed (2 failures)`), `--report FILE` (a helper's report, its status line and up to 12 lines, alone or with `--status back --handback`, which then stores it even on a piece not out, the status untouched: `— report: DONE_WITH_CONCERNS`); an empty value clears a link); a piece not done that
+`--status obsolete --obsoleted-by P<n>`, `--commits SHA[,SHA...]` (appends the commits that landed it, then prints `now ready: P63` after the status line when that frees started pieces), `--[no-]irreversible` (its step cannot be taken back: 3 more on the step risk of each word it awaits, `— irreversible` on its line), `--gate "NAME: STATE (DETAIL)"` (a gate's state, queued, running, passed or failed, one per name, a later state replacing it: `— gates: unit failed (2 failures)`), `--report FILE` (a helper's report, its status line and up to 12 lines, alone or with `--status back --handback`, which then stores it even on a piece not out, the status untouched: `— report: DONE_WITH_CONCERNS`); an empty value clears a link); a piece not done that
 waits on an event to come, not on the user, is `--status deferred
 --until CONDITION`, the event kept on its line (`— until: three
 closures`) and in the viewer's remains until another status clears
@@ -410,8 +410,10 @@ also what the waker needs, registered by the user (The waker, below).
   back and its status line differs from the last one this hook showed for
   the session (kept in `status/SESSION_ID` beside the journal file), the
   line is printed as the hook's `systemMessage`, the text `check --peek`
-  gives. It never blocks: exit 0, nothing when unchanged or without a
-  ledger.
+  gives. It blocks only for a started piece (planned, awaiting no word,
+  not held) that is ready: exit 2 naming it, until it goes out or is
+  held with `piece --hold`; otherwise exit 0, nothing when unchanged or
+  without a ledger.
 - **one-list** (PreToolUse, TaskCreate|TodoWrite): while the session has
   a live ledger, a task list is refused, the reason pointing to
   `bin/ledger piece PATH new ...`. A call whose payload carries `agent_id`
