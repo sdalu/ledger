@@ -42,28 +42,5 @@ module LedgerViewer
             name = users.add(name) unless users.exists?(name)
             users.invite(name)
         end
-
-        # sesam's tables, in the order their keys allow.
-        TABLES = Sesam::SequelStore::TABLES
-
-        # Every row of the JSON store at `path` into `store`, once: an
-        # Error when `store` already holds a user. [table, rows] each.
-        def self.carry(path, store)
-            raise Error, "#{path}: no such file" unless File.file?(path)
-
-            source = Sesam::JsonStore.new(path)
-            store.transaction do
-                raise Error, "the journal already holds users" if
-                    store.count(:users).positive?
-
-                TABLES.map { |table| [table, copy(source, store, table)] }
-            end
-        end
-
-        def self.copy(source, store, table)
-            rows = source.all(table)
-            rows.each { store.insert(table, it) }
-            rows.length
-        end
     end
 end

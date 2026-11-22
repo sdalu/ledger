@@ -1157,8 +1157,7 @@ a temporary directory per test.
 The viewer lists every live ledger of the journal. Its pictures are
 served from `pictures` at `/m/ID/NAME[/path]`, its sign-in state (users,
 invitations, passkeys, keys) is sesam's `SequelStore` in the same file
-(`Sesam.migrate` runs first), and `rake user:carry` moves a JSON store's
-users in once. A page draws a piece or a decision back to the user's
+(`Sesam.migrate` runs first). A page draws a piece or a decision back to the user's
 words from the `links` of JSON v1 (`lib/ledger_viewer/links_graph.rb`,
 `views/ledger/links.erb`).
 

@@ -6,9 +6,6 @@
 #   rake user:invite NAME=alice   made if new; prints the URL, once
 #   rake user:list                each user: password, passkeys, invitation
 #   rake user:remove NAME=alice   the user, their passkeys and sessions gone
-#   rake user:carry [FROM=PATH]   once: the users of the JSON store (by
-#                                 default ~/.config/ledger-viewer/data/
-#                                 users.json) into the journal
 
 namespace :user do
     # The configuration and sesam's users in the journal, loaded on
@@ -56,20 +53,5 @@ namespace :user do
         puts "removed #{name}"
     rescue Sesam::Users::Error => e
         abort("user:remove: #{e.message}")
-    end
-
-    # Where the viewer kept its users before the journal.
-    def user_json = "~/.config/ledger-viewer/data/users.json"
-
-    desc "Carry the users of the JSON store into the journal, once: " \
-         "[FROM=PATH]"
-    task :carry do
-        path = File.expand_path(ENV.fetch("FROM", user_json))
-        _, store = user_store
-        counts = LedgerViewer::Accounts.carry(path, store)
-        puts "carried from #{path}: " +
-             counts.map { |table, n| "#{table} #{n}" }.join(", ")
-    rescue Sesam::Error, LedgerViewer::Error => e
-        abort("user:carry: #{e.message}")
     end
 end
