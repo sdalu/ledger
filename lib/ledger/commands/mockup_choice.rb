@@ -58,11 +58,23 @@ module Ledger
             # The option --choice names, its label folded as `choice
             # --drop` folds it; refused with the labels the question has.
             def choice_row(row, question)
+                by_item!(row, question)
                 rows = choices_of(row, question)
                 fold = Text::Options.fold(@opts[:choice])
                 rows.find { Text::Options.fold(it[:label]) == fold } or
                     refuse("#{question} has no option #{@opts[:choice]}; " \
                            "its labels: #{rows.map { it[:label] }.join(", ")}")
+            end
+
+            # Options answered per item are plain buttons: no tile to
+            # draw a picture in.
+            def by_item!(row, question)
+                return unless journal.db[:question_items]
+                                     .where(question_id: row[:id]).any?
+
+                refuse("#{question} is answered item by item; its options " \
+                       "carry no picture of their own: place one picture " \
+                       "for the question")
             end
 
             def choices_of(row, question)

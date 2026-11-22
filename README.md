@@ -727,8 +727,8 @@ labels it has, as is an option that already has its picture without
 tile, under its text and above its comment fold, the whole thumbnail a
 button that opens it full size like any mockup; the question's own
 picture, when any option has one, is labelled *Before*. A question
-answered per item (`--items`) keeps its options as plain buttons and
-draws no option pictures. Dropping an option (`choice --drop`) takes
+answered per item (`--items`) keeps its options as plain buttons, so
+`--choice` is refused on it: place one picture for the question. Dropping an option (`choice --drop`) takes
 its picture link away, the blob staying; `show` prints it after the
 option, `— picture: NAME`. `check` warns on a plain check, never on
 `--final` and never refusing a write, of an open question where some

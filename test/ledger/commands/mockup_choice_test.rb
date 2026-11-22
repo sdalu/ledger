@@ -84,6 +84,25 @@ class MockupChoiceTest < ChoiceCase
                        "--choice places one picture, not 2")
     end
 
+    def test_a_question_answered_item_by_item_is_refused
+        ok("ask", BETA, "Take each?", "--title", "Header items",
+           "--problem", "the header is crowded", "--risk", "2/10 — a redraw",
+           "--items", "S1 | S2", "--choices", "A = keep | B = drop",
+           "--recommend", "S1 A, S2 B", "--no-picture", "words alone")
+
+        assert_refused("mockup", BETA, file("x.png"), "--question", "O3",
+                       "--choice", "A",
+                       "O3 is answered item by item; its options carry no " \
+                       "picture of their own: place one picture for the " \
+                       "question")
+    end
+
+    def test_name_does_not_go_with_choice
+        assert_refused("mockup", BETA, file("x.png"), "--question", "O2",
+                       "--choice", "A", "--name", "x.png",
+                       "--name does not go with --choice")
+    end
+
     def test_choice_is_not_for_a_piece
         assert_refused("mockup", BETA, file("x.png"), "--piece", "P1",
                        "--before", "--choice", "A",
