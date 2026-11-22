@@ -545,19 +545,21 @@ t('the status pill is as tall as the id chip beside it', await p.evaluate(() => 
   t('pane beside the page, sandboxed', await p.locator('aside.mock-pane').isVisible()
     && await p.getAttribute('aside.mock-pane iframe', 'sandbox') === 'allow-scripts'
     && await p.evaluate(() => document.body.classList.contains('is-paned')));
-  // full screen beside Close, where the browser allows it; the same button leaves it
-  if (await p.evaluate(() => document.fullscreenEnabled)) {
-    await p.click('aside.mock-pane button.a-full');
-    await p.waitForFunction(() => document.fullscreenElement?.matches('aside.mock-pane'), null, { timeout: 5000 }).catch(() => {});
-    const on = await p.evaluate(() => [!!document.fullscreenElement?.matches('aside.mock-pane'),
-      document.querySelector('aside.mock-pane .a-full span').textContent]);
-    await p.click('aside.mock-pane button.a-full');
-    await p.waitForFunction(() => !document.fullscreenElement
-      && document.querySelector('aside.mock-pane .a-full span').textContent === 'Full screen', null, { timeout: 5000 }).catch(() => {});
-    t('full screen beside Close: on, then off', on[0] && on[1] === 'Exit full screen'
-      && await p.evaluate(() => !document.fullscreenElement
-        && document.querySelector('aside.mock-pane .a-full span').textContent === 'Full screen'));
-  }
+  // Full window beside Close: the pane covers the browser's viewport, not the screen; Esc steps out of it first
+  await p.click('aside.mock-pane button.a-full');
+  const fullOn = await p.evaluate(() => {
+    const pane = document.querySelector('aside.mock-pane'), r = pane.getBoundingClientRect(),
+          b = pane.querySelector('.a-full');
+    return [Math.round(r.left) === 0 && Math.round(r.top) === 0 && Math.round(r.width) === document.documentElement.clientWidth
+      && Math.round(r.height) === innerHeight, b.querySelector('span').textContent, b.getAttribute('aria-pressed'), !document.fullscreenElement];
+  });
+  t('Full window: the pane covers the browser viewport, the button says Exit full window, no screen full screen',
+    fullOn[0] && fullOn[1] === 'Exit full window' && fullOn[2] === 'true' && fullOn[3]);
+  await p.keyboard.press('Escape');
+  t('Esc in the full window brings the pane back beside the page, still open', await p.evaluate(() => {
+    const pane = document.querySelector('aside.mock-pane'), r = pane.getBoundingClientRect();
+    return !pane.hidden && r.left > 0 && pane.querySelector('.a-full span').textContent === 'Full window';
+  }));
   await p.keyboard.press('Escape');
   t('Esc closes it, focus back on Expand', !(await p.locator('aside.mock-pane').isVisible())
     && await p.evaluate(() => document.activeElement?.classList.contains('a-expand')));

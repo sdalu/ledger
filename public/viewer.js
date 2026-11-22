@@ -299,29 +299,21 @@
     const box = document.createElement(tag);
     box.className = cls;
     box.innerHTML = '<header><span class="pane-title" id="' + id + '"></span><span class="pane-actions">'
-      + '<button type="button" class="a-full" hidden>__ICON_MAXIMIZE__<span>Full screen</span></button>'
+      + '<button type="button" class="a-full" aria-pressed="false">__ICON_MAXIMIZE__<span>Full window</span></button>'
       + '<button type="button" class="a-close">__ICON_X__Close</button></span></header><div class="pane-view"></div>';
     box.setAttribute('aria-labelledby', id);
-    // full screen where the browser allows it: the same pane over the
-    // whole screen; Esc or the same button leaves it
+    // the same pane over the whole browser window, the page under it; the
+    // same button or Esc brings it back to its place
     const full = box.querySelector('.a-full');
-    if (document.fullscreenEnabled) {
-      full.hidden = false;
-      // the label follows the state once the change settles; the event
-      // alone can come after the call resolves
-      const label = () => {
-        full.querySelector('span').textContent =
-          document.fullscreenElement === box ? 'Exit full screen' : 'Full screen';
-      };
-      full.addEventListener('click', () => {
-        const change = document.fullscreenElement === box
-          ? document.exitFullscreen() : box.requestFullscreen();
-        change.then(label, label);
-      });
-      document.addEventListener('fullscreenchange', label);
-    }
+    full.addEventListener('click', () => setFull(box, !box.classList.contains('is-full')));
     document.body.append(box);
     return box;
+  };
+  const setFull = (box, on) => {
+    box.classList.toggle('is-full', on);
+    const full = box.querySelector('.a-full');
+    full.setAttribute('aria-pressed', on ? 'true' : 'false');
+    full.querySelector('span').textContent = on ? 'Exit full window' : 'Full window';
   };
   const fill = (box, b) => {
     box.querySelector('.pane-title').textContent = b.dataset.label;
@@ -347,7 +339,7 @@
   const paneOpen = () => pane && !pane.hidden;
   const closePane = (refocus = true) => {
     if (!paneOpen()) return;
-    if (document.fullscreenElement === pane) document.exitFullscreen();
+    setFull(pane, false);
     pane.hidden = true;
     document.body.classList.remove('is-paned');
     if (refocus && opener) opener.focus();
@@ -367,13 +359,19 @@
       if (!dlg) {
         dlg = shell('dialog', 'mock-dialog', 'mock-dialog-title');
         dlg.querySelector('.a-close').addEventListener('click', () => dlg.close());
-        dlg.addEventListener('close', () => { if (opener) opener.focus(); });
+        dlg.addEventListener('close', () => { setFull(dlg, false); if (opener) opener.focus(); });
+        // a dialog's Esc steps out of the full window before it closes
+        dlg.addEventListener('cancel', e => { if (dlg.classList.contains('is-full')) { e.preventDefault(); setFull(dlg, false); } });
       }
       fill(dlg, b);
       dlg.showModal();
     }
   };
-  document.addEventListener('keydown', e => { if (e.key === 'Escape') closePane(); });
+  // Esc leaves the full window first, then closes the pane
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Escape') return;
+    if (paneOpen() && pane.classList.contains('is-full')) setFull(pane, false); else closePane();
+  });
   // an open status tag is one pill: a click on its explanation closes it
   // too, not only a click on the word (the summary toggles by itself)
   document.addEventListener('click', e => {

@@ -1144,6 +1144,19 @@
     & .pane-view { min-block-size: 0; overflow: auto; }
     & iframe { inline-size: 100%; block-size: 100%; border: 1px solid var(--rule); border-radius: var(--radius); background: white; }
     & img { max-inline-size: 100%; block-size: auto; }
+    /* over the whole browser window, the page under it */
+    &.is-full {
+      position: fixed;
+      inset: 0;
+      z-index: 2;
+      inline-size: auto;
+      block-size: auto;
+      max-inline-size: none;
+      max-block-size: none;
+      margin: 0;
+      border: 0;
+      border-radius: 0;
+    }
   }
   .mock-pane {
     position: fixed;
