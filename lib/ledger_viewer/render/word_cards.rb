@@ -78,7 +78,8 @@ module LedgerViewer
                 @scope.partial(
                     "ledger/word_receipt",
                     { id: piece["id"], title: piece["title"], line: line(last),
-                      said: said(last), next_waiting: @waiting.html,
+                      said: said(last),
+                      next_waiting: @waiting.html("p-#{piece["id"]}"),
                       lid: @kit.lid, needed:, form: }
                 )
             end

@@ -56,13 +56,13 @@ module LedgerViewer
         def entry_of(body) = body.fields.merge("text" => body.text)
 
         # The card acted on; an answer or a word turns its card into a
-        # receipt, so the page moves on to the first card still waiting,
-        # the one acted on when none does.
+        # receipt, so the page moves on to the first card still waiting
+        # after it, the one acted on when none does.
         def anchor(entry, route, body)
             return body.anchor unless route == "say" && receipt?(body)
 
             reading = Render::Reading.new(@ledgers.read(entry))
-            first = Render::NextWaiting.cards(reading).first
+            first = Render::NextWaiting.after(reading, body.anchor)
             first ? first[0] : body.anchor
         end
 

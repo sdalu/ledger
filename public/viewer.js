@@ -808,9 +808,13 @@
       mine.classList.add('is-collapsed');
       const link = mine.querySelector('a.next-waiting[href^="#"]');
       const next = link && document.getElementById(link.getAttribute('href').slice(1));
-      // each card is named, so the others slide into the room the collapse leaves
-      const cards = [...document.querySelectorAll('.entries > li[id]')];
-      for (const c of cards) c.style.viewTransitionName = 'card-' + c.id;
+      // the cards near the answered one are named, so they slide into the room the collapse
+      // leaves; naming every card of a long page would delay the scroll by seconds
+      const reach = innerHeight * 2, top = card.getBoundingClientRect().top;
+      for (const c of document.querySelectorAll('.entries > li[id]')) {
+        const r = c.getBoundingClientRect();
+        if (r.bottom > top - reach && r.top < top + reach) c.style.viewTransitionName = 'card-' + c.id;
+      }
       mine.style.viewTransitionName = 'card-' + card.id;
       // anything but the answered card gone from what waits is somebody else's change
       const now = waitingSig(doc);

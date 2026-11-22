@@ -113,7 +113,8 @@ module LedgerViewer
                     { head: head(question, "is-flight is-card"), kase:, form:,
                       parts: Helpers.answer_parts(last), said: said(last),
                       id: last["id"], receipt: Clock.receipt(last),
-                      next_waiting: @waiting.html, lid: @kit.lid,
+                      next_waiting: @waiting.html("q-#{question["id"]}"),
+                      lid: @kit.lid,
                       ref: question["id"] }
                 )
             end

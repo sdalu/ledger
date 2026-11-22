@@ -17,6 +17,7 @@
 # checkout:
 #   bundle exec ruby test/browser_run.rb
 
+require "digest"
 require "json"
 require "net/http"
 require "securerandom"
@@ -28,6 +29,7 @@ $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 require "ledger_viewer"
 
 require_relative "support/browser_fixture"
+require_relative "support/long_fixture"
 
 module BrowserRun
     ROOT = File.expand_path("..", __dir__)
@@ -171,6 +173,7 @@ module BrowserRun
         SHIM = File.join(__dir__, "browser_session.cjs")
         VIEWER = File.join(__dir__, "browser", "viewer.cjs")
         PAGES = File.join(__dir__, "browser_pages.cjs")
+        LONG = File.join(__dir__, "browser", "long.cjs")
 
         def initialize(core, browsers)
             @core = core
@@ -178,11 +181,36 @@ module BrowserRun
         end
 
         def call(sandbox, cookie)
-            @browsers.map { |name, exe| check(sandbox, cookie, name, exe) }
-                     .all?
+            shared = @browsers.map do |name, exe|
+                check(sandbox, cookie, name, exe)
+            end
+            shared.all? & long_passes?(sandbox, cookie)
         end
 
         private
+
+        # The long page's check, once per browser, each on a ledger of its
+        # own made after the shared checks, which read the index's first
+        # queue entry and must not meet it.
+        def long_passes?(sandbox, cookie)
+            @browsers.map do |name, exe|
+                next true unless File.executable?(exe)
+
+                address = File.join(sandbox.dir, "long-#{name}", ".claude",
+                                    "LEDGER.md")
+                build_long(sandbox, address)
+                lid = Digest::SHA1.hexdigest(address)[0, 10]
+                system(env(sandbox, cookie), "node", LONG,
+                       "#{sandbox.base}/l/#{lid}", name)
+            end.all?
+        end
+
+        def build_long(sandbox, address)
+            journal = Ledger::Journal.open(sandbox.journal)
+            LongFixture.build(journal, address)
+        ensure
+            journal&.close
+        end
 
         def check(sandbox, cookie, name, exe)
             unless File.executable?(exe)
