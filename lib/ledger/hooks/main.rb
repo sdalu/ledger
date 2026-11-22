@@ -15,6 +15,7 @@ module Ledger
         # Hook word => the constant its file defines.
         NAMES = { "heartbeat" => :Heartbeat,
                   "brief-constraints" => :BriefConstraints,
+                  "brief-piece" => :BriefPiece,
                   "journal-write" => :JournalWrite,
                   "finish" => :Finish,
                   "inbox" => :Inbox,

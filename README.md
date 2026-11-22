@@ -296,6 +296,13 @@ also what the waker needs, registered by the user (The waker, below).
 - **brief-constraints** (PreToolUse, Agent): reads the Constraints of
   the session's ledgers, and a brief that names a path one of them names
   (`vendor/`, `units/time.py`) without carrying it verbatim is refused.
+- **brief-piece** (PreToolUse, Agent): with a live ledger in the session's
+  place, a dispatch whose prompt has no header line `Piece: <absolute .md
+  path> P<n>` between its BRIEF line and the first blank line after it is
+  refused, as is one naming a piece that is not planned and ready (a
+  relative or non-`.md` path is refused naming what was found). `Piece:
+  none — WHY` lets a delegate that is no piece through. No live
+  ledger: it passes silently.
 - **journal-write** (PreToolUse, Bash): refuses a command that writes
   the journal file, or its `-wal` or `-shm` companion, by hand: `sqlite3`
   on it without `-readonly`, `>`, `>>`, `tee`, `cp`, `mv`, `rm`,
@@ -961,7 +968,7 @@ Read only:
 
 - The `journal-write` and `heartbeat` hooks read no file, only the
   command and the output in the hook payload.
-- `brief-constraints`, `finish`, `inbox` and `session-start` open the
+- `brief-constraints`, `brief-piece`, `finish`, `inbox` and `session-start` open the
   journal read-only (a missing file means no ledgers, and the hook
   passes) and read the live ledgers whose address is directly under the
   session's directory, its `.claude/` or its scratch directory, and
