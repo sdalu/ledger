@@ -52,11 +52,12 @@ class BuildsCardTest < ViewerTest
         refute_includes waiting, 'id="p-P1"'
     end
 
+    # P2 has no card while O1 is open: its chip leads to the question's.
     def test_the_obsolete_piece_links_its_replacement_in_the_record
         record = page[/<h2 id="record".*/m]
 
-        assert_includes record, 'href="#piece-P2"'
-        assert_match(%r{obsoleted by</span> <a[^>]*href="#piece-P2"}, record)
+        assert_match(%r{obsoleted by</span> <a[^>]*href="#q-O1"}, record)
+        assert_match(/class="succ".*href="#q-O1"/m, record)
     end
 
     def test_the_answer_then_the_start_are_two_entries

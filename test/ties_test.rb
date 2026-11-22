@@ -51,7 +51,7 @@ class TiesTest < ViewerTest
     def test_a_chip_carries_the_title_of_its_piece_on_hover
         line = ties("piece-P2")
         assert_match(/href="#piece-P1"[^>]*aria-describedby/, line)
-        assert_includes line, ">write the lexer</span>"
+        assert_includes line, ">write the lexer · planned</span>"
     end
 
     def test_a_piece_and_its_successor_name_each_other
@@ -62,6 +62,23 @@ class TiesTest < ViewerTest
     def test_an_obsolete_row_carries_its_successor_beside_its_status
         head = card("piece-P3")[%r{\A.*?</span>(?=<div class="meta"|<p)}m]
         assert_match(/obsolete.*class="succ".*href="#piece-P4"/m, head)
+    end
+
+    def test_an_unsettled_wait_says_its_status_and_the_piece_is_not_ready
+        refute_includes ties("piece-P2"), "ready"
+        assert_includes ties("piece-P2"), " · planned</span>"
+    end
+
+    def test_a_ready_piece_leads_with_ready_and_its_settled_wait_is_muted
+        ledger("piece", "new", *ROUTE, "--title", "write the spec",
+               "--status", "verified", "--verified-by", "me",
+               "--evidence", "it reads")
+        ledger("piece", "new", *ROUTE, "--title", "write the manual",
+               "--after", "P5")
+        line = ties("piece-P6")
+        assert_includes line, '<span class="tie-ready">ready —</span>'
+        assert_match(/class="id-link is-done" href="#piece-P5"/, line)
+        assert_includes line, "· settled</span>"
     end
 
     def test_a_piece_without_ties_has_no_line

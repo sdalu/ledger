@@ -270,8 +270,8 @@ of its own while the question is open. The piece it replaces goes `piece PATH
 P<k> --status obsolete --obsoleted-by P<n>` (refused on a piece out,
 or when P<n> is obsolete or dropped): terminal like dropped, its line
 ending its head with `— obsoleted by P<n>`, out of the live counts and
-of `check --final`, in the viewer's record with `obsoleted by P<n>` as
-a link. `show --json` gives each piece `builds` (`{question, decision,
+of `check --final`, in the viewer's record with its successor's chip in its head
+and on its ties line. `show --json` gives each piece `builds` (`{question, decision,
 text}`, the last two null while open) and `obsoleted_by`. `undo PATH` puts back the last event that changed the
 ledger's items, in an event of its own, one level, refused once a row
 changed since; the inbox's takes are never undone. `restore PATH --to
@@ -469,7 +469,14 @@ rated* for a piece in flight, unless it is planned or deferred and
 awaits no word), the assumptions it rests on (`rests on
 A1 (open), A2 (refuted)`, each chip leading to its row), its issues
 (`blocked`, `stalled 2 h`, `returned 2: depth, unrecorded`) and what it
-depends on (`waits for P3`, `serves D2`, `answered by P5`, `see F2`).
+depends on (`serves D2`, `answered by P5`, `see F2`).
+Under the head of every piece card and open row, one ties line says what
+it is tied to in id chips, each part left out when empty: `waits for`
+(a settled piece muted with a tick, an unsettled one with its status on
+hover; the line opens with `ready —` on a planned piece whose waits are
+all settled), `needed by`, `obsoletes`, `obsoleted by` and `builds` (the
+question it builds); each chip links to where the page draws the item,
+and an obsolete row carries its successor's chip beside its status.
 The record opens with a fold titled *Risks, assumptions, issues,
 dependencies (n)*, four lists: Risks (every rated
 one, highest first), Assumptions (open first, then confirmed and

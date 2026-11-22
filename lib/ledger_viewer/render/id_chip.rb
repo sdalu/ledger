@@ -11,15 +11,13 @@ module LedgerViewer
 
             # The chip of ID linking to HREF, TIP on hover; no tip when
             # TIP is empty.
-            def link(scope, id, href, tip)
-                if tip.empty?
-                    return %(<a class="id-link" href="#{href}">) +
-                           "#{scope.chip(id)}</a>"
-                end
-
-                attrs, box = scope.tip(tip)
-                %(<a class="id-link" href="#{href}"#{attrs}>) +
-                    "#{scope.chip(id)}</a>#{box}"
+            # With DONE the chip is muted and ticked.
+            def link(scope, id, href, tip, done: false)
+                cls = done ? "id-link is-done" : "id-link"
+                tick = done ? %(<span aria-hidden="true">✓</span> ) : ""
+                attrs, box = tip.empty? ? ["", ""] : scope.tip(tip)
+                %(<a class="#{cls}" href="#{href}"#{attrs}>) +
+                    "#{tick}#{scope.chip(id)}</a>#{box}"
             end
 
             # What a chip tells on hover: the item's title, its risk
