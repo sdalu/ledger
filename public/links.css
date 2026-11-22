@@ -18,7 +18,7 @@
 
 @layer components {
   .links-graph {
-    & .meta { font-size: 0.8125rem; color: var(--muted); }
+    & .meta { font-size: var(--text-xs); color: var(--muted); }
     & h2 { margin-block-start: var(--space-l); }
     & h2 + .meta { margin-block-end: var(--space-s); }
     & ol { padding-inline-start: 0; list-style: none; }
@@ -45,10 +45,10 @@
     & .node-head {
       color: var(--state);
       & > .title { color: var(--ink); font-weight: 600; }
-      & > .via { font-size: 0.8125rem; color: var(--muted); }
+      & > .via { font-size: var(--text-xs); color: var(--muted); }
     }
     & .text { margin-block-start: var(--space-xs); }
-    & .note, & .also { margin-block-start: var(--space-xs); font-size: 0.8125rem; color: var(--muted); }
+    & .note, & .also { margin-block-start: var(--space-xs); font-size: var(--text-xs); color: var(--muted); }
     & .also > span { margin-inline-end: var(--space-s); }
     & > ol {
       margin-block-start: var(--space-xs);
@@ -77,7 +77,7 @@
   }
   .whose {
     margin: 0;
-    font-size: 0.75rem;
+    font-size: var(--text-xs);
     font-weight: 600;
     letter-spacing: 0.02em;
     text-transform: uppercase;

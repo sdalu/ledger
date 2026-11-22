@@ -1049,6 +1049,73 @@ t('A2: the status pill\'s summary is at least 24 px', await p.evaluate(() => {
     return n.getAttribute('role') === 'status' && n.textContent.trim() === 'Nothing left waiting on you in this ledger' && r.height > 0
       && !!tag && /not read by the session yet/.test(tag.textContent) && tag.getBoundingClientRect().height > 0;
   }));
+  // V1 and V2 on a ledger of their own: a piece whose plan gives one word, rated high, and
+  // questions rated low and mid
+  const shown = path.join(path.dirname(ledger), '..', '..', 'shown', '.claude', 'LEDGER.md');
+  runOn(shown, 'new', '--goal', 'a ledger for the visual checks', '--title', 'Shown ledger', '--short', 'visual checks', '--date', '2026-11-19');
+  runOn(shown, 'piece', 'new', '--route', 'sonnet, effort: low', '--title', 'one word', '--problem', 'ready',
+    '--risk', '8/10 — it ships', '--plan', 'commit it', '--status', 'verified', '--verified-by', 'me', '--evidence', 'green');
+  runOn(shown, 'piece', 'P1', '--awaits', 'commit', '--no-picture', 'no visible change');
+  runOn(shown, 'ask', 'low?', '--title', 'Low risk', '--problem', 'two', '--risk', '3/10 — rework',
+    '--choices', 'A = one | B = two', '--recommend', 'A, simple', '--no-picture', 'text only');
+  runOn(shown, 'ask', 'mid?', '--title', 'Mid risk', '--problem', 'two', '--risk', '6/10 — rework',
+    '--choices', 'C = three | D = four', '--recommend', 'C, simple', '--no-picture', 'text only');
+  const shownId = require('crypto').createHash('sha1').update(shown).digest('hex').slice(0, 10);
+  // the colour a computed value paints, as sRGB bytes: a canvas reads oklch() as well as rgb()
+  const meters = () => p.evaluate(() => {
+    const g = document.createElement('canvas').getContext('2d', {willReadFrequently: true});
+    const rgba = c => { g.clearRect(0, 0, 1, 1); g.fillStyle = c; g.fillRect(0, 0, 1, 1); return [...g.getImageData(0, 0, 1, 1).data]; };
+    const rgb = c => rgba(c).slice(0, 3);
+    const lum = c => { const [r, gg, b] = c.map(v => { v /= 255; return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }); return 0.2126 * r + 0.7152 * gg + 0.0722 * b; };
+    const ratio = (x, y) => { const [a, b] = [lum(x), lum(y)].sort((m, n) => m - n); return (b + 0.05) / (a + 0.05); };
+    const token = n => { const s = document.createElement('span'); s.style.color = `var(--${n})`; document.body.append(s); const c = rgb(getComputedStyle(s).color); s.remove(); return c.join(); };
+    return [...document.querySelectorAll('.rating')].map(e => {
+      // the first opaque background behind it: every surface of the page is opaque
+      let n = e;
+      while (n.parentElement && rgba(getComputedStyle(n).backgroundColor)[3] < 255) n = n.parentElement;
+      const bg = getComputedStyle(n).backgroundColor;
+      const band = (e.closest('.is-low, .is-mid, .is-high').className.match(/is-(low|mid|high)/) || [])[1];
+      const ink = rgb(getComputedStyle(e).color).join();
+      return {band, text: e.lastChild.textContent, ink, want: token({low: 'muted', mid: 'ink', high: 'fail'}[band]),
+        states: ['ok', 'ask'].map(token), ratio: ratio(rgb(getComputedStyle(e).color), rgb(bg))};
+    });
+  });
+  await p.goto('about:blank');
+  await p.setViewportSize({width: 390, height: 844});
+  for (const scheme of ['light', 'dark']) {
+    await p.emulateMedia({colorScheme: scheme});
+    await p.goto(base + '/l/' + shownId);
+    await p.evaluate(() => { for (const f of document.querySelectorAll('details.done-fold')) f.open = true; });
+    const m = await meters();
+    t(`V1 ${scheme}: each meter reads "risk N/10", muted when low, in ink when mid, red only when high, never a state colour`,
+      ['low', 'mid', 'high'].every(b => m.some(x => x.band === b))
+      && m.every(x => /^risk \d+\/10$/.test(x.text) && x.ink === x.want && !x.states.includes(x.ink)));
+    t(`V1 ${scheme}: every meter's text is at least 4.5:1 on what is behind it (lowest ${Math.min(...m.map(x => x.ratio)).toFixed(2)})`,
+      m.every(x => x.ratio >= 4.5));
+  }
+  await p.emulateMedia({colorScheme: null});
+  // V2: every waiting card has one filled button, the only word included; here and on the fixture's page
+  const primaries = () => p.evaluate(() => [...document.querySelectorAll('li.is-card form.say .word-choices')].map(w => {
+    const bs = [...w.querySelectorAll('button')], panel = getComputedStyle(w.closest('li')).backgroundColor;
+    return {n: bs.length, filled: bs.filter(b => getComputedStyle(b).backgroundColor !== panel).length};
+  }));
+  await p.goto(base + '/l/' + shownId);
+  const lone1 = await primaries();
+  await p.goto(base + page);
+  const many = await primaries();
+  t('V2: a card offering one word draws it filled, and every waiting card has exactly one filled word',
+    lone1.some(x => x.n === 1) && many.some(x => x.n > 1) && [...lone1, ...many].every(x => x.filled === 1));
+  // V5: at 390 px a queue row's wait ends its title's line
+  await p.goto(base + '/');
+  t('V5: at 390 px each queue row\'s wait sits on its title\'s line, after it', await p.evaluate(() => {
+    const rows = [...document.querySelectorAll('ol.queue > li')].filter(r => r.querySelector('.wait'));
+    return rows.length > 1 && rows.every(r => {
+      const w = r.querySelector('.wait').getBoundingClientRect(), ti = r.querySelector('.title').getClientRects()[0];
+      return w.left >= ti.right - 0.5 && w.top < ti.bottom && w.bottom > ti.top;
+    });
+  }));
+  await p.goto('about:blank');
+  await p.setViewportSize({width: 1300, height: 900});
   // D2: a question held by a deferred piece says what it waits for, not that it is preparing options;
   // last, because a piece and a question are not taken back
   run('piece', 'new', '--route', 'sonnet, effort: low', '--title', 'Wait for the API');
