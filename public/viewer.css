@@ -1746,6 +1746,12 @@
         color: var(--accent);
       }
     }
+    /* the card keeps one filled button: the comment alone beside Send answer is outlined */
+    & button.a-comment-only {
+      color: var(--accent);
+      background: var(--panel);
+      &:hover { filter: none; background: var(--inset); }
+    }
     /* a text button: it sends, but it is not the card's word */
     & button.a-comment {
       padding-inline: var(--space-s);
