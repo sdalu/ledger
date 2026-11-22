@@ -26,15 +26,16 @@ class BriefPieceTest < HookTest
 
     def prompt(header) = "BRIEF\nTask: x\n#{header}\nModel: sonnet\n\nBody"
 
-    def dispatch(text, cwd: PLACE, tool: "Agent")
+    def dispatch(text, cwd: PLACE, tool: "Agent", session: "s9")
         answer = hook("brief-piece", tool_name: tool, cwd:,
+                                     session_id: session,
                                      tool_input: { prompt: text })
         answer.out && json(answer)["hookSpecificOutput"]
     end
 
-    def denied(header) = dispatch(prompt(header))
+    def denied(header, **) = dispatch(prompt(header), **)
 
-    def reason(header) = denied(header)["permissionDecisionReason"]
+    def reason(header, **) = denied(header, **)["permissionDecisionReason"]
 
     def test_a_ready_piece_passes
         assert_nil dispatch(prompt("Piece: #{ADDRESS} P1"))
@@ -66,14 +67,21 @@ class BriefPieceTest < HookTest
     def test_a_missing_or_unready_piece_is_denied
         {
             "P9" => "which #{ADDRESS} does not have",
-            "P2" => "which is out and not ready",
-            "P3" => "which is planned and not ready",
-            "P4" => "which is planned and not ready"
+            "P2" => "which is out, neither ready nor out under this session",
+            "P3" => "which is planned, neither ready nor out",
+            "P4" => "which is planned, neither ready nor out"
         }.each do |ref, why|
             assert_match why, reason("Piece: #{ADDRESS} #{ref}")
         end
         assert_match "no live ledger here",
                      reason("Piece: /work/beta/LEDGER.md P1")
+    end
+
+    def test_a_piece_out_under_this_session_passes_another_s_is_denied
+        assert_nil denied("Piece: #{ADDRESS} P2", session: "s1")
+        assert_match(/P2, which is out, neither ready nor out/,
+                     reason("Piece: #{ADDRESS} P2", session: "other"))
+        assert_match "P2", reason("Piece: #{ADDRESS} P2", session: "")
     end
 
     def test_none_with_a_reason_passes_and_without_is_denied

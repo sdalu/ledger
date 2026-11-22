@@ -7,19 +7,20 @@ module Ledger
         # PreToolUse on Agent: with a live ledger in the session's place,
         # a dispatch whose prompt carries no header line `Piece: PATH
         # P<n>` between its BRIEF line and the first blank line after it
-        # is denied, as is one naming a piece that is not planned and
-        # ready. `Piece: none — WHY` lets a delegate that is no piece
-        # through. With no live ledger the dispatch passes; the piece is
-        # never set out here (the orchestrator does that).
+        # is denied, as is one naming a piece that is neither ready nor
+        # out under the dispatching session (claimed by its session_id).
+        # `Piece: none — WHY` lets a delegate that is no piece through.
+        # With no live ledger the dispatch passes; the piece is never set
+        # out here (the orchestrator does that).
         module BriefPiece
             TOOLS = %w[Agent Task].freeze
             HEADER = /\APiece:[[:space:]]*(.*?)[[:space:]]*\z/
             NAMED = /\A(\S+)[[:space:]]+(P[1-9][0-9]*)\z/
             NONE = /\Anone[[:space:]]*—[[:space:]]*\S/
             ADD = "add the header line `Piece: <absolute .md path of the " \
-                  "ledger> P<n>` (a planned, ready piece) under the BRIEF " \
-                  "line, or `Piece: none — WHY` for a delegate that is no " \
-                  "piece"
+                  "ledger> P<n>` (a ready piece, or one out under this " \
+                  "session) under the BRIEF line, or `Piece: none — WHY` " \
+                  "for a delegate that is no piece"
 
             module_function
 
@@ -31,7 +32,8 @@ module Ledger
                 found = Ledgers.read(payload)
                 return Answer.pass if found.empty?
 
-                problem = problem(header(prompt), found)
+                problem = problem(header(prompt), found,
+                                  payload["session_id"])
                 problem ? Answer.json(deny(problem)) : Answer.pass
             end
 
@@ -48,7 +50,7 @@ module Ledger
 
             # What is wrong with the header VALUE, nil when the dispatch
             # may go.
-            def problem(value, found)
+            def problem(value, found, session)
                 return "has no Piece: header line" if value.nil?
                 return if NONE.match?(value)
 
@@ -59,7 +61,7 @@ module Ledger
                 bad = bad_path(path)
                 return "names the path #{path.inspect}, #{bad}" if bad
 
-                unready(found, path, ref)
+                unready(found, path, ref, session)
             end
 
             def bad_path(path)
@@ -68,17 +70,25 @@ module Ledger
                 "not a .md file" unless path.end_with?(".md")
             end
 
-            def unready(found, path, ref)
+            def unready(found, path, ref, session)
                 ledger = found.find { it.address == path }
                 return "names #{path}, which is no live ledger here" unless
                     ledger
 
                 piece = ledger.derive.pieces.find { "P#{it[:n]}" == ref }
                 return "names #{ref}, which #{path} does not have" unless piece
-                return if ledger.derive.ready?(piece)
+                return if sendable?(ledger.derive, piece, session)
 
-                "names #{ref}, which is #{piece[:status]} and not ready " \
-                    "(planned, awaiting no word, its after pieces ended)"
+                "names #{ref}, which is #{piece[:status]}, neither ready " \
+                    "nor out under this session"
+            end
+
+            # A piece ready to send, or out and claimed by this session
+            # (the orchestrator marks it out before dispatching it).
+            def sendable?(derive, piece, session)
+                return derive.ready?(piece) unless piece[:status] == "out"
+
+                !session.to_s.empty? && piece[:claimed_by] == session
             end
 
             def deny(problem)

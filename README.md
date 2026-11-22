@@ -299,7 +299,8 @@ also what the waker needs, registered by the user (The waker, below).
 - **brief-piece** (PreToolUse, Agent): with a live ledger in the session's
   place, a dispatch whose prompt has no header line `Piece: <absolute .md
   path> P<n>` between its BRIEF line and the first blank line after it is
-  refused, as is one naming a piece that is not planned and ready (a
+  refused, as is one naming a piece that is neither ready nor out and
+  claimed by the dispatching session (a
   relative or non-`.md` path is refused naming what was found). `Piece:
   none — WHY` lets a delegate that is no piece through. No live
   ledger: it passes silently.
