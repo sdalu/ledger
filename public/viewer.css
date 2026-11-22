@@ -456,8 +456,9 @@
     }
   }
 
-  /* a list of questions: cards with air between them */
-  .entries:has(> .is-card) {
+  /* a list of questions or pieces: cards and rows with air between them;
+     a list of rows alone is one too */
+  .entries:has(> :is(.is-card, .is-row)) {
     /* the cards tighten when the list, not the window, is narrow */
     container: questions / inline-size;
     gap: var(--space-m);
@@ -502,11 +503,14 @@
           gap: var(--space-s);
           max-inline-size: 100%;
           margin-inline-start: auto;
-          /* an open drop form needs the width; an open status stays beside
-             the title while it fits, the group moving down only when not */
-          &:has(> .drop-fold[open]) { flex-basis: 100%; }
+          /* an open drop form takes the head's full row: the group gives way,
+             its id and trash staying on the title's line */
+          &:has(> .drop-fold[open]) { display: contents; & > * { align-self: center; } }
         }
         & .head-tags > .tag { --state: var(--muted); flex: none; margin: 0; border-color: transparent; color: var(--on-state); background: var(--muted); }
+        /* the group dissolved, its parts and the title centre on one line,
+           the 44 px trash setting its height */
+        &:has(> .head-tags > .drop-fold[open]) > .text { align-self: center; }
         & .head-tags > .drop-fold:not([open]) { margin-inline-start: calc(1.5rem - var(--space-s)); }
         /* the status beside the id: outlined in the state's colour, not filled */
         & .head-tags > .tag.status { --state: var(--muted); border-color: var(--state); color: var(--state); background: var(--panel); }
@@ -657,7 +661,9 @@
        on the head's line and the form takes the full row below */
     &[open] {
       display: contents;
-      & > summary { color: var(--ink); }
+      /* the engine's wrapper around the form is no box of the row either */
+      &::details-content { display: contents; }
+      & > summary { align-self: center; color: var(--ink); }
       & > form { flex: 1 0 100%; }
     }
     /* the icon is part of the control, at its own size inside the 44 px target */

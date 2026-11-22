@@ -268,6 +268,36 @@ const rowDrop = await p.evaluate(() => {
   return r;
 });
 t('an open row draws its drop icon in its head line, as far from the edge as a card does', !!rowDrop && rowDrop[0] <= 1 && rowDrop[1] <= 1, JSON.stringify(rowDrop));
+  // an open drop form takes the head's full row; the id and the trash stay on the title's line
+  const dropOpen = await p.evaluate(() => {
+    const li = document.querySelector('.entries > li.is-card[id^="q-"]'), fold = li && li.querySelector('.card-head .drop-fold');
+    if (!fold) return null;
+    fold.open = true;
+    const h = li.querySelector('.card-head').getBoundingClientRect(), f = fold.querySelector('form').getBoundingClientRect();
+    const c = li.querySelector('.card-head .head-tags > .tag').getBoundingClientRect(), t = li.querySelector('.card-head > .text').getBoundingClientRect();
+    const r = {width: f.width / h.width, below: f.top >= c.bottom, chipOnTitle: Math.abs((c.top + c.height / 2) - (t.top + t.height / 2)) < 12};
+    fold.open = false;
+    return r;
+  });
+  t("an open drop form takes the head's full row below, the id staying on the title's line",
+    !!dropOpen && dropOpen.width > 0.9 && dropOpen.below && dropOpen.chipOnTitle, JSON.stringify(dropOpen));
+  // a list of piece rows with no card among them is styled as one with cards:
+  // an open row keeps its drop in its head line
+  const rowsOnly = await p.evaluate(() => {
+    const row = document.querySelector('.entries > li.is-row');
+    if (!row) return null;
+    const list = document.createElement('ul'); list.className = 'entries';
+    const copy = row.cloneNode(true); copy.id = 'rows-only-probe'; list.append(copy);
+    row.parentElement.after(list);
+    copy.querySelector('details').open = true;
+    const drop = copy.querySelector('.row-drop');
+    const r = {pos: getComputedStyle(drop).position,
+               top: drop.getBoundingClientRect().top - copy.querySelector('summary').getBoundingClientRect().top};
+    list.remove();
+    return r;
+  });
+  t("a list of rows alone keeps an open row's drop in its head line",
+    !!rowsOnly && rowsOnly.pos === 'absolute' && Math.abs(rowsOnly.top) < 2, JSON.stringify(rowsOnly));
   t('R20: a status is one pill; its meaning opens inside it after the word, not repeating it, and closes again',
     !shut.open && !shut.shown && opened.open && opened.shown && opened.one && opened.inside
     && /^(planned|out)$/.test(opened.word) && opened.text.length > 10 && !opened.text.startsWith(opened.word)
