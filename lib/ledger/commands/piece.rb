@@ -9,6 +9,7 @@ require "ledger/commands/piece_gates"
 require "ledger/commands/piece_handback"
 require "ledger/commands/piece_hold"
 require "ledger/commands/piece_report"
+require "ledger/commands/piece_word_scope"
 require "ledger/text/awaits"
 require "ledger/text/risk"
 require "ledger/text/title"
@@ -172,8 +173,7 @@ module Ledger
             # -> the piece's visible id, once every row is written.
             def call(target, address)
                 old = prior(target, address)
-                row = PieceRow.new(old, @opts, awaits: listed(old, :awaits),
-                                               scopes: listed(old, :scopes))
+                row = checked(old)
                 id = save(old, row)
                 links(id)
                 PieceWords.new(@change, @db, id).sync(row.awaits, row.scopes)
@@ -197,6 +197,17 @@ module Ledger
                 old
             end
 
+            # The row the flags make, once no field the user's word covers
+            # is changed.
+            def checked(old)
+                awaits = PieceWords.listed(@db, old, :awaits)
+                scopes = PieceWords.listed(@db, old, :scopes)
+                row = PieceRow.new(old, @opts, awaits:, scopes:)
+                PieceWordScope.new(@change, @db, old, @opts)
+                              .check(awaits, row.awaits, scopes)
+                row
+            end
+
             def find(target, address)
                 @change.resolve(target).last
             rescue Unknown
@@ -218,18 +229,6 @@ module Ledger
                 @change.update(:pieces, old[:id], **columns)
                 old[:id]
             end
-
-            # [[word, what]] of the piece's awaits or [[word, text]] of its
-            # scope, as stored; [] for a new piece.
-            def listed(old, kind)
-                return [] unless old
-
-                table, column = { awaits: %i[piece_awaits what],
-                                  scopes: %i[piece_scopes text] }.fetch(kind)
-                rows(table, old[:id]).map { [it[:word], it[column].to_s] }
-            end
-
-            def rows(table, id) = PieceWords.rows(@db, table, id)
 
             def links(id)
                 LINKS.each do |flag, (letter, column)|
@@ -330,6 +329,16 @@ module Ledger
         class PieceWords
             def self.rows(db, table, id)
                 db[table].where(piece_id: id).order(:position, :id).all
+            end
+
+            # [[word, what]] of the piece's awaits or [[word, text]] of its
+            # scope, as stored; [] for a new piece.
+            def self.listed(db, old, kind)
+                return [] unless old
+
+                table, column = { awaits: %i[piece_awaits what],
+                                  scopes: %i[piece_scopes text] }.fetch(kind)
+                rows(db, table, old[:id]).map { [it[:word], it[column].to_s] }
             end
 
             def initialize(change, db, id)

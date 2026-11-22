@@ -517,6 +517,14 @@ WHY. `piece P<n> --picture-holds WHY` stores the why in
 `pieces.picture_holds` and the write's time in `pieces.picture_holds_at`
 (both migration 008, cleared together by an empty WHY): pictures-fresh
 measures from the later of that time and the last picture.
+`piece P<n>` refuses a `--scope`, `--problem` or `--plan` whose value
+differs from a non-empty stored one while the user's word on the piece is
+pending (an untaken `inbox_entries` row with `ref` P<n> whose payload has a
+`word`) or given (a `led_to` link to the piece written by a `word` event,
+not undone, later than the newest `piece_awaits` insert for it); the same
+value, a first fill and every other flag are allowed, and a write whose
+`--awaits` is non-empty and differs from the stored ones lifts it
+(`Commands::PieceWordScope`).
 `piece P<n> --hold WHY` stores in `pieces.hold` (migration 020) why a
 planned piece is held back on purpose; an empty WHY, or any status but
 `planned`, sets it back to NULL in the same write. The piece's line

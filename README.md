@@ -350,6 +350,12 @@ also what the waker needs, registered by the user (The waker, below).
   held: WHY` and its card `Held: WHY`; `--hold ''`, any other status,
   or every piece WHY names (`P<n>`) being verified, kept, dropped or obsolete
   clears it.
+  `piece P<n>` refuses a changed `--scope`, `--problem` or `--plan` once
+  the user's word on the piece is pending (an inbox entry carrying a word,
+  not yet taken) or given (a `word` since its latest `--awaits` write): the
+  word was given for what the piece said, and a wider change is a new piece.
+  The same value, a first fill and every other flag stay allowed; a new
+  `--awaits` lifts it, in that same write and after it until the next word.
 - **brief-constraints** (PreToolUse, Agent): reads the Constraints of
   the session's ledgers, and a brief that names a path one of them names
   (`vendor/`, `units/time.py`) without carrying it verbatim is refused.
