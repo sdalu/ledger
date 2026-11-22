@@ -30,19 +30,27 @@
   const fitFolds = () => { for (const d of widthFolds) d.open = wide.matches || narrowState.get(d); };
   fitFolds();
   wide.addEventListener('change', fitFolds);
-  // the text last selected outside a form, for the quote buttons: a click
-  // on the button empties the selection, so it is kept as it is made; the
-  // buttons stay hidden (and disabled) until there is something to quote,
-  // a greyed button giving no reason why
-  let quote = '';
+  // the text selected outside a form, for the quote buttons. They stay
+  // hidden until a first selection, a greyed button giving no reason why;
+  // after it they are enabled only while there is a selection to quote.
+  // A tap on the button can clear the selection just before its click, so
+  // a cleared selection disables them only after a moment
+  let quote = '', seen = false, lapse = 0;
+  const quotable = on => {
+    for (const b of document.querySelectorAll('button.a-quote')) { b.hidden = !seen; b.disabled = !on; }
+  };
   document.addEventListener('selectionchange', () => {
     const s = document.getSelection();
     const t = s ? s.toString().trim() : '';
-    if (!t) return;
-    const n = s.anchorNode && (s.anchorNode.nodeType === 1 ? s.anchorNode : s.anchorNode.parentElement);
-    if (n && n.closest('form')) return;
+    const n = s && s.anchorNode && (s.anchorNode.nodeType === 1 ? s.anchorNode : s.anchorNode.parentElement);
+    clearTimeout(lapse);
+    if (!t || (n && n.closest('form'))) {
+      if (quote) lapse = setTimeout(() => { quote = ''; quotable(false); }, 400);
+      return;
+    }
     quote = t;
-    for (const b of document.querySelectorAll('button.a-quote')) { b.hidden = false; b.disabled = false; }
+    seen = true;
+    quotable(true);
   });
   // what batch mode says on the buttons and forms of a root, once the tray
   // is known (below)
@@ -88,8 +96,10 @@
       read();
     }
     for (const b of root.querySelectorAll('button.a-quote')) {
-      b.hidden = !quote;
+      b.hidden = !seen;
       b.disabled = !quote;
+      // a press on the button leaves the page's selection as it is
+      b.addEventListener('mousedown', e => e.preventDefault());
       b.addEventListener('click', () => {
         if (!quote) return;
         const ta = b.form.querySelector('textarea[name="text"]');

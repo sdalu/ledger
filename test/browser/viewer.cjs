@@ -145,6 +145,19 @@ t('A2: the status pill\'s summary is at least 24 px', await p.evaluate(() => {
   await p.waitForTimeout(200);
   t('quote enabled once text is selected', await p.evaluate(() => !document.querySelector('button.a-quote').disabled));
   t('N7: quote shown once text is selected', await p.evaluate(() => [...document.querySelectorAll('button.a-quote')].every(x => !x.hidden)));
+  // the quote follows the selection: gone, the buttons are disabled but stay shown; back, enabled
+  await p.evaluate(() => getSelection().removeAllRanges());
+  await p.waitForTimeout(600);
+  t('quote disabled, still shown, once the selection is cleared', await p.evaluate(() =>
+    [...document.querySelectorAll('button.a-quote')].every(x => x.disabled && !x.hidden)));
+  await p.evaluate(() => {
+    const r = document.createRange();
+    r.selectNodeContents(document.querySelector('.goal .md p'));
+    getSelection().addRange(r);
+  });
+  await p.waitForTimeout(200);
+  t('quote enabled again when text is selected again', await p.evaluate(() =>
+    [...document.querySelectorAll('button.a-quote')].every(x => !x.disabled)));
 
   await p.click('.ledger-head a[href="#say-note"]');
   t('Leave a note opens the box under the goal', await p.evaluate(() => {
