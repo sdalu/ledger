@@ -1,10 +1,12 @@
 // builds.cjs -- one card for a question and the piece building it, in a real
 // browser: run by test/browser_run.rb as `node builds.cjs PAGE_URL BROWSER`
-// against the ledger of test/support/builds_fixture.rb (O1, built by P2;
-// P1 obsolete). Checks that Waiting on you holds the one card, the piece's
-// part inside it and no card of its own; that Answer and start P2 posts the
-// answer, waits for it to be accepted, then posts the start; and that an
-// answer refused sends nothing more. Prints one ok/FAIL line per check;
+// against the ledger of test/support/builds_fixture.rb (O1 built by P2,
+// O2 by P3; P1 obsolete). Checks that Waiting on you holds the questions'
+// cards, the piece's part inside its question's card and no card of its
+// own; that Answer and start P2 posts the answer, waits for it to be
+// accepted, then posts the start; that an answer refused sends nothing
+// more; and that a start refused after its answer is said on the card,
+// whose Start P3 sends the start alone. Prints one ok/FAIL line per check;
 // exit 1 on any FAIL.
 const pw = require(process.env.PLAYWRIGHT_CORE);
 const [url, which] = process.argv.slice(2);
@@ -53,8 +55,8 @@ const [url, which] = process.argv.slice(2);
   const said = [];
   const p = await open(said);
   const cards = await p.evaluate(() => [...document.querySelectorAll('section.waiting > ul.entries > li[id]')].map(li => li.id));
-  t('Waiting on you holds the one card', JSON.stringify(cards) === '["q-O1"]', cards.join(' '));
-  t('the piece has no card of its own', await p.locator('section.waiting #p-P2').count() === 0);
+  t('Waiting on you holds the questions\' cards alone', JSON.stringify(cards) === '["q-O1","q-O2"]', cards.join(' '));
+  t('the piece has no card of its own', await p.locator('section.waiting #p-P2, section.waiting #p-P3').count() === 0);
   const part = await p.evaluate(() => {
     const card = document.getElementById('q-O1'), piece = card?.querySelector('#builds-P2');
     const picker = card?.querySelector('input[name="choice"]'), button = card?.querySelector('button.a-answer-start');
@@ -76,6 +78,31 @@ const [url, which] = process.argv.slice(2);
     JSON.stringify(said.filter(([k]) => k === 'back').map(([, body, status]) => [body.get('ref'), status])));
   t('the answer carries its choice', said[0] && said[0][1].get('choice') === 'A = hand-written', said[0] && said[0][1].toString());
   t('the card says the answer is sent', await until(() => p.locator('#q-O1 .sent, #q-O1 .sent-line').count().then(n => n > 0)));
+
+  // a start refused once its answer is accepted: the card says so and
+  // offers the start again, which goes alone
+  let posts = 0;
+  await p.route('**/say', route => (++posts === 2
+    ? route.fulfill({status: 409, contentType: 'text/html', body: '<h1>Not sent</h1><p>P3 awaits no word now.</p>'})
+    : route.continue()));
+  said.length = 0;
+  await p.locator('#q-O2 input[name="choice"]').first().check();
+  await p.locator('#q-O2 button.a-answer-start').click();
+  const line = p.locator('#q-O2 .start-unsent [role="status"]');
+  await until(() => line.count().then(n => n > 0));
+  t('a start refused is said on the card', await line.count() === 1
+    && (await line.textContent()) === 'Answered; the start of P3 was not sent: P3 awaits no word now.',
+    await line.count() ? await line.textContent() : 'no line');
+  const again = p.getByRole('button', {name: 'Start P3', exact: true});
+  t('the card offers Start P3', await again.isVisible());
+  said.length = 0;
+  await again.click();
+  await until(async () => said.filter(([k]) => k === 'back').length >= 1);
+  await new Promise(res => setTimeout(res, 500));
+  const alone = said.map(([k, body, status]) => [k, body.toString(), status]);
+  t('Start P3 sends the start alone', said.length === 2 && said.every(([, body]) => body.get('ref') === 'P3'
+    && body.get('word') === 'start' && !body.has('choice')) && said[1][2] < 400, JSON.stringify(alone));
+  t('the line goes once the start is sent', await until(() => p.locator('#q-O2 .start-unsent').count().then(n => n === 0)));
   t('no page error', errors.length === 0, errors.join(' | '));
   await b.close();
   process.exit(fails ? 1 : 0);

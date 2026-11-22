@@ -1148,8 +1148,10 @@
     };
     // Answer and start: once the answer is accepted, the start of the
     // piece building the question goes as a post of its own, after it;
-    // an answer refused sends nothing more
+    // an answer refused sends nothing more. A start that fails leaves the
+    // answer sent, and the card says why and offers the start again.
     const starts = doc && e.submitter && e.submitter.dataset.start;
+    let unstarted = null;
     if (starts) {
       try {
         const s = await fetch(f.action, {
@@ -1159,11 +1161,48 @@
           body: new URLSearchParams({token: f.elements.token.value, ref: starts, word: 'start'}),
         });
         if (s.ok && s.redirected) { doc = new DOMParser().parseFromString(await s.text(), 'text/html'); r = s; }
-      } catch (err) { /* the answer landed: its page is drawn */ }
+        else {
+          const said = new DOMParser().parseFromString(await s.text(), 'text/html');
+          unstarted = said.querySelector('h1 + p')?.textContent.trim() || 'refused (' + s.status + ')';
+        }
+      } catch (err) { unstarted = 'the viewer did not answer'; }
     }
     if (!doc) return r && r.status >= 400 && r.status < 500 ? plain() : unconfirmed();
-    return land(doc, r.url);
+    await land(doc, r.url);
+    if (unstarted) startAgain(card.id, starts, unstarted, f.action, f.elements.token.value);
   });
+  // the start of a piece not sent after its question's answer: a polite
+  // line saying why, and a Start button posting the start alone, as the
+  // piece's own Start does, through the card's send above
+  const startAgain = (cardId, id, why, action, token) => {
+    const at = document.getElementById(cardId);
+    if (!at) return;
+    const box = document.createElement('div');
+    box.className = 'start-unsent';
+    box.style.gridColumn = '1 / -1';
+    const line = document.createElement('p');
+    line.setAttribute('role', 'status');
+    line.textContent = 'Answered; the start of ' + id + ' was not sent: ' + why;
+    const form = document.createElement('form');
+    form.className = 'say';
+    form.method = 'post';
+    form.action = action;
+    for (const [name, value] of [['token', token], ['ref', id]]) {
+      const input = document.createElement('input');
+      input.type = 'hidden';
+      input.name = name;
+      input.value = value;
+      form.append(input);
+    }
+    const button = document.createElement('button');
+    button.type = 'submit';
+    button.name = 'word';
+    button.value = 'start';
+    button.textContent = 'Start ' + id;
+    form.append(button);
+    box.append(line, form);
+    at.append(box);
+  };
   // Change on a collapsed receipt opens the card again, in place
   document.addEventListener('click', e => {
     const sum = e.target.closest('li.is-collapsed > details > summary');

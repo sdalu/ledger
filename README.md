@@ -263,8 +263,10 @@ one piece a question, `--builds none` clears it); its start is refused
 while O<m> is open (`answer O<m> first`), and the viewer draws it on
 the question's card, under the picker, its plan, risk and pictures
 there and one button, `Answer and start P<n>`, which sends the answer
-and, once it is accepted, the start; the piece has no card of its own
-while the question is open. The piece it replaces goes `piece PATH
+and, once it is accepted, the start (a start that fails then leaves the
+card saying `Answered; the start of P<n> was not sent: REASON` with a
+`Start P<n>` button that sends the start alone); the piece has no card
+of its own while the question is open. The piece it replaces goes `piece PATH
 P<k> --status obsolete --obsoleted-by P<n>` (refused on a piece out,
 or when P<n> is obsolete or dropped): terminal like dropped, its line
 ending its head with `— obsoleted by P<n>`, out of the live counts and
