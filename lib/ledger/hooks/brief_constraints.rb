@@ -2,6 +2,7 @@
 
 require "ledger/hooks/ledgers"
 require "ledger/text/fold"
+require "ledger/text/paths"
 
 module Ledger
     module Hooks
@@ -11,17 +12,6 @@ module Ledger
         # denied. A constraint naming no path is never enforced here: a
         # brief cannot be shown to touch it without judgment.
         module BriefConstraints
-            # A path in a brief (\w as Unicode): a token starting with
-            # `~/`, `./`, `../` or `/`; one with a slash and a file
-            # extension; one ending in a slash (a directory); or a bare
-            # name with a known extension. `and/or` is none of them.
-            PATH = %r{(?<![[:word:]/])
-                      ((?:~/|\.{1,2}/|/)[[:word:].-]+(?:/[[:word:].-]*)*
-                      |(?:[[:word:].-]+/)+[[:word:].-]+\.[[:alpha:]][[:word:]]*
-                      |[[:word:]-]+\.(?:py|c|h|rb|md|json|ya?ml|toml|js|ts|
-                                       go|rs|sh|bib|tex|csv|txt)
-                      |(?:[[:word:].-]+/)+)
-                      (?![[:word:]]|\.[[:word:]])}x
             TOOLS = %w[Agent Task].freeze
 
             module_function
@@ -47,17 +37,10 @@ module Ledger
             end
 
             # Whether a constraint's PATH is one of the brief's NAMED
-            # path tokens, or a directory (trailing slash) one lies under.
-            def covered?(path, named)
-                named.any? do |token|
-                    token == path ||
-                        (path.end_with?("/") && token.start_with?(path))
-                end
-            end
+            # path tokens, or a directory one lies under.
+            def covered?(path, named) = Text::Paths.covered?(path, named)
 
-            def paths(text)
-                text.scan(PATH).flatten.map { it.sub(/[.,;:]+\z/, "") }
-            end
+            def paths(text) = Text::Paths.scan(text)
 
             def fold(text) = Text::Fold.fold(text)
 

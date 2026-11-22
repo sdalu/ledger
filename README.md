@@ -116,7 +116,13 @@ in any live ledger; it writes nothing and counts no heartbeat.
 `abandoned: TIME`); `show PATH ID` prints
 one item's fields (a piece, question, criterion, fact, constraint,
 decision `X<n>` with its links, or a noticed line `Z<n>`), one `key:
-value` per line, an unknown id exiting 2. `stats [PATH]` prints a track
+value` per line, an unknown id exiting 2. `brief PATH P<n>` prints, as one JSON object and
+writing nothing, what a brief for the piece is built from: the piece
+(id, title, what, done when, route), the Goal blocks not done, every
+constraint with its quote and where, the facts whose pointer names a
+path the piece names or that are linked to it, the question it builds
+with its answer, and the decisions by user that led to it; an unknown
+piece exits 2. `stats [PATH]` prints a track
 record per route (model and effort, each peer, kept) over every ledger,
 live and closed, or one (`L<id>` reaches a closed one): pieces, the
 share verified without a return, the share ever blocked, the pieces

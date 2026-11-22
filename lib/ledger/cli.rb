@@ -26,7 +26,7 @@ module Ledger
         WORDS = %w[new goal check show status close fact assume constraint
                    decide noticed criterion edit piece ask answer word choice
                    renumber undo restore inbox take mockup survey stats
-                   waker purge vacuum githook gate-stamp].freeze
+                   waker purge vacuum githook gate-stamp brief].freeze
         # Words of other pieces of the build: refused as not built yet.
         NOT_BUILT = [].freeze
 
@@ -288,3 +288,4 @@ require "ledger/commands/purge"
 require "ledger/commands/vacuum"
 require "ledger/commands/githook"
 require "ledger/commands/gate_stamp"
+require "ledger/commands/brief"

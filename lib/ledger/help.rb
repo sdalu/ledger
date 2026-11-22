@@ -12,7 +12,7 @@ module Ledger
 
         SECTIONS = {
             "A ledger" => %w[new goal close],
-            "Reading" => %w[check show status survey stats],
+            "Reading" => %w[check show status survey stats brief],
             "Items" => %w[fact assume constraint decide noticed criterion
                           edit],
             "Pieces and questions" => %w[piece ask choice mockup],
