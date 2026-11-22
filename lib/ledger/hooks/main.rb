@@ -18,6 +18,8 @@ module Ledger
                   "journal-write" => :JournalWrite,
                   "finish" => :Finish,
                   "inbox" => :Inbox,
+                  "edit-record" => :EditRecord,
+                  "uncommitted" => :Uncommitted,
                   "session-start" => :SessionStart,
                   "stamp" => :Stamp }.freeze
 

@@ -985,8 +985,8 @@ Bundler derives from `BUNDLE_GEMFILE`, and that project's lockfile
 would be rewritten with this checkout's gems; frozen, a lockfile that
 does not match stops the command instead of being rewritten. The three
 are exported before every path, the no-bundler hooks included, since a
-leaked `RUBYOPT` can load bundler there too. For the two words that read no journal, `hook heartbeat` and
-`hook journal-write`, it passes `-I lib` alone: measured 2026-11-20 on
+leaked `RUBYOPT` can load bundler there too. For the words that read no journal, `hook heartbeat`,
+`hook journal-write` and `hook edit-record`, it passes `-I lib` alone: measured 2026-11-20 on
 `/usr/local/bin/ruby`, a bare start is 0.03–0.06 s, `-rbundler/setup`
 0.11–0.19 s, Sequel loaded and a database opened 0.20 s, and the
 heartbeat runs after every Bash call. Sessions run it from the Bash
@@ -1024,6 +1024,8 @@ objection.
 | `journal-write` (PreToolUse, Bash) | the command words | deny a command that writes the journal by hand: `sqlite3` on it without `-readonly`, a redirect, `cp`, `mv`, `rm`, `install`, `tee` onto it or its `-wal`/`-shm`, `sed`, `perl` or `ruby` in place, interpreter code opening it; a segment whose program is the launcher passes; the refusal names the `bin/ledger` commands. Stdlib only |
 | `finish` (Stop) | snapshot, checks | a ledger with a piece, none planned, out, back or blocked, none awaiting a word and no question open, that fails `--final`: refuse once with the FAIL lines and the finish steps; a ledger failing only `final-deferred`, or `final-deferred` and `final-criteria` where every criterion named is unmarked and served by deferred pieces among its unfinished ones or by no piece, lets the stop through, the session waiting on the event as it would on the user; on the retry the stop goes through |
 | `inbox` (Stop) | inbox entries | pending entries refuse the stop once, verbatim, with the filing steps; on the retry the stop goes through |
+| `edit-record` (PostToolUse, Edit\|Write\|NotebookEdit) | `session_id`, `tool_input.file_path` or `notebook_path` | the absolute path appended to `edits/SESSION_ID` beside the journal file, no duplicates; answers nothing. Stdlib only, no bundler |
+| `uncommitted` (Stop) | the session's edit record, `git status --porcelain`, the live ledgers' pieces | recorded files still changed in a repository whose project has a live ledger with no piece awaiting commit and none out: refuse once per distinct set (digest in `edits/SESSION_ID.sent`) naming them and `--awaits commit`; on the retry the stop goes through |
 | `session-start` (SessionStart) | snapshot, entries | first records the session for the waker (section 8); pending entries with the steps (every source); for `source` in startup, resume, compact also the resume view (U5) |
 | `stamp` (Stop) | the payload's `session_id` | the turn's end upserted in `session_stops` through the `sqlite3` program (`LEDGER_SQLITE` overrides `/usr/local/bin/sqlite3`), the id checked to be bare before it enters the SQL; no journal or no table: nothing. Stdlib only, no bundler |
 

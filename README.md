@@ -269,7 +269,7 @@ delegate.
 
 ## The hooks
 
-Seven words of `ledger hook NAME`, each reading the payload on stdin,
+Nine words of `ledger hook NAME`, each reading the payload on stdin,
 writing no ledger, and turning any error of its own into exit 0. The
 orchestration skill registers five in its front matter and
 `session-start` in its `hooks.json`; `stamp` and `session-start` are
@@ -318,6 +318,18 @@ also what the waker needs, registered by the user (The waker, below).
   whatever it did.
 - **inbox** (Stop): pending viewer entries refuse the stop once,
   verbatim, with the filing steps.
+- **edit-record** (PostToolUse, Edit|Write|NotebookEdit): appends the
+  absolute path the tool edited to `edits/SESSION_ID` beside the journal
+  file (`LEDGER_JOURNAL` moves it), one path per line, no duplicates.
+  It answers nothing; the standard library alone, no bundle.
+- **uncommitted** (Stop): the recorded files a git repository still
+  shows as changed (`git status --porcelain -- PATH`), in a repository
+  whose project has a live ledger where no piece awaits commit and none
+  is out, are sent back once as `files you edited are uncommitted and no
+  piece awaits commit: PATHS; file one with --awaits commit ...`. Once
+  per distinct set of files (its digest is kept in `edits/SESSION_ID.sent`),
+  and the retry (`stop_hook_active`) goes through. Without a record or a
+  live ledger it passes.
 - **session-start** (SessionStart): the entries waiting at the start,
   and on a start, resume or compaction the resume view of the session's
   ledgers. First it records the session for the waker: its id, its

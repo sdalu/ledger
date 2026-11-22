@@ -7,8 +7,8 @@
 # on the Linux-compat side, where a bare `ruby` is another build; the
 # native one is reached by its absolute path.
 #
-# `ledger hook heartbeat`, `ledger hook journal-write` and `ledger hook
-# stamp` (which writes through the sqlite3 program) need no bundle:
+# `ledger hook heartbeat`, `ledger hook journal-write`, `ledger hook
+# edit-record` and `ledger hook stamp` (which writes through the sqlite3 program) need no bundle:
 # they start with -I lib alone, no bundler, since they run around every
 # Bash call or turn. Every other word starts under the checkout's
 # bundle. A failure here exits 1, never 2: a hook's 2 would block the
@@ -55,7 +55,7 @@ fi
 
 if [ "${1:-}" = hook ]; then
     case "${2:-}" in
-        heartbeat|journal-write|stamp)
+        heartbeat|journal-write|stamp|edit-record)
             exec "$ruby" -I "$root/lib" -r ledger/hooks/main \
                  -e 'exit Ledger::Hooks.main(ARGV)' -- "$2"
             ;;
