@@ -116,7 +116,7 @@ Sequel.migration do
             String :short                # P; NULL or non-empty
             String :context              # P; NULL or non-empty
             String :quote, null: false   # V; lines without "> ", non-empty
-            String :said_in              # P, --said-in WHERE (018); NULL or non-empty
+            String :said_in              # P, --said-in WHERE (016); NULL or non-empty
         end
         create_table(:criteria) do       # Done when
             primary_key :id
@@ -134,7 +134,7 @@ Sequel.migration do
             Integer :n, null: false
             String :text, null: false    # V: the line after "C<n>: "
             String :quote, null: false   # V: the words a brief must carry
-            String :said_in              # P, --said-in WHERE (018); NULL or non-empty
+            String :said_in              # P, --said-in WHERE (016); NULL or non-empty
             unique %i[ledger_id n]
         end
         create_table(:facts) do
@@ -916,7 +916,7 @@ and `constraint`, folded as `brief-constraints` folds it
 (`lib/ledger/text/fold.rb`), must stand in a message of the user's;
 otherwise a warning on standard error (`WORD: warning: the quote is in
 no message of the user's …`), the write done, exit 0, unless `--said-in
-WHERE` names where it was said: stored in `said_in` (018), shown on the
+WHERE` names where it was said: stored in `said_in` (016), shown on the
 line. No transcript found: `WORD: warning: no transcript of this session
 found …`, nothing checked, the command goes on.
 
@@ -1230,7 +1230,7 @@ a temporary directory per test.
 
 | Area | Files |
 |---|---|
-| journal, write path | `lib/ledger.rb` (the `Ledger::Error` family), `lib/ledger/journal.rb`, `migrations/001_journal.rb`, `migrations/002_piece_returns.rb`, `migrations/003_piece_pictures.rb`, `migrations/005_waker.rb`, `migrations/010_piece_assessments.rb`, `migrations/018_said_in.rb`, `snapshot.rb`, `write.rb` |
+| journal, write path | `lib/ledger.rb` (the `Ledger::Error` family), `lib/ledger/journal.rb`, `migrations/001_journal.rb`, `migrations/002_piece_returns.rb`, `migrations/003_piece_pictures.rb`, `migrations/005_waker.rb`, `migrations/010_piece_assessments.rb`, `migrations/016_said_in.rb`, `snapshot.rb`, `write.rb` |
 | a piece's brief | `lib/ledger/commands/brief.rb`, `piece_brief.rb`, `piece_facts.rb`, `text/paths.rb` |
 | the user's words | `lib/ledger/transcript.rb` (the session's transcript), `asked_since.rb`, `commands/heard.rb`, `text/fold.rb` |
 | text rules | `lib/ledger/text/{title,picker,awaits,risk,options}.rb`, pure functions; `text/announce.rb` parses an ANNOUNCE block, refusing with a sentence |
