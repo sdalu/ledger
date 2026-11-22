@@ -96,7 +96,7 @@ module LedgerViewer
             end
 
             def queued(reading, since, **locals)
-                wait = Ledger::Text.waited(since)
+                wait = Age.of(Ledger::Text.waited(since))
                 html = @scope.partial("index/ask", wait:, **locals)
                 @queue << [*WaitingOrder.key(since), reading.updated,
                            @queue.length, html]

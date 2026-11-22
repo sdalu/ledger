@@ -2,6 +2,8 @@
 
 require "ledger/text/waited"
 
+require_relative "age"
+
 module LedgerViewer
     module Render
         # HTML escaping, white-space stripping and the text helpers the

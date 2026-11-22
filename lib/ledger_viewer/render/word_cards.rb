@@ -58,7 +58,7 @@ module LedgerViewer
             def meta(piece)
                 since = @reading.word_since(piece)
                 waited = Ledger::Text.waited(since)
-                wait = "waiting #{waited}, since #{Text.minute(since)}"
+                wait = "waiting #{Age.of(waited)}, since #{Text.minute(since)}"
                 [piece["route_text"], (wait unless waited.empty?)]
                     .reject { it.to_s.empty? }.join(" · ")
             end

@@ -55,7 +55,7 @@ module LedgerViewer
             end
 
             def heading(day)
-                day == Date.today.iso8601 ? "today" : Text.escape(day)
+                Age.of(day == Date.today.iso8601 ? "today" : Text.escape(day))
             end
 
             def row(line, at)

@@ -78,6 +78,9 @@ module RaidFixture
 
     def raid(html) = html[%r{<p class="raid">.*?</p>}m].to_s
 
+    # A wait age as the page marks it.
+    def age(text) = %(<span data-age>#{text}</span>)
+
     def raid_fold
         from = page.index(%(<details class="done-fold" id="#{@lid}-raid">))
         flunk("no RAID fold") unless from
@@ -137,14 +140,15 @@ class RaidLineTest < ViewerTest
 
     def test_a_stalled_piece_is_marked_on_its_card_and_in_the_side_list
         stale_piece
-        assert_includes raid(card("piece-P4")), "stalled 2 h"
-        assert_match(/href="#piece-P4">.*?out · stalled 2 h · with sonnet/,
-                     page)
+        assert_includes raid(card("piece-P4")), "stalled #{age("2 h")}"
+        side = /href="#piece-P4">.*?out · stalled #{age("2 h")} · with sonnet/
+        assert_match side, page
     end
 
     def test_a_piece_ready_past_the_limit_says_how_long_on_its_card
         planned_piece(3)
-        assert_includes raid(card("piece-P4")), "ready, not sent for 3 h"
+        assert_includes raid(card("piece-P4")),
+                        "ready, not sent for #{age("3 h")}"
         refute_includes raid(card("piece-P1")), "not sent"
     end
 
@@ -215,7 +219,7 @@ class RaidForwardTest < ViewerTest
         ask_by
         refute_includes raid(card("q-O2")), "waiting"
         age_questions(3)
-        assert_includes raid(card("q-O2")), "waiting 3 h"
+        assert_includes raid(card("q-O2")), "waiting #{age("3 h")}"
     end
 
     def test_a_question_says_its_answering_piece_is_stalled
@@ -226,7 +230,7 @@ class RaidForwardTest < ViewerTest
         assert_includes raid(card("q-O2")),
                         "answered by <a href=\"#piece-P4\""
         line = raid(card("q-O2"))
-        assert_includes line, ", stalled 2 h"
+        assert_includes line, ", stalled #{age("2 h")}"
         assert_equal 1, line.scan("answered by").size
     end
 end
@@ -269,7 +273,7 @@ class RaidFoldTest < ViewerTest
         stale_piece
         fold = raid_fold
         assert_includes fold, "<h3>Issues (3)</h3>"
-        assert_includes fold, "stalled 2 h: draw the tables"
+        assert_includes fold, "stalled #{age("2 h")}: draw the tables"
         assert_includes fold, "the docs are stale"
         assert_match(%r{P2</a><span[^>]*>[^<]*</span> waits for <a href=},
                      fold)

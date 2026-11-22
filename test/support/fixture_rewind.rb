@@ -5,12 +5,15 @@
 #     bundle exec ruby test/support/fixture_rewind.rb mark ADDRESS
 #     bundle exec ruby test/support/fixture_rewind.rb rewind ADDRESS E<n>
 #     bundle exec ruby test/support/fixture_rewind.rb since ADDRESS E<n>
+#     bundle exec ruby test/support/fixture_rewind.rb age ADDRESS SECONDS
 # on the test journal ($LEDGER_JOURNAL). `mark` prints the ledger's
 # newest event id as E<n>. `rewind` deletes the inbox events after E<n>
 # with the entries they filed, in one transaction, and puts the N
 # counter back; it refuses when any later event is not an inbox event,
 # so a rewind never hides a real change. `since` prints how many of the
-# ledger's events came after E<n>. A test aid: no command of
+# ledger's events came after E<n>. `age` dates every event of the
+# ledger SECONDS ago, so that each wait age reads SECONDS and the next
+# minute is seconds away, not an hour. A test aid: no command of
 # bin/ledger takes a viewer's entry back.
 
 $LOAD_PATH.unshift File.expand_path("../../lib", __dir__)
@@ -29,6 +32,13 @@ module FixtureRewind
         id = journal.ledger(address)[:id]
         journal.db[:events].where(ledger_id: id)
                .where(Sequel[:id] > mark[1..].to_i).count
+    end
+
+    # Every event of the ledger dated SECONDS ago.
+    def self.age(journal, address, seconds)
+        id = journal.ledger(address)[:id]
+        at = Ledger::Write.now - (Integer(seconds) * 1000)
+        journal.db[:events].where(ledger_id: id).update(at:)
     end
 
     def self.rewind(journal, address, mark)
@@ -67,17 +77,26 @@ module FixtureRewind
         db[:counters].where(ledger_id: ledger, kind: "N").update(last:)
     end
 
+    USAGE = "usage: fixture_rewind.rb mark|rewind|since|age ADDRESS " \
+            "[E<n>|SECONDS]"
+
     def self.main(argv)
-        word, address, mark = argv
+        word, address, arg = argv
         journal = Ledger::Journal.open
-        case word
-        when "mark" then puts mark(journal, address)
-        when "since" then puts since(journal, address, mark.to_s)
-        when "rewind" then rewind(journal, address, mark.to_s)
-        else abort "usage: fixture_rewind.rb mark|rewind|since ADDRESS [E<n>]"
-        end
+        said = run(journal, word, address, arg.to_s)
+        puts said if %w[mark since].include?(word)
     ensure
         journal&.close
+    end
+
+    def self.run(journal, word, address, arg)
+        case word
+        when "mark" then mark(journal, address)
+        when "since" then since(journal, address, arg)
+        when "rewind" then rewind(journal, address, arg)
+        when "age" then age(journal, address, arg)
+        else abort USAGE
+        end
     end
 end
 

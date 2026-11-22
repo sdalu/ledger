@@ -50,14 +50,14 @@ module LedgerViewer
             # 'stalled 2 h': how long since an event last touched it.
             def self.stalled(piece)
                 waited = Ledger::Text.waited(piece["touched_at"].to_s)
-                waited.empty? ? "stalled" : "stalled #{waited}"
+                waited.empty? ? "stalled" : "stalled #{Age.of(waited)}"
             end
 
             # 'ready, not sent for 2 days': how long it has been ready.
             def self.unsent(piece)
                 waited = Ledger::Text.waited(piece["ready_since"].to_s)
                 said = "ready, not sent"
-                waited.empty? ? said : "#{said} for #{waited}"
+                waited.empty? ? said : "#{said} for #{Age.of(waited)}"
             end
 
             private

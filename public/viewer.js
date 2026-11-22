@@ -467,8 +467,31 @@
     return out;
   };
   // the tips are numbered across the page: a part's own markup does not
-  // change when a part above it gains or loses one
-  const norm = html => html.replace(/tip-\d+/g, 'tip-#');
+  // change when a part above it gains or loses one; what the clock alone
+  // changes is not a change to the part: a text marked [data-age] (a wait
+  // age), and the key of a mockup's path (/m/k/KEY/), issued for an hour
+  // from the moment the page is drawn
+  const norm = html => html.replace(/tip-\d+/g, 'tip-#').replace(/(data-age(?:="")?>)[^<]*/g, '$1')
+    .replace(/\/m\/k\/[^/"]+\//g, '/m/k/#/');
+  // those clock texts and keys of `mine` set to those of `fresh`, in place
+  // and silently, when both have the same ones; `skip` holds the parts
+  // drawn on their own, whose texts are theirs. A loaded frame's or
+  // image's src keeps its key: rewriting it would load the picture again
+  const within = (root, sel, skip) => [...root.querySelectorAll(sel)]
+    .filter(a => !skip.some(p => p !== root && p.contains(a)));
+  const KEYED = '[href*="/m/k/"], [data-src*="/m/k/"]';
+  const renew = (mine, fresh, skipMine = [], skipFresh = []) => {
+    const a = within(mine, '[data-age]', skipMine), b = within(fresh, '[data-age]', skipFresh);
+    if (a.length === b.length) a.forEach((x, i) => { if (x.textContent !== b[i].textContent) x.textContent = b[i].textContent; });
+    const c = within(mine, KEYED, skipMine), d = within(fresh, KEYED, skipFresh);
+    if (c.length !== d.length) return;
+    c.forEach((x, i) => {
+      for (const at of ['href', 'data-src']) {
+        const v = d[i].getAttribute(at);
+        if (v !== null && x.getAttribute(at) !== v) x.setAttribute(at, v);
+      }
+    });
+  };
   // the page without its parts: what a part's coming, going or moving
   // leaves alone
   const skeleton = main => {
@@ -483,9 +506,11 @@
   // what the server last sent for each part, never the live page, which
   // wire() and the user change
   let last = PARTS && sentMain ? snapshot(sentMain) : null;
-  // a part the user holds: a form differing from what the server sent, a
-  // focused element, its picture open, or a tray item for it
-  const holds = el => el.contains(document.activeElement)
+  // a part the user holds: a form differing from what the server sent, its
+  // picture open, a tray item for it, or a send on it in flight or not
+  // confirmed, whose note would go; focus alone does not hold it, it
+  // follows the part drawn anew (refocus)
+  const holds = el => !!el.querySelector('.send-unconfirmed, form[aria-busy="true"], form [aria-busy="true"]')
     || [...el.querySelectorAll('form textarea, form input[type="text"]')].some(t => t.value !== t.defaultValue)
     || [...el.querySelectorAll('form input[type="radio"], form input[type="checkbox"]')].some(r => r.checked !== r.defaultChecked)
     || (!!opener && el.contains(opener) && (paneOpen() || !!(dlg && dlg.open)))
@@ -497,6 +522,28 @@
   // the batch switch, once the page has drawn it (below): what puts it
   // into a head drawn anew
   let placeSwitch = () => {};
+  // what focus is on inside a part, before the part is drawn anew: its
+  // id, its name and value for an input, its place among the part's
+  // focusable elements
+  const FOCUSABLE = 'a[href], button, input:not([type="hidden"]), select, textarea, summary, iframe, [tabindex]';
+  const focusOf = old => {
+    const at = document.activeElement;
+    if (!at || at === document.body || !old.contains(at)) return null;
+    return {self: at === old, id: at.id, name: at.matches('input') ? at.name : '', value: at.value,
+            index: [...old.querySelectorAll(FOCUSABLE)].indexOf(at)};
+  };
+  // focus back on the counterpart in the part drawn anew, else on the
+  // part itself; the window does not scroll for it
+  const refocus = (mine, was) => {
+    if (!was) return;
+    const list = [...mine.querySelectorAll(FOCUSABLE)];
+    let to = was.self ? mine : null;
+    if (!to && was.id) to = mine.id === was.id ? mine : mine.querySelector('[id="' + CSS.escape(was.id) + '"]');
+    if (!to && was.name) to = [...mine.querySelectorAll('input')].find(i => i.name === was.name && i.value === was.value) || null;
+    if (!to && was.index >= 0 && was.index < list.length) to = list[was.index];
+    if (!to) { to = mine; mine.tabIndex = -1; }
+    to.focus({preventScroll: true});
+  };
   const swapPart = (old, fresh) => {
     const mine = document.importNode(fresh, true);
     foldsIn(mine);
@@ -514,14 +561,66 @@
   // parts held while the page changed: key => the part as the server now
   // has it (null when it is gone), and the line that says so
   const pending = new Map(), flags = new Map();
+  // the sections of a part the reader sees a label on, by that label:
+  // [selector, label, or how to read it off the section]
+  const label = t => { t = t.trim().replace(/\s+/g, ' '); return t.charAt(0).toLowerCase() + t.slice(1); };
+  const SECTIONS = [
+    [':scope > .text, .card-head > .text, .piece-row > summary > .text', 'title'],
+    ['.tag.status', 'status'],
+    ['.facet', s => label(s.querySelector('dt')?.textContent || '')],
+    ['dl.case > dt', s => label(s.textContent)],
+    ['.raid-part.risk', 'risk'],
+    ['details.covers, details.refs', s => label(s.querySelector('summary')?.textContent || '')],
+    ['fieldset', 'choices'],
+    ['figure.mockup, .mock-strip, .picture-ask', 'picture'],
+    ['.word-evidence', 'evidence'],
+  ];
+  // a dl's term goes with the descriptions after it
+  const sectionHtml = s => {
+    if (!s.matches('dt')) return norm(s.outerHTML);
+    let html = s.outerHTML;
+    for (let d = s.nextElementSibling; d && d.matches('dd'); d = d.nextElementSibling) html += d.outerHTML;
+    return norm(html);
+  };
+  const sectionsOf = part => {
+    const out = new Map(), els = [];
+    for (const [sel, name] of SECTIONS) {
+      for (const s of part.querySelectorAll(sel)) {
+        const n = typeof name === 'string' ? name : name(s);
+        if (!n) continue;
+        out.set(n, (out.get(n) || '') + sectionHtml(s));
+        els.push(s);
+        if (s.matches('dt')) for (let d = s.nextElementSibling; d && d.matches('dd'); d = d.nextElementSibling) els.push(d);
+      }
+    }
+    return [out, els];
+  };
+  const parse = html => { const t = document.createElement('template'); t.innerHTML = html; return t.content.firstElementChild; };
+  // what the line says: the labelled sections that differ between the part
+  // as the server sent it and as it has it now, three at most; 'and more'
+  // for a fourth, or for a change outside every labelled section
+  const changeText = (key, fresh) => {
+    if (!fresh) return 'Removed since you started';
+    const was = last.parts.has(key) ? parse(last.parts.get(key)) : null;
+    if (!was) return 'Changed since you started';
+    const now = parse(norm(fresh.outerHTML));
+    const [a, aEls] = sectionsOf(was), [b, bEls] = sectionsOf(now);
+    const names = [...new Set([...a.keys(), ...b.keys()])].filter(n => a.get(n) !== b.get(n));
+    for (const s of [...aEls, ...bEls]) s.remove();
+    const rest = was.outerHTML !== now.outerHTML;
+    if (!names.length) return 'Changed since you started';
+    const more = names.length > 3 || rest;
+    return 'Changed since you started: ' + names.slice(0, 3).join(', ') + (more ? ' and more' : '');
+  };
   const flag = (key, el, fresh) => {
     pending.set(key, fresh);
-    if (flags.get(key)?.isConnected) return;
+    const said = flags.get(key);
+    if (said?.isConnected) { said.querySelector('span').textContent = changeText(key, fresh); return; }
     const line = document.createElement(el.matches('tr') ? 'div' : 'p');
     line.className = 'changed-line';
     line.setAttribute('role', 'status');
     const what = document.createElement('span');
-    what.textContent = 'Changed since you started';
+    what.textContent = changeText(key, fresh);
     const b = button('a-take', 'Update');
     b.addEventListener('click', () => take(key));
     line.append(what, ' ', b);
@@ -590,9 +689,14 @@
       if (mine && last.parts.get(k) !== html) {
         if (holds(mine)) { flag(k, mine, el); continue; }
         unflag(k);
+        const was = focusOf(mine);
         mine = swapPart(mine, el);
+        refocus(mine, was);
         now.set(k, mine);
-      } else if (mine && pending.has(k)) unflag(k);
+      } else if (mine) {
+        if (pending.has(k)) unflag(k);
+        renew(mine, el);
+      }
       const prev = el.previousElementSibling;
       const at = locate(prev || el.parentElement, mainNew, keys, now);
       if (!at) return false;
@@ -608,6 +712,7 @@
       }
       last.parts.set(k, html);
     }
+    renew(document.querySelector('main'), mainNew, [...now.values()], [...parts.values()]);
     document.title = doc.title;
     if (ledgerPage) { markTray(); drawBar(); }
     return true;

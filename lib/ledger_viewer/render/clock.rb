@@ -50,7 +50,7 @@ module LedgerViewer
                 time = clock(at)
                 wait = Ledger::Text.waited(at)
                 [(time.empty? ? "" : "sent #{time}"),
-                 (wait.empty? ? "" : "unfiled for #{wait}")]
+                 (wait.empty? ? "" : "unfiled for #{Age.of(wait)}")]
                     .reject(&:empty?).join(" · ")
             end
 
@@ -59,7 +59,7 @@ module LedgerViewer
             def updated(moment)
                 time = Time.at(moment).localtime
                 today = time.to_date == Date.today
-                time.strftime(today ? "today %H:%M" : "%Y-%m-%d %H:%M")
+                Age.of(time.strftime(today ? "today %H:%M" : "%Y-%m-%d %H:%M"))
             end
 
             # A path under the home directory, with ~ for it.

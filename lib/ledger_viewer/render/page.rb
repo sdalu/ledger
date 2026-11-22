@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative "age"
+
 module LedgerViewer
     module Render
         # The page around a body, with the viewer script on and no
@@ -40,9 +42,13 @@ module LedgerViewer
 
             private
 
-            def render(**locals)
+            # The ages the body's helpers bracketed (Age) become elements
+            # the script can find; the title holds no markup.
+            def render(title:, body:, **locals)
                 @views.render("shared/page", @scope,
-                              locals.merge(css: @css, js: @js),
+                              locals.merge(title: Age.strip(title),
+                                           body: Age.mark(body),
+                                           css: @css, js: @js),
                               verbatim: true)
             end
 

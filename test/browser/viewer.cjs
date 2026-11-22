@@ -386,6 +386,89 @@ t('A2: the status pill\'s summary is at least 24 px', await p.evaluate(() => {
       && document.getElementById('say-P4-word').value === 'my words, not sent';
   }));
   run('undo');
+  // F1: what the clock alone changes is no change: a card whose picture
+  // key is renewed by a ledger write is neither drawn anew nor flagged,
+  // and its link carries the new key
+  await p.goto(base + page);
+  await p.waitForTimeout(1500);
+  const keyWas = await p.evaluate(() => { window.__card = document.getElementById('q-O1');
+    return document.querySelector('#q-O1 a[href*="/m/k/"]').getAttribute('href'); });
+  touch();
+  await p.waitForFunction(w => document.querySelector('#q-O1 a[href*="/m/k/"]').getAttribute('href') !== w, keyWas, {timeout: 6000}).catch(() => {});
+  t('F1: a card whose picture key alone is renewed is not drawn anew nor flagged, and its link has the new key', await p.evaluate(w => {
+    const c = document.getElementById('q-O1');
+    return c === window.__card && !c.querySelector('.changed-line') && c.querySelector('a[href*="/m/k/"]').getAttribute('href') !== w;
+  }, keyWas));
+  // F1: a waiting card whose only change is its wait age, focus inside it:
+  // not drawn anew, not flagged, its age the new one, focus where it was.
+  // A question with no picture, every event dated 4 min 55 s ago, so the
+  // next minute comes in seconds
+  const beforeAsk = mark();
+  run('ask', 'how long?', '--title', 'Age check', '--problem', 'a wait', '--risk', '1/10 — none',
+      '--choices', 'A = yes | B = no', '--recommend', 'A, simple', '--no-picture', 'a choice of words');
+  rewinder('age', '295');
+  await p.goto(base + page);
+  await p.waitForTimeout(1500);
+  const ageWas = await p.evaluate(() => {
+    const c = document.querySelector('section.waiting li[id^="q-"]:has([data-age]):not(:has(a[href*="/m/k/"]))');
+    window.__card = c;
+    c.querySelector('.drop-fold > summary').focus();
+    return c.id + ' ' + c.querySelector('.meta [data-age]').textContent;
+  });
+  await p.waitForTimeout(6000 - 1500);
+  touch();
+  const ageNow = () => window.__card.querySelector('.meta [data-age]').textContent === '5 min';
+  await p.waitForFunction(ageNow, null, {timeout: 6000}).catch(() => {});
+  t('F1: a waiting card whose wait age alone changed keeps its focus, is not drawn anew nor flagged, and says the new age (' + ageWas + ')',
+    await p.evaluate(() => {
+      const c = window.__card;
+      return c.isConnected && c.querySelector('.meta [data-age]').textContent === '5 min' && !c.querySelector('.changed-line')
+        && document.activeElement === c.querySelector('.drop-fold > summary') && !document.querySelector('.stale-note');
+    }));
+  run('restore', '--to', beforeAsk);
+  // F2: focus alone does not hold a card: one changed elsewhere with focus
+  // on its Drop button and no draft is drawn anew, unflagged, and the
+  // button keeps focus without the page moving
+  await p.goto(base + page);
+  await p.waitForTimeout(1500);
+  const heldWas = await p.evaluate(() => {
+    const c = document.getElementById('piece-P2');
+    window.__card = c;
+    c.querySelector('.drop-fold > summary').focus({preventScroll: true});
+    return scrollY;
+  });
+  run('piece', 'P2', '--risk', '3/10 — a noisy header');
+  await p.waitForFunction(() => document.getElementById('piece-P2') !== window.__card, null, {timeout: 6000}).catch(() => {});
+  t('F2: a card with focus on a button and no draft is drawn anew without the flag, and the button keeps focus', await p.evaluate(y => {
+    const c = document.getElementById('piece-P2');
+    return c !== window.__card && /a noisy header/.test(c.textContent) && !c.querySelector('.changed-line')
+      && document.activeElement === c.querySelector('.drop-fold > summary') && scrollY === y;
+  }, heldWas));
+  run('undo');
+  // F3: the changed line names what changed: a held card's plan, then
+  // its title and risk
+  await p.goto(base + page);
+  await p.waitForTimeout(1500);
+  await p.evaluate(() => { document.querySelector('#p-P4 details.comment-box').open = true; });
+  await p.fill('#say-P4-word', 'my words on P4, not sent');
+  await p.click('h1');
+  const lineOf = () => document.querySelector('#p-P4 .changed-line > span')?.textContent || '';
+  const flagged = () => !!document.querySelector('#p-P4 .changed-line');
+  const unflagged = () => !document.querySelector('#p-P4 .changed-line');
+  run('piece', 'P4', '--plan', 'commit it, then deploy the build on Monday');
+  await p.waitForFunction(flagged, null, {timeout: 6000}).catch(() => {});
+  const planSaid = await p.evaluate(lineOf);
+  t('F3: a card with a draft, its plan changed elsewhere, reads "Changed since you started: plan" (' + planSaid + ')',
+    planSaid === 'Changed since you started: plan');
+  run('undo');
+  await p.waitForFunction(unflagged, null, {timeout: 6000}).catch(() => {});
+  run('piece', 'P4', '--title', 'fix the reorder for good', '--risk', '3/10 — the fix waits longer');
+  await p.waitForFunction(flagged, null, {timeout: 6000}).catch(() => {});
+  const bothSaid = await p.evaluate(lineOf);
+  t('F3: a card changed in title and risk reads both (' + bothSaid + ')', bothSaid === 'Changed since you started: title, risk');
+  run('undo');
+  await p.waitForFunction(unflagged, null, {timeout: 6000}).catch(() => {});
+  await p.fill('#say-P4-word', '');
   // V7: a status change moving a section count draws the card and the
   // counts anew, with no note and no reload
   await p.goto(base + page);

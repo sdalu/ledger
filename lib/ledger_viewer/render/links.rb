@@ -53,7 +53,7 @@ module LedgerViewer
                 at = Ledger::Text.local_time(since)
                 return unless at && Time.now - at > 3600
 
-                "waiting #{Ledger::Text.waited(since)}"
+                "waiting #{Age.of(Ledger::Text.waited(since))}"
             end
 
             # 'answered by P5' while that piece is not settled and not
