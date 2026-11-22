@@ -793,6 +793,27 @@
     if (!ok) { again = false; fallback(); return; }
     if (again) { again = false; outside(); }
   };
+  // the keys of a mockup's files (/m/k/KEY/) lapse: a page left quiet
+  // fetches itself, as the live update does, shortly before the earliest
+  // lapses (5 minutes, at most half of the lifetime the page was drawn
+  // with) and takes the fresh keys into its links; a frame or image
+  // already loaded keeps its own src
+  const keyExpiry = el => {
+    const m = /\/m\/k\/([^/.]+)\./.exec(el.getAttribute('href') || el.getAttribute('data-src') || '');
+    try { return m ? +atob(m[1].replace(/-/g, '+').replace(/_/g, '/')).split('.')[1] * 1000 : Infinity; } catch (e) { return Infinity; }
+  };
+  const earliestKey = () => Math.min(Infinity, ...[...document.querySelectorAll(KEYED)].map(keyExpiry));
+  const keyLead = Math.min(300000, (earliestKey() - Date.now()) / 2);
+  let renewing = false;
+  const keepKeys = async () => {
+    if (renewing || swapping || sending || earliestKey() - Date.now() > keyLead) return;
+    renewing = true;
+    const doc = await fetchPage();
+    const mine = document.querySelector('main'), fresh = doc && doc.querySelector('main');
+    if (mine && fresh && !sending) renew(mine, fresh);
+    renewing = false;
+  };
+  setInterval(keepKeys, 5000);
   const changed = stamp => {
     if (sending || stamp.trim() === here) return;
     if (last) outside(); else fallback();

@@ -8,14 +8,17 @@ module LedgerViewer
     # (/m/k/TOKEN/LID/NAME[/PATH]). A mockup's page runs in a sandboxed
     # frame with an opaque origin, so its requests (the page, then its
     # CSS, scripts and images) carry no session cookie; the key stands in
-    # for it, for one ledger and for an hour. It reads files and nothing
-    # else, and a page is only issued keys for an admitted caller.
+    # for it, for one ledger and for an hour (TTL; the page renews its
+    # keys before they lapse). It reads files and nothing else, and a
+    # page is only issued keys for an admitted caller.
     #
     # TOKEN is `base64url("LID.EXPIRY")` + "." + `base64url(HMAC)`, the
     # HMAC-SHA256 of "mockup\0LID\0EXPIRY" under the session secret (the
     # one FormToken uses), EXPIRY unix seconds.
     module MockupToken
-        TTL = 3600
+        # Seconds a key lives; $LEDGER_MOCKUP_TTL, read at boot, lets a
+        # test shorten it.
+        TTL = Integer(ENV.fetch("LEDGER_MOCKUP_TTL", "3600"), 10)
         # The shape a path's token segment must have to be looked at.
         SHAPE = /\A[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\z/
 

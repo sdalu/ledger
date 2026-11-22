@@ -26,14 +26,17 @@ module LedgerViewer
         # What the routes and the `before` filter use.
         module Helpers
             # Whether this request is a GET of a file under a valid key,
-            # which the `before` filter then admits without a session; a
-            # bad or expired key is a 404, not a sign-in prompt.
+            # which the `before` filter then admits without a session. A
+            # bad or expired key goes on to the session check when a
+            # session is held (the file is then served as /m/ serves
+            # it); without one it is a 404, not a sign-in prompt.
             def keyed_mockup!
                 key = KEYED.match(request.path_info) if request.get?
                 return false unless key
 
                 secret = settings.config.session_secret
                 return true if MockupToken.valid?(secret, key[1], key[2])
+                return false unless signed_out?
 
                 not_found
             end

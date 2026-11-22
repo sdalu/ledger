@@ -43,6 +43,25 @@ class MockupKeyTest < ViewerTest
         assert_equal 404, last_response.status
     end
 
+    def test_an_expired_key_with_a_session_is_served_as_the_plain_path_is
+        sign_in
+        https "/m/k/#{key(now: Time.now - 7200)}/#{@lid}/pic.svg"
+
+        assert_predicate last_response, :ok?
+        assert_equal "<svg/>", last_response.body
+        assert_equal "no-store", last_response.headers["Cache-Control"]
+    end
+
+    def test_a_bad_key_with_a_session_still_finds_only_the_ledgers_files
+        sign_in
+        https "/m/k/x.y/#{@lid}/pic.svg"
+
+        assert_predicate last_response, :ok?
+        https "/m/k/x.y/#{@lid}/missing.svg"
+
+        assert_equal 404, last_response.status
+    end
+
     def test_another_ledgers_key_is_not_found
         https "/m/k/#{key("0123456789")}/#{@lid}/pic.svg"
 

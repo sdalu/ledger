@@ -12,8 +12,10 @@
 # Needs node and playwright-core ($PLAYWRIGHT_CORE, default
 # ~/node_modules/playwright-core) and the browsers ($CHROME, $FIREFOX);
 # without them it says what it skips and exits 0. $ONLY=chrome or
-# firefox runs one; $LAN=1 runs without signing in, 127.0.0.1 being in the
-# viewer's lan setting, where the default signs a user in. Run from the
+# firefox runs one; $KEYS=1 runs only the key-renewal check, on a viewer
+# whose mockup keys live KEYS_TTL seconds; $LAN=1 runs without signing in,
+# 127.0.0.1 being in the viewer's lan setting, where the default signs a
+# user in. Run from the
 # checkout:
 #   bundle exec ruby test/browser_run.rb
 
@@ -38,6 +40,10 @@ require_relative "support/risk_fixture"
 module BrowserRun
     ROOT = File.expand_path("..", __dir__)
     PASSWORD = "a long enough password"
+
+    # The mockup keys' lifetime in seconds for the KEYS=1 run, whose one
+    # check waits past it; every other check runs with the default.
+    KEYS_TTL = "20"
 
     # The fixture's ledger, with its pictures and its inbox, in a journal
     # of the sandbox; this viewer's sandbox config over it.
@@ -98,6 +104,7 @@ module BrowserRun
             @env = { "LEDGER_VIEWER_LOCAL" => sandbox.local,
                      "LEDGER_JOURNAL" => sandbox.journal,
                      "RACK_ENV" => "test" }
+            @env["LEDGER_MOCKUP_TTL"] = KEYS_TTL if ENV["KEYS"]
         end
 
         # Yields [cookie name, value] while the viewer runs, or nil when
@@ -183,6 +190,7 @@ module BrowserRun
         CHOICES = File.join(__dir__, "browser", "choices.cjs")
         RISK = File.join(__dir__, "browser", "risk.cjs")
         LOOP = File.join(__dir__, "browser", "loop.cjs")
+        KEYS = File.join(__dir__, "browser", "keys.cjs")
         # [tag, fixture, script] of the checks that each run on a ledger
         # of their own, once per browser, after the shared checks, which
         # read the index's first queue entry and must not meet them; the
@@ -199,6 +207,8 @@ module BrowserRun
         end
 
         def call(sandbox, cookie)
+            return keys_pass?(sandbox, cookie) if ENV["KEYS"]
+
             shared = @browsers.map do |name, exe|
                 check(sandbox, cookie, name, exe)
             end
@@ -207,6 +217,18 @@ module BrowserRun
         end
 
         private
+
+        # The key-renewal check alone, in each browser, against a viewer
+        # booted with the short key lifetime (KEYS=1 starts it so).
+        def keys_pass?(sandbox, cookie)
+            @browsers.map do |name, exe|
+                next true unless File.executable?(exe)
+
+                system(env(sandbox, cookie).merge(
+                           "LEDGER_MOCKUP_TTL" => KEYS_TTL
+                       ), "node", KEYS, sandbox.base, name)
+            end.all?
+        end
 
         # One script's check, once per browser, on a ledger of its own
         # made by FIXTURE: TAG names its directory.
