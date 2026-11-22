@@ -4,6 +4,7 @@ require_relative "nav_pieces"
 require_relative "reading"
 require_relative "terms"
 require_relative "text"
+require_relative "waiting_view"
 
 module LedgerViewer
     module Render
@@ -41,9 +42,10 @@ module LedgerViewer
                 items = @reading.waiting_on_you
                 return "" if items.empty?
 
-                rows = items.map do |item|
+                rows = items.each_with_index.map do |item, at|
                     asked = WaitingOrder.question?(item)
-                    asked ? question(item, "is-ask") : word(item)
+                    row = asked ? question(item, "is-ask") : word(item)
+                    WaitingView.mark(row, item, at)
                 end
                 icon = Terms::SECTION_ICON["waiting"]
                 "#{heading(icon, "Waiting on you", items.length)}" \

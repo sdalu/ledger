@@ -482,6 +482,7 @@
   // age), and the key of a mockup's path (/m/k/KEY/), issued for an hour
   // from the moment the page is drawn
   const norm = html => html.replace(/tip-\d+/g, 'tip-#').replace(/(data-age(?:="")?>)[^<]*/g, '$1')
+    .replace(/ data-wait-order="\d+"/g, '')
     .replace(/\/m\/k\/[^/"]+\//g, '/m/k/#/');
   // those clock texts and keys of `mine` set to those of `fresh`, in place
   // and silently, when both have the same ones; `skip` holds the parts
@@ -614,6 +615,8 @@
     const was = last.parts.has(key) ? parse(last.parts.get(key)) : null;
     if (!was) return 'Changed since you started';
     const now = parse(norm(fresh.outerHTML));
+    // the card's rating for the risk filter changes with its risk section, which says so
+    for (const el of [was, now]) el.removeAttribute('data-risk');
     const [a, aEls] = sectionsOf(was), [b, bEls] = sectionsOf(now);
     const names = [...new Set([...a.keys(), ...b.keys()])].filter(n => a.get(n) !== b.get(n));
     for (const s of [...aEls, ...bEls]) s.remove();
@@ -662,12 +665,19 @@
   };
   // the live counterpart of an element of the fetched page outside the
   // parts: by its id, its part, or its place beside one
+  // the element after EL, the status line the script adds to Waiting on you not counted
+  const after = el => {
+    let n = el.nextElementSibling;
+    while (n?.classList.contains('view-status')) n = n.nextElementSibling;
+    return n;
+  };
   const locate = (el, mainNew, keys, now) => {
     if (el === mainNew) return document.querySelector('main');
     if (keys.has(el)) return now.get(keys.get(el)) || null;
     if (el.id) return document.getElementById(el.id);
     const prev = el.previousElementSibling;
-    const at = prev ? locate(prev, mainNew, keys, now)?.nextElementSibling
+    const before = prev && locate(prev, mainNew, keys, now);
+    const at = prev ? before && after(before)
       : locate(el.parentElement, mainNew, keys, now)?.firstElementChild;
     return at && at.tagName === el.tagName ? at : null;
   };
@@ -717,14 +727,14 @@
         wire(mine);
         clearOnSend(mine);
         now.set(k, mine);
-      } else if (prev ? at.nextElementSibling !== mine : at.firstElementChild !== mine) {
+      } else if (prev ? after(at) !== mine : at.firstElementChild !== mine) {
         if (prev) at.after(mine); else at.prepend(mine);
       }
       last.parts.set(k, html);
     }
     renew(document.querySelector('main'), mainNew, [...now.values()], [...parts.values()]);
     document.title = doc.title;
-    if (ledgerPage) { markTray(); drawBar(); }
+    if (ledgerPage) { markTray(); drawBar(); syncView(doc); }
     return true;
   };
   // the element at the top of the window, so that the page does not move
@@ -998,7 +1008,8 @@
       const mine = document.importNode(fresh, true);
       mine.classList.add('is-collapsed');
       const link = mine.querySelector('a.next-waiting[href^="#"]');
-      const next = link && document.getElementById(link.getAttribute('href').slice(1));
+      keepView(card, mine);
+      const next = nextCard(card, link);
       // the cards near the answered one are named, so they slide into the room the collapse
       // leaves; naming every card of a long page would delay the scroll by seconds
       const reach = innerHeight * 2, top = card.getBoundingClientRect().top;
@@ -1016,6 +1027,7 @@
         wire(mine);
         markTray();
         redraw(doc);
+        syncView(doc);
       });
       for (const c of document.querySelectorAll('.entries > li[id]')) c.style.viewTransitionName = '';
       known = now;
@@ -1024,7 +1036,12 @@
       sending = false;
       // nothing left waiting on the user: the receipt's line says so, read
       // out politely, and takes the focus
-      if (!next) { mine.querySelector('.next-waiting.is-none')?.focus(); return; }
+      if (!next) {
+        const none = mine.querySelector('.next-waiting.is-none');
+        if (none) none.focus();
+        else { mine.tabIndex = -1; mine.focus({preventScroll: true}); }
+        return;
+      }
       next.tabIndex = -1;
       next.focus({preventScroll: true});
       next.scrollIntoView({behavior: reduced() ? 'auto' : 'smooth', block: 'start'});
@@ -1303,10 +1320,12 @@
         if (!fresh) { card.remove(); continue; }
         const mine = document.importNode(fresh, true);
         if (/^[qp]-/.test(id) && mine.querySelector('.sent, .sent-line')) mine.classList.add('is-collapsed');
+        keepView(card, mine);
         card.replaceWith(mine);
         wire(mine);
       }
       redraw(doc);
+      syncView(doc);
       markTray();
       drawBar();
     });
@@ -1351,6 +1370,144 @@
     placeSwitch(head);
     markTray();
     drawBar();
+  }
+  // Waiting on you in the order and with the filter the reader chose: the
+  // server draws every card and side-list row with its rating (data-risk,
+  // none when unrated) and its place in the oldest-first order
+  // (data-wait-order); the choice is kept in the browser, one for all
+  // ledgers. Done again whenever the page draws something anew.
+  const VIEW_KEY = 'waiting-view';
+  const view = {order: 'oldest', show: 'all'};
+  try {
+    const kept = JSON.parse(local.get(VIEW_KEY));
+    if (kept && ['oldest', 'risk'].includes(kept.order)) view.order = kept.order;
+    if (kept && ['all', '4', '7'].includes(kept.show)) view.show = kept.show;
+  } catch (e) {}
+  const viewIsDefault = () => view.order === 'oldest' && view.show === 'all';
+  // a card answered stays in its place as a receipt, and is never hidden
+  const isReceipt = li => !!li.querySelector('.sent, .sent-line');
+  const placeOf = li => (li.dataset.waitOrder === undefined ? Infinity : +li.dataset.waitOrder);
+  const byView = (a, b) => {
+    if (view.order === 'risk') {
+      const [x, y] = [a.dataset.risk, b.dataset.risk];
+      if ((x === undefined) !== (y === undefined)) return x === undefined ? 1 : -1;
+      if (x !== y && x !== undefined) return y - x;
+    }
+    return (placeOf(a) - placeOf(b)) || 0;
+  };
+  const filtered = li => view.show !== 'all' && !isReceipt(li)
+    && !(li.dataset.risk !== undefined && +li.dataset.risk >= +view.show);
+  // the lists of what waits on the user: the section's cards, the side list's rows
+  const viewLists = () => [...document.querySelectorAll('section.waiting > ul.entries:not(.answered), nav.question-nav > ul')]
+    .filter(ul => ul.querySelector(':scope > li[data-wait-order]'));
+  // the receipt that takes a card's place keeps its rating and place
+  const keepView = (card, receipt) => {
+    for (const at of ['data-risk', 'data-wait-order']) {
+      const v = card.getAttribute(at);
+      if (v !== null) receipt.setAttribute(at, v);
+    }
+  };
+  // the ratings and places the server now draws, put on the cards and rows shown
+  const syncView = doc => {
+    const same = (sel, live) => {
+      for (const f of doc.querySelectorAll(sel)) {
+        const li = live(f);
+        if (!li || isReceipt(li)) continue;
+        for (const at of ['data-risk', 'data-wait-order']) {
+          const v = f.getAttribute(at);
+          if (v === null) li.removeAttribute(at); else li.setAttribute(at, v);
+        }
+      }
+    };
+    same('section.waiting > ul.entries:not(.answered) > li[data-wait-order][id]', f => document.getElementById(f.id));
+    same('nav.question-nav > ul > li[data-wait-order]', f => {
+      const href = f.querySelector('a')?.getAttribute('href');
+      return href && document.querySelector('nav.question-nav > ul > li[data-wait-order] > a[href="' + href + '"]')?.parentElement;
+    });
+    arrange();
+  };
+  // the card after the answered one in the displayed order, hidden ones
+  // skipped, the first displayed when none follows; LINK is the receipt's link
+  // to the next card in the server's order, which is the same one in the
+  // default view and is made to name this one in another
+  const nextCard = (card, link) => {
+    if (!link) return null;
+    if (viewIsDefault()) return document.getElementById(link.getAttribute('href').slice(1));
+    const shown = [...card.parentElement.children].filter(c => c === card || (c.matches('li[id]') && !c.hidden && !isReceipt(c)));
+    const next = shown[shown.indexOf(card) + 1] || shown.find(c => c !== card);
+    if (!next) { link.remove(); return null; }
+    link.setAttribute('href', '#' + next.id);
+    const said = [...link.childNodes].find(n => n.nodeType === 3);
+    if (said) said.nodeValue = 'Next waiting: ' + (next.querySelector('.card-head .text')?.textContent.trim() || next.id);
+    return next;
+  };
+  // the cards hidden, said politely at the top of the section
+  const hiddenSaid = (section, count) => {
+    let line = section.querySelector(':scope > .view-status');
+    if (!line) {
+      line = document.createElement('p');
+      line.className = 'view-status';
+      line.setAttribute('role', 'status');
+      line.tabIndex = -1;
+      (section.querySelector(':scope > form.give-all') || section.querySelector(':scope > h2')).after(line);
+    }
+    let said = line.querySelector('span');
+    if (!count) { if (said) line.replaceChildren(); return; }
+    if (!said) {
+      said = document.createElement('span');
+      line.replaceChildren(said, ' ', button('a-show-all', 'Show all'));
+    }
+    const text = count + ' hidden by the risk filter';
+    if (said.textContent !== text) said.textContent = text;
+  };
+  // a list holding focus is left as it is, and sorted when focus leaves it
+  let unsorted = false;
+  const arrange = () => {
+    const control = document.querySelector('.waiting-view');
+    if (control) {
+      control.hidden = false;
+      for (const [name, value] of [['view-order', view.order], ['view-show', view.show]]) {
+        for (const r of control.querySelectorAll('input[name="' + name + '"]')) r.checked = r.value === value;
+      }
+    }
+    let hidden = 0;
+    unsorted = false;
+    for (const ul of viewLists()) {
+      const rows = [...ul.children].filter(li => li.matches('li'));
+      if (ul.contains(document.activeElement)) unsorted = true;
+      else {
+        const want = [...rows].sort(byView);
+        want.forEach((li, i) => { if (ul.children[i] !== li) ul.insertBefore(li, ul.children[i]); });
+      }
+      for (const li of rows) {
+        const off = filtered(li);
+        if (li.hidden !== off) li.hidden = off;
+        if (off && ul.matches('.entries')) hidden++;
+      }
+    }
+    const section = document.querySelector('section.waiting');
+    if (section && viewLists().length) hiddenSaid(section, hidden);
+  };
+  const choose = () => { local.set(VIEW_KEY, JSON.stringify(view)); arrange(); };
+  document.addEventListener('change', e => {
+    const input = e.target.closest?.('.waiting-view input');
+    if (!input) return;
+    view[input.name === 'view-order' ? 'order' : 'show'] = input.value;
+    choose();
+  });
+  document.addEventListener('click', e => {
+    if (!e.target.closest?.('.view-status .a-show-all')) return;
+    view.show = 'all';
+    choose();
+    document.querySelector('.view-status')?.focus({preventScroll: true});
+  });
+  document.addEventListener('focusout', () => { if (unsorted) setTimeout(arrange, 0); });
+  if (ledgerPage) {
+    new MutationObserver(records => {
+      const parts = r => [...r.addedNodes, ...r.removedNodes].some(n => n.nodeType === 1);
+      if (records.some(r => parts(r) && !r.target.closest?.('.view-status'))) arrange();
+    }).observe(document.querySelector('main'), {childList: true, subtree: true});
+    arrange();
   }
   let live = false;
   // a ledger page watches its own ledger's stamp, which a write to another

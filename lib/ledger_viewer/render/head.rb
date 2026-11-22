@@ -12,6 +12,8 @@ module LedgerViewer
         # under its details, the settings that are not the work: the
         # waker's switch and wakes (WAKER, drawn by Render::Waker, on
         # when ON), the batch switch the script adds, and the Abandon.
+        # Between the details and the tiles, the order and the risk
+        # filter of Waiting on you, which the script shows.
         class Head
             # The status line's `Status (TITLE) — `, cut where the counts
             # begin: the page already names its ledger.
@@ -38,13 +40,21 @@ module LedgerViewer
                 data = @reading
                 path = @entry.path
                 { lid: @lid, nxt: next_step, tiles:, close: @word.close(data),
-                  abandon: @word.abandon(data), short:,
+                  abandon: @word.abandon(data), short:, view:,
                   waker: @waker, unread: @unread,
                   waking: "waker #{@on ? "on" : "off"}",
                   path: Clock.short(path), status: untitled,
                   name: Helpers.project_name(@entry.project, path),
                   updated: Clock.updated(data.updated),
                   changed: Helpers.when_text(data.updated) }
+            end
+
+            # The order and filter of Waiting on you, when something
+            # waits to be ordered or filtered; "" otherwise.
+            def view
+                return "" if @reading.waiting_on_you.empty?
+
+                @scope.partial("ledger/waiting_view")
             end
 
             # The newest goal not done, in its one line, or "".

@@ -31,6 +31,7 @@ require "ledger_viewer"
 require_relative "support/browser_fixture"
 require_relative "support/groups_fixture"
 require_relative "support/long_fixture"
+require_relative "support/risk_fixture"
 
 module BrowserRun
     ROOT = File.expand_path("..", __dir__)
@@ -176,6 +177,7 @@ module BrowserRun
         PAGES = File.join(__dir__, "browser_pages.cjs")
         GROUPS = File.join(__dir__, "browser", "groups.cjs")
         LONG = File.join(__dir__, "browser", "long.cjs")
+        RISK = File.join(__dir__, "browser", "risk.cjs")
 
         def initialize(core, browsers)
             @core = core
@@ -187,7 +189,8 @@ module BrowserRun
                 check(sandbox, cookie, name, exe)
             end
             shared.all? & long_passes?(sandbox, cookie) &
-                groups_pass?(sandbox, cookie)
+                groups_pass?(sandbox, cookie) &
+                risk_passes?(sandbox, cookie)
         end
 
         private
@@ -233,6 +236,28 @@ module BrowserRun
         def build_long(sandbox, address)
             journal = Ledger::Journal.open(sandbox.journal)
             LongFixture.build(journal, address)
+        ensure
+            journal&.close
+        end
+
+        # The risk order and filter's check, once per browser, each on a
+        # ledger of its own: it sends words, which the next must not meet.
+        def risk_passes?(sandbox, cookie)
+            @browsers.map do |name, exe|
+                next true unless File.executable?(exe)
+
+                address = File.join(sandbox.dir, "risk-#{name}", ".claude",
+                                    "LEDGER.md")
+                build_risk(sandbox, address)
+                lid = Digest::SHA1.hexdigest(address)[0, 10]
+                system(env(sandbox, cookie), "node", RISK,
+                       "#{sandbox.base}/l/#{lid}", name)
+            end.all?
+        end
+
+        def build_risk(sandbox, address)
+            journal = Ledger::Journal.open(sandbox.journal)
+            RiskFixture.build(journal, address)
         ensure
             journal&.close
         end

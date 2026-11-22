@@ -6,6 +6,7 @@ require_relative "remains"
 require_relative "sectioned"
 require_relative "terms"
 require_relative "text"
+require_relative "waiting_view"
 
 module LedgerViewer
     module Render
@@ -46,10 +47,11 @@ module LedgerViewer
             private
 
             def ask_cards
-                @reading.waiting_on_you.map do |item|
-                    next @cards.ask(item) if WaitingOrder.question?(item)
-
-                    @words.html(item)
+                @reading.waiting_on_you.each_with_index.map do |item, at|
+                    card = if WaitingOrder.question?(item) then @cards.ask(item)
+                           else @words.html(item)
+                           end
+                    WaitingView.mark(card, item, at)
                 end
             end
 

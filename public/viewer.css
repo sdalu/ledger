@@ -1203,6 +1203,55 @@
     & .batch-says { color: var(--muted); }
   }
 
+  /* the order and the risk filter of Waiting on you, in the head: two groups
+     of choices, each choice a bordered label that fills when chosen */
+  .waiting-view {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-xs) var(--space-l);
+    font-size: var(--text-s);
+    &[hidden] { display: none; }
+    & fieldset { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-xs); }
+    & legend { float: inline-start; padding: 0; margin-inline-end: var(--space-xs); font-weight: 600; color: var(--muted); }
+    & label {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4em;
+      min-block-size: 2.75rem;
+      padding-inline: var(--space-s);
+      border: 1px solid var(--edge);
+      border-radius: var(--radius);
+      cursor: pointer;
+      &:has(input:checked) { border-color: var(--accent); background: var(--inset); font-weight: 600; }
+      &:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+    }
+    & input { margin: 0; accent-color: var(--accent); }
+  }
+
+  /* what the risk filter hides, said at the top of Waiting on you */
+  .view-status {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-xs) var(--space-s);
+    color: var(--muted);
+    & button {
+      min-block-size: 2.75rem;
+      padding-inline: var(--space-s);
+      border: 1px solid var(--edge);
+      border-radius: var(--radius);
+      font: inherit;
+      font-weight: 600;
+      color: var(--ink);
+      background: var(--panel);
+      cursor: pointer;
+      &:hover { border-color: var(--accent); }
+    }
+  }
+  /* a card or row the filter hides (a display set on it would beat [hidden]) */
+  :is(.entries, .question-nav ul) > li[hidden] { display: none; }
+
   /* the tray's buttons: Send all filled, the others outlined */
   :is(.tray-bar, .tray-line) button {
     min-block-size: 2.75rem;
