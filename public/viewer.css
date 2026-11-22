@@ -1456,6 +1456,7 @@
     transition: filter var(--motion);
     &:hover { filter: brightness(1.1); }
     &[hidden] { display: none; }
+    & .with-comment { margin-inline-start: 0.35em; font-weight: 400; }
   }
 
   /* ---- the answer form: an inset block, Send its one filled button */

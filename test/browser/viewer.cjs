@@ -920,6 +920,26 @@ t('A2: the status pill\'s summary is at least 24 px', await p.evaluate(() => {
   await p.evaluate(() => { document.querySelectorAll('#q-O1 input[name="choice"]')[1].click(); });
   t('N6: choosing that option takes the warning away', await p.evaluate(() => !document.querySelector('#q-O1 .comment-unchosen')));
   await p.evaluate(() => { const lid = location.pathname.split('/')[2]; sessionStorage.removeItem('draft:' + lid + ':O1'); });
+  // a word sent with text in the comment box carries it: the word buttons say so
+  const commitSays = () => p.evaluate(() => document.querySelector('#p-P4 button[name="word"][value="commit"]').innerText.replace(/\s+/g, " ").trim());
+  const wordAlone = await commitSays();
+  await p.evaluate(() => {
+    const ta = document.querySelector('#p-P4 .comment-box textarea');
+    ta.closest('details').open = true;
+    ta.value = 'see the after picture';
+    ta.dispatchEvent(new Event('input', {bubbles: true}));
+  });
+  const withText = await commitSays();
+  await p.evaluate(() => {
+    const ta = document.querySelector('#p-P4 .comment-box textarea');
+    ta.value = '';
+    ta.dispatchEvent(new Event('input', {bubbles: true}));
+    ta.closest('details').open = false;
+    const lid = location.pathname.split('/')[2];
+    sessionStorage.removeItem('draft:' + lid + ':P4');
+  });
+  t('a word button reads "(with comment)" while the comment box holds text, not otherwise',
+    wordAlone === 'Commit' && withText === 'Commit (with comment)' && await commitSays() === 'Commit');
   // N4: batch mode on, each button whose act goes to the tray says so, an answer says it still goes at once,
   // and the tray's button reads Send all with its count
   await p.goto(base + page);

@@ -144,6 +144,28 @@
       form.addEventListener('change', warn);
       warn();
     }
+    // a word sent while the comment box holds text carries the comment:
+    // each word button says so, so that it is not taken for the word alone
+    for (const form of root.querySelectorAll('form.say')) {
+      const ta = form.querySelector('.comment-box textarea');
+      const words = [...form.querySelectorAll('.word-choices button[name="word"]')];
+      if (!ta || !words.length) continue;
+      const mark = () => {
+        const on = ta.value.trim() !== '';
+        for (const b of words) {
+          let s = b.querySelector('.with-comment');
+          if (on && !s) {
+            s = document.createElement('span');
+            s.className = 'with-comment';
+            s.textContent = '(with comment)';
+            b.append(s);
+          } else if (!on && s) s.remove();
+        }
+      };
+      ta.addEventListener('input', mark);
+      form.addEventListener('reset', () => setTimeout(mark));
+      mark();
+    }
     // Cancel on a request closes its fold and gives the focus back to the
     // trash that opened it; without script the trash closes it as well
     for (const b of root.querySelectorAll('button.a-cancel')) {
