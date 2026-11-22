@@ -115,8 +115,9 @@ module LedgerViewer
             def question(question, state)
                 id = question["id"]
                 text = title(question["title"])
-                %(<li class="#{state}"><a href="#q-#{id}">) +
-                    "#{@scope.chip(id)} #{text}</a></li>"
+                [%(<li class="#{state} is-question"><a href="#q-#{id}">),
+                 %(<span class="text">#{text}</span>), @scope.chip(id),
+                 "</a></li>"].join
             end
         end
     end

@@ -2084,6 +2084,16 @@
     /* words owed: equal columns, so an odd last item keeps its column's
        width and its id stays under the ids above it */
     & ul:has(> li.is-word) { display: grid; grid-template-columns: minmax(0, 1fr); }
+    /* a question's row ends with its id like a word owed, the ids of both
+       in one column at the right */
+    & ul:has(> li.is-question) { display: grid; grid-template-columns: minmax(0, 1fr); }
+    & li.is-question a {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto auto;
+      align-items: center;
+      column-gap: var(--space-xs);
+      & > .tag { grid-column: 3; margin: 0; }
+    }
     & li.is-word a {
       display: grid;
       grid-template-columns: minmax(0, 1fr) auto auto;
