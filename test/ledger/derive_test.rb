@@ -91,6 +91,10 @@ class DeriveTest < DeriveCase
         assert stalled?(AT + (61 * MINUTE))
     end
 
+    def test_an_out_piece_with_no_touch_time_is_not_stalled
+        refute read_derive(AT).stalled?({ status: "out", id: 0 })
+    end
+
     def test_a_row_of_the_piece_tables_touches_the_piece
         id = out_at(AT)
         write(at: AT + (30 * MINUTE)) do |change|

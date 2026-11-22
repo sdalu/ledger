@@ -98,10 +98,12 @@ module Ledger
                   .sort_by { [IN_FLIGHT.index(it[:status]), it[:id]] }
         end
 
-        # An out piece no event has touched for more than the budget.
+        # An out piece no event has touched for more than the budget; one
+        # with no event yet (a dry run's are rolled back) is not stalled.
         def stalled?(piece)
             touched = touched_at(piece)
-            piece[:status] == "out" && @now - touched > @stall_ms
+            piece[:status] == "out" && !touched.nil? &&
+                @now - touched > @stall_ms
         end
 
         def after(piece) = links(piece, "after").map { piece(it[:after_id]) }
