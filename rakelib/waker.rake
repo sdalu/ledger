@@ -5,6 +5,7 @@
 #
 #   rake waker:install     the hooks and crossSessionInbound, the probe dir
 #   rake waker:uninstall   what install added, taken out
+#   rake check:waker       whether the waker can wake a session here
 #
 # SETTINGS=PATH names another settings file (default ~/.claude/settings.json).
 
@@ -30,5 +31,19 @@ namespace :waker do
         require "ledger/waker_install"
         done = Ledger::WakerInstall.uninstall(waker_settings)
         puts(done.empty? ? "settings: nothing to take out" : done)
+    end
+end
+
+namespace :check do
+    desc "Report whether the waker can wake a session here (warn only)"
+    task :waker do
+        require "ledger/journal"
+        require "ledger/waker_check"
+        Preflight.title("the waker")
+        Ledger::WakerCheck.new(
+            root: File.expand_path("..", __dir__),
+            journal: Ledger::Journal.path,
+            settings: Ledger::WakerCheck::Settings.new(waker_settings)
+        ).lines.each { Preflight.item(*it) }
     end
 end

@@ -54,6 +54,16 @@ never 2, which would block the session.
 `rake check` checks the gems, the configuration, the external tools and
 the addresses; `rake help` lists every task.
 
+`rake check:waker` (also run by `rake check`) reports, as `ok` or `warn` and
+never blocking, whether the waker can wake a session here: a
+`bin/ledger-waker` of this checkout running while a live ledger has the
+waker on; a `sessions` row in each such ledger's directory, and one for
+the session of the newest `session_stops` row (a session after `/clear`
+has none); `claude --version` equal to `config/doorbell.json`; and the
+hooks and `crossSessionInbound` of `rake waker:install` in the settings
+(`SETTINGS=PATH`). With no ledger on, the process and sessions lines are
+skipped.
+
 ## The commands
 
 `bin/ledger WORD …` is the one entry point (`lib/ledger/cli.rb`,
@@ -1204,6 +1214,8 @@ the probe's directory made; run twice, it changes nothing.
   claude`, answering "Yes, I trust this folder" (a directory under one
   already trusted is trusted too). The probe never answers that dialog:
   it refuses, naming the step.
+
+`rake check:waker` reports whether all of this is in place (above).
 
 ## Files it creates and reads
 
