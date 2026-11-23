@@ -629,9 +629,11 @@ since you started*, naming up to three of the sections that differ, with
 an *Update* button, which draws it anew and puts back what was
 typed or chosen where its field still is, the note's text included.
 What was picked or typed in an answer form and not sent is also kept in
-`sessionStorage` per ledger and item and put back when the page loads
+`sessionStorage` per ledger and item, saved as the page is left, so it
+survives a reload or a restored tab, and put back when the page loads
 again, a line on the card saying so (a choice no longer offered is said,
-nothing sent); a reload restores no scroll position of its own. A page
+nothing sent; a form whose send is in flight, landed or unconfirmed is
+not saved); a reload restores no scroll position of its own. A page
 that cannot be fetched, a ledger closed or no longer served and an ended
 session are said in the page head, the page staying as it was:
 *Live updates paused* (*reconnecting* when the live stream has been down

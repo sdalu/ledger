@@ -378,14 +378,33 @@ t('an open row draws its drop icon in its head line, as far from the edge as a c
   // R10: what was picked and typed, kept for the tab, comes back on a reload
   t('R10: after a reload the kept choice and comment are back, open, with a line saying so', await p.evaluate(() => {
     const lid = location.pathname.split('/')[2];
+    // R7's pick is no draft here: leaving the page would save it over the one set below
+    document.querySelector('#q-O1 > form.say').reset();
     sessionStorage.setItem('draft:' + lid + ':O1', JSON.stringify({radios: {choice: [...document.querySelectorAll('#q-O1 input[name="choice"]')][1].value},
       texts: {[document.querySelectorAll('#q-O1 .choice textarea')[1].name]: 'the second host'}}));
   }).then(async () => { await p.reload(); return p.evaluate(() => {
     const f = document.querySelector('#q-O1 > form.say'), n = f.querySelector('.draft-note');
     return f.querySelectorAll('input[name="choice"]')[1].checked && f.querySelectorAll('.choice textarea')[1].value === 'the second host'
       && f.querySelectorAll('.choice details')[1].open && n && n.getAttribute('role') === 'status'
-      && /^Kept from before the refresh: your choice B and your comment, not sent yet\./.test(n.textContent);
+      && /^Kept from before the reload: your choice B and your comment, not sent yet\./.test(n.textContent);
   }); }));
+  // R10: typed and not sent, a reload keeps it by itself (saved on pagehide), with its line
+  await p.evaluate(() => {
+    const f = document.querySelector('#q-O1 > form.say');
+    f.reset();
+    const lid = location.pathname.split('/')[2];
+    sessionStorage.removeItem('draft:' + lid + ':O1');
+    f.querySelectorAll('.choice input[name="choice"]')[1].click();
+  });
+  await p.fill('#q-O1 .choice >> nth=1 >> textarea', 'typed before the reload');
+  await p.reload();
+  t('R10: a draft typed and not sent is back after a reload, with its line', await p.evaluate(() => {
+    const f = document.querySelector('#q-O1 > form.say'), n = f.querySelector('.draft-note');
+    return f.querySelectorAll('input[name="choice"]')[1].checked && f.querySelectorAll('.choice textarea')[1].value === 'typed before the reload'
+      && !!n && /^Kept from before the reload: your choice B and your comment, not sent yet\./.test(n.textContent);
+  }));
+  // what the next checks load must not hold a draft that the next reload would keep again
+  await p.evaluate(() => { document.querySelector('#q-O1 > form.say').reset(); });
   t('R10: a choice no longer offered is said, not restored', await p.evaluate(() => {
     const lid = location.pathname.split('/')[2];
     sessionStorage.setItem('draft:' + lid + ':O1', JSON.stringify({radios: {choice: 'Z = gone'}, texts: {}}));

@@ -247,15 +247,21 @@
     }
     return Object.keys(radios).length || Object.keys(texts).length ? {radios, texts} : null;
   };
-  const keepDrafts = () => {
+  // leaving: a form whose send is in flight, landed or unconfirmed holds
+  // no draft, only what was typed and not sent is kept
+  const inFlight = f => !!f.querySelector('[aria-busy="true"], .send-unconfirmed, .sent');
+  const keepDrafts = (leaving = false) => {
     for (const [f, key] of draftForms()) {
+      if (leaving && inFlight(f)) continue;
       const d = draftOf(f);
       try {
         if (d) sessionStorage.setItem(key, JSON.stringify(d));
-        else sessionStorage.removeItem(key);
+        else if (!leaving) sessionStorage.removeItem(key);
       } catch (e) {}
     }
   };
+  // a reload or a restored tab keeps what was typed through the same restore
+  addEventListener('pagehide', () => keepDrafts(true));
   const letterOf = v => v.split(' = ')[0].replace(/^(pick|note):/, '');
   // a draft put back into a form drawn anew, with a line saying what came
   // back and what is no longer offered; `since` names what came between
@@ -306,7 +312,7 @@
       d = JSON.parse(sessionStorage.getItem(key) || 'null');
       sessionStorage.removeItem(key);
     } catch (e) { d = null; }
-    if (d) putBack(f, d, 'refresh');
+    if (d) putBack(f, d, 'reload');
   }
   // a mockup opens beside the page when there is room for both, over it
   // when there is not; the frame keeps the card's sandbox; closing gives
