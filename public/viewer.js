@@ -7,7 +7,10 @@
   // the side list and the goal's words are folds on a narrow page and open
   // while the page is wide; narrow, each keeps its own state
   const wide = matchMedia('(min-width: 64rem)');
-  const widthFolds = [...document.querySelectorAll('details.sections, .ledger-main > .goal > .goal-words')];
+  // looked up each time: a goal or a list drawn anew in place brings
+  // folds of its own
+  const WIDTH = 'details.sections, .ledger-main > .goal > .goal-words';
+  const widthFolds = () => [...document.querySelectorAll(WIDTH)];
   // a fold with an id keeps its state for the tab: on load, and in a part
   // drawn again after a change
   const foldsIn = root => {
@@ -17,17 +20,20 @@
         if (v !== null) d.open = v === '1';
       } catch (e) {}
       d.addEventListener('toggle', () => {
-        if (widthFolds.includes(d) && wide.matches) return;
+        if (d.matches(WIDTH) && wide.matches) return;
         try { sessionStorage.setItem('open:' + d.id, d.open ? '1' : '0'); } catch (e) {}
       });
     }
   };
   foldsIn(document);
-  const narrowState = new Map(widthFolds.map(d => [d, d.open]));
-  for (const d of widthFolds) {
-    d.addEventListener('toggle', () => { if (!wide.matches) narrowState.set(d, d.open); });
-  }
-  const fitFolds = () => { for (const d of widthFolds) d.open = wide.matches || narrowState.get(d); };
+  const narrowState = new WeakMap(widthFolds().map(d => [d, d.open]));
+  // a toggle does not bubble: the document hears it while capturing
+  document.addEventListener('toggle', e => {
+    if (e.target.matches?.(WIDTH) && !wide.matches) narrowState.set(e.target, e.target.open);
+  }, true);
+  const fitFolds = () => {
+    for (const d of widthFolds()) d.open = wide.matches || (narrowState.has(d) ? narrowState.get(d) : d.open);
+  };
   fitFolds();
   wide.addEventListener('change', fitFolds);
   // the text selected outside a form, for the quote buttons. They stay
@@ -211,10 +217,10 @@
     }
   };
   wire(document);
-  // what was chosen or typed and not sent survives the Refresh of the
-  // "Ledger changed" note: kept per ledger and item in sessionStorage, put
-  // back on load with a line saying so; a choice no longer offered is said,
-  // not dropped silently; a send clears it; without storage nothing is kept
+  // what was chosen or typed and not sent, kept per ledger and item in
+  // sessionStorage (keepDrafts), is put back on load with a line saying
+  // so; a choice no longer offered is said, not dropped silently; a send
+  // clears it; without storage nothing is kept
   const lid = (location.pathname.match(/^\/l\/([^/]+)/) || [])[1] || '';
   // the answer forms in a root, each under its item's ref (#2 for a second
   // form of the same item)
@@ -490,47 +496,46 @@
   wide.addEventListener('change', e => {
     if (!e.matches && paneOpen()) { closePane(false); expand(opener); }
   });
-  // a reload would throw away what the user has typed or chosen, or the
-  // mockup open beside it: a form differing from what the server sent, a
-  // box being typed in, or a pane or window open holds it, and a note says
-  // the ledger changed; checked again once the answer comes back
-  const dirty = () => [...document.querySelectorAll('form.say textarea, form.say input[type="text"]')]
-      .some(t => t.value !== t.defaultValue || t === document.activeElement)
-    || [...document.querySelectorAll('form.say input[type="radio"]')].some(r => r.checked !== r.defaultChecked)
-    || paneOpen() || (dlg && dlg.open);
-  let note = null;
-  const stale = () => {
-    if (note) return;
-    note = document.createElement('div');
-    note.className = 'stale-note';
-    note.setAttribute('role', 'status');
-    note.innerHTML = '<span>Ledger changed</span> <button type="button" class="a-refresh">__ICON_REFRESH__Refresh</button>';
-    note.querySelector('.a-refresh').addEventListener('click', () => {
-      keepDrafts();
-      try { sessionStorage.setItem('scroll:' + location.pathname, String(scrollY)); } catch (e) {}
-      location.reload();
-    });
-    document.body.append(note);
-  };
   // a changed ledger is pushed over /events; the poll stays as the fallback,
   // every 3 s while the stream is not open and every 30 s while it is
   const ledgerPage = document.body.dataset.page === 'ledger';
-  // after the note's Refresh, the reader's place comes back; a hash in the
-  // address names a place of its own and wins
-  try {
-    const y = sessionStorage.getItem('scroll:' + location.pathname);
-    if (y !== null) {
-      sessionStorage.removeItem('scroll:' + location.pathname);
-      if (!location.hash) scrollTo(0, Number(y));
-    }
-  } catch (e) {}
   // a send in flight, or its own stamp not yet taken as the page's: the
   // user's own send is not a change to announce
   let sending = false;
-  // what a page cannot draw again in place: a ledger page says so and
-  // waits; the index is a queue to glance at and reloads quietly unless a
-  // draft or pane holds it
-  const fallback = () => { if (ledgerPage || dirty()) stale(); else location.reload(); };
+  // what keeps the page from following the ledger, said in place, quietly:
+  // a status in the head (the receipt, the index's summary), no focus
+  // taken, gone once the page follows again. The stream down for 10 s
+  // (below); the page's own fetch failing or not 200; the ledger closed or
+  // unknown; the session ended. Neither navigates: the page stays as it was
+  // last drawn and tries again on the next stamp or poll
+  const liveHost = () => document.querySelector('.receipt, .queue-summary') || document.querySelector('main');
+  const LIVE = {
+    stream: ['Live updates paused \u2014 reconnecting'],
+    paused: ['Live updates paused \u2014 the page could not be read; trying again'],
+    closed: ['This ledger is closed or no longer served; this page stays as it was. ', '/', 'All ledgers'],
+    signin: ['Signed out: live updates stopped. ', '/sign-in', 'Sign in'],
+  };
+  let streamDown = false, fetchState = '', liveSaid = null;
+  const sayLive = () => {
+    const kind = fetchState || (streamDown ? 'stream' : '');
+    if (!kind) { liveSaid?.remove(); liveSaid = null; return; }
+    if (liveSaid?.isConnected && liveSaid.dataset.live === kind) return;
+    liveSaid?.remove();
+    const [text, href, link] = LIVE[kind];
+    liveSaid = document.createElement('span');
+    liveSaid.className = 'live-state';
+    liveSaid.dataset.live = kind;
+    liveSaid.setAttribute('role', 'status');
+    liveSaid.append(text);
+    if (href) {
+      const a = document.createElement('a');
+      a.href = href;
+      a.textContent = link;
+      liveSaid.append(a);
+    }
+    liveHost().append(' ', liveSaid);
+  };
+  const fetched = kind => { if (fetchState !== kind) { fetchState = kind; sayLive(); } };
   // a group form as the server drew it, kept while the risk filter rewrites
   // the live one from its shown cards: the form's key, and what a page
   // fetched is compared with, stay the server's
@@ -538,24 +543,54 @@
   const sentGroup = f => groupSrc.get(f) || f;
   // the parts of a page drawn again one at a time when the ledger changes
   // elsewhere, each under a key naming it in the page shown and the page
-  // fetched; the rest of the page must be as the server last sent it
+  // fetched, wherever the page puts it: a card moves from one section to
+  // another as itself
   const PARTS = {
     ledger: [['header.ledger-head', () => 'head'], ['nav.question-nav', () => 'nav'],
              ['h2[id] > .count', e => 'count:' + e.parentElement.id], ['section.waiting form.give-all', e => 'give-all:' + sentGroup(e).querySelector('[name=refs]').value],
              ['[data-key]', e => e.dataset.key], ['details.done-fold[id]', e => e.id], ['li[id]', e => e.id]],
     index: [['p.queue-summary', () => 'summary'], ['[data-key]', e => e.dataset.key]],
-  }[document.body.dataset.page];
+    links: [['header.links-head', () => 'head'], ['section.links-back', () => 'back'], ['section.links-forward', () => 'forward']],
+  }[document.body.dataset.page] || [];
+  const PART_SEL = PARTS.map(([sel]) => sel).join(', ');
+  const isPart = el => !!PART_SEL && el.matches(PART_SEL);
   const keyOf = el => { const p = PARTS.find(([sel]) => el.matches(sel)); return p ? p[1](el) : ''; };
-  // key => element, in the page's order; a part inside another goes with
-  // it (a card of a record fold is drawn with the fold)
-  const partsOf = root => {
-    const out = new Map(), taken = new Set();
-    for (const el of PARTS ? root.querySelectorAll(PARTS.map(([sel]) => sel).join(', ')) : []) {
-      let inner = false;
-      for (let up = el.parentElement; up && up !== root && !inner; up = up.parentElement) inner = taken.has(up);
-      if (inner) continue;
-      taken.add(el);
-      out.set(keyOf(el), el);
+  // what the script adds between the server's elements, which no page
+  // fetched has: left where it is
+  const OWN = '.view-status';
+  // the rest of the page is made of places and parts of their own: an
+  // element holding parts is a place, whose children are laid out as the
+  // page fetched lays them out; any other element is a part, drawn whole
+  // (the goal, the note, the order form, a section's heading). One with
+  // an id is named by it; one without, by its tag and classes after the
+  // last named element before it in its place, counted
+  const isPlace = el => !isPart(el) && !!PART_SEL && !!el.querySelector(PART_SEL);
+  const childrenOf = (box, scope) => {
+    const out = [], seen = new Map();
+    let named = '^';
+    for (const el of box.children) {
+      if (el.matches(OWN)) continue;
+      let key;
+      if (isPart(el)) key = keyOf(el);
+      else if (el.id) key = '#' + el.id;
+      else {
+        const sig = scope + '>' + el.tagName + [...el.classList].filter(c => !c.startsWith('is-')).map(c => '.' + c).join('') + '@' + named;
+        const n = seen.get(sig) || 0;
+        seen.set(sig, n + 1);
+        key = sig + (n ? '~' + n : '');
+      }
+      if (isPart(el) || el.id) named = key;
+      out.push([key, el]);
+    }
+    return out;
+  };
+  // key => element, parts and places alike, in the page's order; a part
+  // inside another goes with it (a card of a record fold is drawn with
+  // the fold)
+  const partsOf = (root, scope = 'main', out = new Map()) => {
+    for (const [k, el] of childrenOf(root, scope)) {
+      out.set(k, el);
+      if (isPlace(el)) partsOf(el, k, out);
     }
     return out;
   };
@@ -586,20 +621,23 @@
       }
     });
   };
-  // the page without its parts: what a part's coming, going or moving
-  // leaves alone
-  const skeleton = main => {
-    const copy = main.cloneNode(true);
-    for (const el of partsOf(copy).values()) el.remove();
-    return norm(copy.innerHTML);
+  // a place's own markup, its children aside: its attributes but those the
+  // script or the user set (a fold's open state, a hidden card), and its
+  // own text
+  const VOLATILE = ['open', 'hidden', 'style', 'tabindex', 'data-wait-order'];
+  const attrsOf = el => [...el.attributes].filter(a => !VOLATILE.includes(a.name)).map(a => [a.name, a.value]);
+  const shellOf = el => JSON.stringify([el.tagName, attrsOf(el),
+    [...el.childNodes].filter(n => n.nodeType === 3).map(n => n.nodeValue)]);
+  const snapshot = main => {
+    const parts = new Map(), shells = new Map();
+    for (const [k, el] of partsOf(main)) {
+      if (isPlace(el)) shells.set(k, shellOf(el)); else parts.set(k, norm(el.outerHTML));
+    }
+    return {parts, shells};
   };
-  const snapshot = main => ({
-    parts: new Map([...partsOf(main)].map(([k, el]) => [k, norm(el.outerHTML)])),
-    skel: skeleton(main),
-  });
-  // what the server last sent for each part, never the live page, which
-  // wire() and the user change
-  let last = PARTS && sentMain ? snapshot(sentMain) : null;
+  // what the server last sent for each part and place, never the live
+  // page, which wire() and the user change
+  let last = sentMain ? snapshot(sentMain) : null;
   // a part the user holds: a form differing from what the server sent, its
   // picture open, a tray item for it, or a send on it in flight or not
   // confirmed, whose note would go; focus alone does not hold it, it
@@ -726,6 +764,10 @@
     flags.set(key, line);
   };
   const unflag = key => { flags.get(key)?.remove(); flags.delete(key); pending.delete(key); };
+  // the forms of a part by item (formsIn), and those of no item (the note
+  // to the session) by their place among them
+  const draftsIn = root => [...formsIn(root),
+    ...[...root.querySelectorAll('form.say')].filter(f => !f.elements.ref?.value && !f.closest('.drop-fold')).map((f, i) => [f, '#' + i])];
   // Update on a held part: it is drawn as the server now has it, and what
   // was typed or chosen in it comes back where its field still is
   const take = key => {
@@ -733,11 +775,11 @@
     const fresh = pending.get(key);
     unflag(key);
     if (!old) return;
-    const drafts = formsIn(old).map(([f, ref]) => [ref, draftOf(f)]).filter(([, d]) => d);
+    const drafts = draftsIn(old).map(([f, ref]) => [ref, draftOf(f)]).filter(([, d]) => d);
     settle(() => {
-      if (!fresh) { old.remove(); last.parts.delete(key); return; }
+      if (!fresh) { old.remove(); last.parts.delete(key); dropKept(); return; }
       const mine = swapPart(old, fresh);
-      const byRef = new Map(formsIn(mine).map(([f, ref]) => [ref, f]));
+      const byRef = new Map(draftsIn(mine).map(([f, ref]) => [ref, f]));
       for (const [ref, d] of drafts) if (byRef.has(ref)) putBack(byRef.get(ref), d, 'update');
       last.parts.set(key, norm(fresh.outerHTML));
       markTray();
@@ -746,128 +788,178 @@
       mine.focus({preventScroll: true});
     });
   };
-  // the live counterpart of an element of the fetched page outside the
-  // parts: by its id, its part, or its place beside one
-  // the element after EL, the status line the script adds to Waiting on you not counted
-  const after = el => {
-    let n = el.nextElementSibling;
-    while (n?.classList.contains('view-status')) n = n.nextElementSibling;
-    return n;
+  // places kept only for a held part the page fetched no longer has in
+  // them: each goes once nothing held is left in it
+  const kept = new Set();
+  const dropKept = () => {
+    for (const box of kept) if (!box.querySelector('.changed-line')) { box.remove(); kept.delete(box); }
   };
-  const locate = (el, mainNew, keys, now) => {
-    if (el === mainNew) return document.querySelector('main');
-    if (keys.has(el)) return now.get(keys.get(el)) || null;
-    if (el.id) return document.getElementById(el.id);
-    const prev = el.previousElementSibling;
-    const before = prev && locate(prev, mainNew, keys, now);
-    const at = prev ? before && after(before)
-      : locate(el.parentElement, mainNew, keys, now)?.firstElementChild;
-    return at && at.tagName === el.tagName ? at : null;
-  };
-  // the parts of the page shown that the fetched one no longer has go,
-  // unless held
-  const drop = (parts, now) => {
-    for (const [k, el] of now) {
-      if (parts.has(k)) continue;
-      if (holds(el)) { flag(k, el, null); continue; }
-      el.remove();
-      now.delete(k);
-      last.parts.delete(k);
-      unflag(k);
+  // what is left of a place the page fetched no longer has: its held
+  // parts, and the places holding them
+  const emptyOut = (box, ctx) => {
+    for (const n of [...box.childNodes]) {
+      if (n.nodeType === 1 && (ctx.pinned.has(n) || n.matches(OWN))) continue;
+      if (n.nodeType === 1 && isPlace(n) && n.querySelector('.changed-line')) { emptyOut(n, ctx); continue; }
+      n.remove();
     }
   };
-  // the fetched page drawn into this one, part by part; false when it
-  // cannot be (the rest of the page differs, or a part has no place)
-  const apply = doc => {
-    const mainNew = doc.querySelector('main');
-    const fresh = snapshot(mainNew);
-    if (fresh.skel !== last.skel) return false;
-    const parts = partsOf(mainNew);
-    const keys = new Map([...parts].map(([k, el]) => [el, k]));
-    const now = partsOf(document.querySelector('main'));
-    drop(parts, now);
-    for (const [k, el] of parts) {
-      let mine = now.get(k);
-      const html = fresh.parts.get(k);
-      if (mine && last.parts.get(k) !== html) {
-        if (holds(mine)) { flag(k, mine, el); continue; }
-        unflag(k);
-        const was = focusOf(mine);
-        mine = swapPart(mine, el);
-        refocus(mine, was);
-        now.set(k, mine);
-      } else if (mine) {
-        if (pending.has(k)) unflag(k);
-        renew(mine, el);
-      }
-      const prev = el.previousElementSibling;
-      const at = locate(prev || el.parentElement, mainNew, keys, now);
-      if (!at) return false;
+  // the live element for the fetched element NODE under KEY: a place is
+  // laid out anew (draw), a part kept, drawn anew or made; null for a held
+  // part, which stays where it is
+  const drawChild = (key, node, ctx) => {
+    let mine = ctx.now.get(key);
+    if (mine && mine.tagName !== node.tagName) mine = null;
+    if (isPlace(node) || (mine && isPlace(mine))) {
       if (!mine) {
-        mine = document.importNode(el, true);
+        mine = document.importNode(node, false);
         foldsIn(mine);
-        if (prev) at.after(mine); else at.prepend(mine);
-        wire(mine);
-        clearOnSend(mine);
-        now.set(k, mine);
-      } else if (prev ? after(at) !== mine : at.firstElementChild !== mine) {
-        if (prev) at.after(mine); else at.prepend(mine);
+        ctx.now.set(key, mine);
       }
-      last.parts.set(k, html);
+      draw(mine, node, key, ctx);
+      return mine;
     }
-    renew(document.querySelector('main'), mainNew, [...now.values()], [...parts.values()]);
+    if (mine && ctx.pinned.has(mine)) return null;
+    const html = ctx.parts.get(key);
+    if (mine && last.parts.get(key) !== html) {
+      unflag(key);
+      const was = focusOf(mine);
+      mine = swapPart(mine, node);
+      ctx.focus.push([mine, was]);
+    } else if (mine) {
+      if (pending.has(key)) unflag(key);
+      renew(mine, node);
+    } else {
+      mine = document.importNode(node, true);
+      foldsIn(mine);
+      ctx.added.push(mine);
+    }
+    last.parts.set(key, html);
+    return mine;
+  };
+  // the place BOX laid out as the fetched FRESH: its own attributes and
+  // text, then its children in the fetched order, each moved only when out
+  // of it; what the script added and the held parts stay where they are
+  const draw = (box, fresh, scope, ctx) => {
+    const shell = shellOf(fresh);
+    if (last.shells.get(scope) !== shell) {
+      const want = attrsOf(fresh);
+      for (const [n, v] of want) if (box.getAttribute(n) !== v) box.setAttribute(n, v);
+      for (const [n] of attrsOf(box)) if (!fresh.hasAttribute(n)) box.removeAttribute(n);
+      last.shells.set(scope, shell);
+    }
+    const mineText = [...box.childNodes].filter(n => n.nodeType === 3);
+    const freshText = [...fresh.childNodes].filter(n => n.nodeType === 3);
+    const sameText = mineText.length === freshText.length && mineText.every((n, i) => n.nodeValue === freshText[i].nodeValue);
+    const keys = new Map(childrenOf(fresh, scope).map(([k, el]) => [el, k]));
+    const want = [];
+    let t = 0;
+    for (const node of fresh.childNodes) {
+      if (node.nodeType === 3) { want.push(sameText ? mineText[t] : document.createTextNode(node.nodeValue)); t++; continue; }
+      if (!keys.has(node)) continue;
+      const el = drawChild(keys.get(node), node, ctx);
+      if (el) want.push(el);
+    }
+    const keep = new Set(want);
+    for (const n of [...box.childNodes]) {
+      if (keep.has(n) || (n.nodeType === 1 && (n.matches(OWN) || ctx.pinned.has(n)))) continue;
+      if (n.nodeType === 1 && isPlace(n) && n.querySelector('.changed-line')) { emptyOut(n, ctx); kept.add(n); continue; }
+      n.remove();
+    }
+    let at = box.firstChild;
+    for (const n of want) {
+      while (at && at !== n && !keep.has(at)) at = at.nextSibling;
+      if (at === n) { at = at.nextSibling; continue; }
+      box.insertBefore(n, at);
+    }
+  };
+  // the fetched page drawn into this one: each part the server now draws
+  // differently drawn anew where the page fetched puts it, each place laid
+  // out as it lays it out; a part the user holds stays as it is, with a
+  // line saying it changed or went
+  const apply = doc => {
+    const mainNew = doc.querySelector('main'), main = document.querySelector('main');
+    const fresh = snapshot(mainNew), freshEls = partsOf(mainNew), now = partsOf(main);
+    const pinned = new Set();
+    for (const [k, el] of now) {
+      if (isPlace(el)) continue;
+      const html = fresh.parts.get(k);
+      if (html === undefined) {
+        if (freshEls.has(k)) continue;
+        if (holds(el)) { flag(k, el, null); pinned.add(el); } else { unflag(k); last.parts.delete(k); }
+      } else if (html !== last.parts.get(k) && holds(el)) { flag(k, el, freshEls.get(k)); pinned.add(el); }
+    }
+    for (const k of [...last.shells.keys()]) if (!fresh.shells.has(k)) last.shells.delete(k);
+    const ctx = {now, parts: fresh.parts, pinned, added: [], focus: []};
+    draw(main, mainNew, 'main', ctx);
+    for (const el of ctx.added) { wire(el); clearOnSend(el); }
+    // focus back once every part is in its place: a move drops it
+    for (const [el, was] of ctx.focus) refocus(el, was);
+    dropKept();
     document.title = doc.title;
     if (ledgerPage) { markTray(); drawBar(); syncView(doc); }
-    return true;
   };
-  // the element at the top of the window, so that the page does not move
-  // under the reader when a part above it is drawn anew
+  // the elements at the top of the window, so that the page does not move
+  // under the reader when a part above them is drawn anew: the first few
+  // in view, the first of them still on the page after the change being
+  // the one kept in place; the side list stays put by itself (sticky)
   const anchor = () => {
+    const out = [];
     for (const el of document.querySelectorAll('main h2, main [id], main [data-key]')) {
+      if (el.closest('details.sections')) continue;
       const r = el.getBoundingClientRect();
-      if (r.bottom > 0 && r.height > 0) return [el, r.top];
+      if (r.bottom > 0 && r.height > 0) out.push([el, r.top]);
+      if (out.length === 8) break;
     }
-    return null;
+    return out;
+  };
+  const keepPlace = seen => {
+    const a = seen.find(([el]) => el.isConnected);
+    const top = a && a[0].getBoundingClientRect().top;
+    if (a && top !== a[1]) scrollBy(0, top - a[1]);
   };
   let swapping = false, again = false;
+  // the page as the server has it now, or why it could not be read: the
+  // session ended (signin), the ledger closed or unknown (closed), any
+  // other failure or page of another kind (paused)
   const fetchPage = async () => {
+    let r;
     try {
-      const r = await fetch(location.pathname, {cache: 'no-store', credentials: 'same-origin'});
-      if (r.status !== 200) return null;
+      r = await fetch(location.pathname, {cache: 'no-store', credentials: 'same-origin'});
+    } catch (e) { return {fail: 'paused'}; }
+    if (r.status === 401 || new URL(r.url).pathname === '/sign-in') return {fail: 'signin'};
+    if (r.status === 404 && lid) return {fail: 'closed'};
+    if (r.status !== 200) return {fail: 'paused'};
+    try {
       const doc = new DOMParser().parseFromString(await r.text(), 'text/html');
-      // a page of another kind (a sign-in page after the session ended)
-      // has no parts to take
+      if (doc.querySelector('form[data-page="sign-in"]')) return {fail: 'signin'};
       const same = doc.body.dataset.page === document.body.dataset.page && doc.querySelector('main') && doc.body.dataset.stamp;
-      return same ? doc : null;
-    } catch (e) { return null; }
+      return same ? {doc} : {fail: 'paused'};
+    } catch (e) { return {fail: 'paused'}; }
   };
   // a change made elsewhere: the page is fetched again and only the parts
-  // the server now draws differently are drawn anew
+  // the server now draws differently are drawn anew; a page that could not
+  // be read says why in place, and is tried again on the next change
   const outside = async () => {
     if (swapping) { again = true; return; }
     swapping = true;
-    const doc = await fetchPage();
+    const {doc, fail} = await fetchPage();
     // the user's own send draws the page from its own answer
     if (sending) { swapping = false; return; }
-    let ok = !!doc;
+    fetched(fail || '');
     const stamp = doc && doc.body.dataset.stamp;
-    if (ok && stamp !== here) {
+    if (doc && stamp !== here) {
       const active = document.activeElement;
       await settle(() => {
-        const a = anchor();
-        ok = apply(doc);
-        const top = a && a[0].isConnected ? a[0].getBoundingClientRect().top : null;
-        if (top !== null && top !== a[1]) scrollBy(0, top - a[1]);
+        const seen = anchor();
+        apply(doc);
+        keepPlace(seen);
         if (active && active.isConnected && document.activeElement !== active) active.focus({preventScroll: true});
       });
-      if (ok) {
-        here = stamp;
-        document.body.dataset.stamp = stamp;
-        known = waitingSig(doc);
-      }
+      here = stamp;
+      document.body.dataset.stamp = stamp;
+      known = waitingSig(doc);
     }
     swapping = false;
-    if (!ok) { again = false; fallback(); return; }
     if (again) { again = false; outside(); }
   };
   // the keys of a mockup's files (/m/k/KEY/) lapse: a page left quiet
@@ -885,7 +977,7 @@
   const keepKeys = async () => {
     if (renewing || swapping || sending || earliestKey() - Date.now() > keyLead) return;
     renewing = true;
-    const doc = await fetchPage();
+    const {doc} = await fetchPage();
     const mine = document.querySelector('main'), fresh = doc && doc.querySelector('main');
     if (mine && fresh && !sending) renew(mine, fresh);
     renewing = false;
@@ -893,25 +985,40 @@
   setInterval(keepKeys, 5000);
   const changed = stamp => {
     if (sending || stamp.trim() === here) return;
-    if (last) outside(); else fallback();
+    if (last) outside();
   };
   // after the user's own send, the parts it drew again are as the server
-  // sent them, and so is the rest of the page
+  // sent them; the rest is drawn from the same page when somebody else
+  // changed it too (drawRest), or on the next change
   // every group form is a part of its own, keyed by the pieces it names: the
   // ones the page fetched replace those last shown
   const rebaseGroups = parts => {
     for (const k of [...last.parts.keys()]) if (k.startsWith('give-all:')) last.parts.delete(k);
-    for (const [k, el] of parts) if (k.startsWith('give-all:')) last.parts.set(k, norm(el.outerHTML));
+    for (const [k, html] of parts) if (k.startsWith('give-all:')) last.parts.set(k, html);
   };
   const rebase = (doc, keys) => {
     const mainNew = last && doc.querySelector('main');
     if (!mainNew) return;
-    const parts = partsOf(mainNew);
-    last.skel = skeleton(mainNew);
+    const {parts} = snapshot(mainNew);
     for (const k of keys) {
       if (k === 'give-all') rebaseGroups(parts);
-      else if (parts.has(k)) last.parts.set(k, norm(parts.get(k).outerHTML)); else last.parts.delete(k);
+      else if (parts.has(k)) last.parts.set(k, parts.get(k)); else last.parts.delete(k);
     }
+  };
+  // the page a send came back with, drawn in place for what the send did
+  // not draw itself: a change made elsewhere meanwhile, or the card the
+  // answer moved or removed; a page of another kind is fetched again
+  const drawRest = async doc => {
+    const stamp = doc.body.dataset.stamp;
+    if (doc.body.dataset.page !== document.body.dataset.page || !doc.querySelector('main') || !stamp) {
+      sending = false;
+      outside();
+      return;
+    }
+    await settle(() => { const seen = anchor(); apply(doc); keepPlace(seen); });
+    here = stamp;
+    document.body.dataset.stamp = stamp;
+    known = waitingSig(doc);
   };
   // an answer or a word is sent with fetch: the answered card is swapped for
   // its receipt, collapsed to one line, and the page moves on to the next card
@@ -1065,7 +1172,7 @@
           delete f.dataset.unconfirmed;
           note.remove();
           sending = true;
-          await land(page, location.href);
+          await land(page);
           return;
         }
         retry = true;
@@ -1086,9 +1193,9 @@
       });
       if (r.ok && r.redirected) doc = new DOMParser().parseFromString(await r.text(), 'text/html');
     } catch (err) { doc = null; }
-    const land = async (doc, url) => {
+    const land = async doc => {
       // the send landed: what was typed in its form is sent, no longer a
-      // draft to keep across the reload or the redraw that follows
+      // draft to keep across a reload or the redraw that follows
       for (const [g, ref] of formsIn(card)) {
         if (g === f) try { sessionStorage.removeItem('draft:' + lid + ':' + ref); } catch (err) {}
       }
@@ -1099,6 +1206,19 @@
         if (box) { box.value = ''; box.defaultValue = ''; box.dispatchEvent(new Event('input', {bubbles: true})); }
         keepDrafts();
       } else f.reset();
+      // the answer moved the card or no longer has it: the page is drawn
+      // in place as the answer has it, and the card, wherever it now is,
+      // comes into view with the focus
+      const elsewhere = async () => {
+        await drawRest(doc);
+        sending = false;
+        const moved = document.getElementById(card.id);
+        if (!moved) return;
+        moved.tabIndex = -1;
+        moved.focus({preventScroll: true});
+        moved.scrollIntoView({block: 'start'});
+        history.replaceState(null, '', '#' + card.id);
+      };
       // a question asked about a card, or a picture asked of it, leaves it
       // answerable: only that part is drawn again, so an answer being
       // written on the card stays
@@ -1106,9 +1226,9 @@
       if (ask) {
         const which = ask.matches('.ask-about') ? '.ask-about' : '.picture-ask';
         const part = doc.getElementById(card.id)?.querySelector(which);
-        sending = false;
         release();
-        if (!part) { location.assign(url + '#' + card.id); return; }
+        if (!part) { await elsewhere(); return; }
+        sending = false;
         const now = waitingSig(doc);
         const outside = [...known].some(([id, sig]) => now.get(id) !== sig)
           || [...now.keys()].some(id => !known.has(id));
@@ -1121,15 +1241,11 @@
         into.focus();
         known = now;
         rebase(doc, []);
-        if (outside) stale(); else here = doc.body.dataset.stamp || here;
+        if (outside) await drawRest(doc); else here = doc.body.dataset.stamp || here;
         return;
       }
       const fresh = doc.getElementById(card.id);
-      if (!fresh || !fresh.querySelector('.sent, .sent-line')) {
-        sending = false;
-        location.assign(url + '#' + card.id);
-        return;
-      }
+      if (!fresh || !fresh.querySelector('.sent, .sent-line')) { release(); await elsewhere(); return; }
       const mine = document.importNode(fresh, true);
       mine.classList.add('is-collapsed');
       const link = mine.querySelector('a.next-waiting[href^="#"]');
@@ -1157,7 +1273,7 @@
       for (const c of document.querySelectorAll('.entries > li[id]')) c.style.viewTransitionName = '';
       known = now;
       rebase(doc, [card.id, ...redrawn]);
-      if (outside) stale(); else here = doc.body.dataset.stamp || here;
+      if (outside) await drawRest(doc); else here = doc.body.dataset.stamp || here;
       sending = false;
       // nothing left waiting on the user: the receipt's line says so, read
       // out politely, and takes the focus
@@ -1197,7 +1313,7 @@
       } catch (err) { unstarted = 'the viewer did not answer'; }
     }
     if (!doc) return r && r.status >= 400 && r.status < 500 ? plain() : unconfirmed();
-    await land(doc, r.url);
+    await land(doc);
     if (unstarted) startAgain(card.id, starts, unstarted, f.action, f.elements.token.value);
   });
   // the start of a piece not sent after its question's answer: a polite
@@ -1510,7 +1626,7 @@
     });
     known = now;
     rebase(doc, [...cards, ...redrawn]);
-    if (outside) stale(); else here = doc.body.dataset.stamp || here;
+    if (outside) await drawRest(doc); else here = doc.body.dataset.stamp || here;
     sending = false;
   };
   // the switch, in the head's Details with the waker: off by default, per
@@ -1731,7 +1847,12 @@
   const poll = async () => {
     try {
       const r = await fetch('/stamp' + (watched ? '?' + watched : ''), {cache: 'no-store'});
-      if (r.ok) changed(await r.text());
+      // the session ended: said in place; signed in again, the page follows
+      if (r.status === 401) fetched('signin');
+      else if (r.ok) {
+        if (fetchState === 'signin') fetched('');
+        changed(await r.text());
+      }
     } catch (e) {}
     setTimeout(poll, live ? 30000 : 3000);
   };
@@ -1740,27 +1861,22 @@
     // focus; the poll carries on meanwhile. A failed connection closes the
     // source for good, so it is opened again after 2 s, doubling to 30 s,
     // never two at once
-    let es = null, paused = null, lost = 0, retry = 0, delay = 2000;
-    // looked up each time: a change elsewhere draws the head anew
-    const host = () => document.querySelector('.receipt, .queue-summary');
+    let es = null, lost = 0, retry = 0, delay = 2000;
     const open = () => {
       retry = 0;
       es = new EventSource('/events?since=' + encodeURIComponent(here) + (watched ? '&' + watched : ''));
       es.addEventListener('open', () => {
         live = true; delay = 2000; clearTimeout(lost); lost = 0; clearTimeout(retry); retry = 0;
-        if (paused) { paused.remove(); paused = null; }
+        if (streamDown) { streamDown = false; sayLive(); }
       });
       es.addEventListener('error', () => {
         live = false;
-        if (host() && !lost && !paused) {
+        if (!lost && !streamDown) {
           lost = setTimeout(() => {
             lost = 0;
-            if (live || paused || !host()) return;
-            paused = document.createElement('span');
-            paused.className = 'live-state';
-            paused.setAttribute('role', 'status');
-            paused.textContent = 'Live updates paused \u2014 reconnecting';
-            host().append(' ', paused);
+            if (live || streamDown) return;
+            streamDown = true;
+            sayLive();
           }, 10000);
         }
         if (es.readyState === 2 && !retry) {

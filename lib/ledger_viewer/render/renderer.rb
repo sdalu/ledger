@@ -55,7 +55,7 @@ module LedgerViewer
                 body = @views.render("ledger/links", @scope, locals)
                 @page.html(title: "Why #{id} — #{name}", body:,
                            stamp: Stamp.of(@ledgers.all),
-                           styles: [@links_css])
+                           styles: [@links_css], links: true)
             end
 
             # The page that says a send was refused, or was not taken

@@ -1283,39 +1283,6 @@
     &::backdrop { background: color-mix(in oklab, black 45%, transparent); }
   }
 
-  /* the page changed under a draft: said, not done, until the user chooses */
-  .stale-note {
-    /* centred by layout, not by translate: a transformed box can land on
-       half a pixel and blur its text */
-    position: fixed;
-    inset-block-end: var(--space-m);
-    inset-inline: var(--space-m);
-    z-index: 2;
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: var(--space-s);
-    inline-size: fit-content;
-    margin-inline: auto;
-    padding: var(--space-xs) var(--space-xs) var(--space-xs) var(--space-m);
-    border: 1px solid var(--edge);
-    border-radius: var(--radius-l);
-    color: var(--ink);
-    background: var(--panel);
-    box-shadow: 0 4px 16px light-dark(oklch(20% 0.02 250 / 0.18), oklch(0% 0 0 / 0.6));
-    & button.a-refresh {
-      min-block-size: 2.75rem;
-      padding-inline: var(--space-m);
-      border: 1px solid var(--accent);
-      border-radius: var(--radius);
-      font: inherit;
-      font-weight: 600;
-      color: var(--on-state);
-      background: var(--accent);
-      cursor: pointer;
-    }
-  }
-
   /* batch mode, beside the waker: a switch the script draws */
   .batch-switch {
     display: flex;
@@ -1534,11 +1501,9 @@
     & .tray-says:empty { display: none; }
     & .tray-says { font-size: var(--text-s); }
   }
-  /* the changed note moves up out of the tray's way */
-  body:has(> .tray-bar) > .stale-note { inset-block: var(--space-m) auto; }
-
-  /* the live stream is down: a dashed pill, unlike the changed note, which
-     is a floating panel with a button */
+  /* the page is not following the ledger (the stream down, the page
+     unreadable, the ledger closed, the session ended): a dashed pill in
+     the head, with a way on when there is one */
   .live-state {
     display: inline-block;
     margin-inline-start: var(--space-xs);

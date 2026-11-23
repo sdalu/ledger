@@ -602,28 +602,33 @@ A question already answered counts as the session's turn, not the
 user's. Every request reads the journal. When its ledger changes (any
 ledger, for the index), which the server pushes over `/events` and the
 page also polls for (every 3 s while the stream is not open, every 30 s
-while it is), the page shown fetches itself again and draws anew only the parts the
-server now draws differently: on a ledger page the head, the cards, the
-section counts, the side list, the record folds and your messages; on
-the index its rows. The page does not move and the focus stays, and a
-fold keeps its open state. A part you hold (a form in it differing from
+while it is), the page shown fetches itself again and draws anew, in
+place, only the parts the server now draws differently: on a ledger page
+the head, the goal, the note, the order form, the cards, the section
+counts, the side list, the record folds and Done goals, your messages, a
+section coming or emptying and a card moving from one section to another;
+on the index its rows and its summary; on the links page its head and
+both lists. There is no *Ledger changed* note and no *Refresh* button,
+and the index never reloads itself. The page does not move and the focus
+stays, and a fold keeps its open state. A part you hold (a form in it,
+the note and the order form included, differing from
 what the server sent, its picture open, a send on it in flight or not
 yet confirmed, or an item of the tray from it; focus alone does not hold
 it, it follows the part drawn anew) is left as it is and says *Changed
 since you started*, naming up to three of the sections that differ, with
 an *Update* button, which draws it anew and puts back what was
-typed or chosen where its field still is. A change outside those parts
-(the goal, the note or the order form, a section coming or going), or a
-page that cannot be fetched, falls back: the index reloads itself
-unless a form differs from what the server sent, a box is being typed
-in, or a mockup is open, and a ledger page says *Ledger changed* with
-a *Refresh* button, which reloads and returns to the same scroll
-position and open folds, and puts back what was picked or typed in an
-answer form and not sent (kept in `sessionStorage` per ledger and item,
-a line on the card saying so; a choice no longer offered is said,
-nothing sent). When the live stream has been down for 10 seconds, a
-quiet *Live updates paused — reconnecting* status shows in the page head
-until it returns; the 3 s poll runs meanwhile. The user starts it; no hook does.
+typed or chosen where its field still is, the note's text included.
+What was picked or typed in an answer form and not sent is also kept in
+`sessionStorage` per ledger and item and put back when the page loads
+again, a line on the card saying so (a choice no longer offered is said,
+nothing sent); a reload restores no scroll position of its own. A page
+that cannot be fetched, a ledger closed or no longer served and an ended
+session are said in the page head, the page staying as it was:
+*Live updates paused* (*reconnecting* when the live stream has been down
+for 10 seconds, else the page could not be read), *This ledger is closed
+or no longer served* with a link to *All ledgers*, or *Signed out* with
+a *Sign in* link. The status goes by itself once the page follows the
+ledger again. The user starts it; no hook does.
 
 A ledger page reads, top to bottom and in the tab order: crumbs, the
 title, the goal's short line, the next step (the id, then `Your word:
@@ -766,7 +771,7 @@ What the page takes, all as inbox entries, of the four kinds
   (as the Waiting view orders and filters them), which takes the focus
   and pulses once; the head's next step, the tiles, the status line, the
   side list and the Waiting count are redrawn from the same answer (a
-  change by someone else in it still shows *Ledger changed*); the fold
+  change by someone else in it is drawn in place too); the fold
   opens the card again where it stands; with reduced motion the same happens
   without transition, smooth scroll or pulse. While the send is out the
   pressed button reads *Sending…* (disabled, `aria-busy`) and the card's
@@ -780,8 +785,9 @@ What the page takes, all as inbox entries, of the four kinds
   *Nothing left waiting on you in this ledger* (`role="status"`), which
   takes the focus, *not read by the session yet* staying visible. A
   refusal (a 4xx answer) falls back to the plain form post, whose page
-  shows it; a card that did not become a receipt goes to the page the
-  send came back with, at that card; a viewer that does not answer, or
+  shows it; a card the answer moved or removed stays on the page, which
+  is drawn in place as the answer has it, the card coming into view with
+  the focus where it now is; a viewer that does not answer, or
   fails (5xx), leaves the draft with *Delivery unconfirmed* and a
   *Check* button, which reads the page again and lands the send if it
   is there, else turns into *Retry*. Without script the send answers 303 to the next card waiting
@@ -1117,9 +1123,9 @@ their password, passkeys and open invitation, and `rake user:remove
 NAME=alice` removes one with their passkeys and sessions.
 
 The viewer is pushed changes over server-sent events (`GET /events`): a
-page draws its changed parts anew, or falls back to the note or the
-reload, within about a second of a ledger write. The 3 s poll of `/stamp`
-remains as the fallback, slowed to 30 s while the stream is open; a stream down for 10 s shows
+page draws its changed parts anew, in place, within about a second of a
+ledger write. The 3 s poll of `/stamp` runs beside it, slowed to 30 s
+while the stream is open; a stream down for 10 s shows
 *Live updates paused — reconnecting* in the head, and the page opens it
 again after 2 s, doubling to 30 s. Both
 take an optional `lid`: a ledger page passes its own and watches that

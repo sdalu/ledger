@@ -30,8 +30,8 @@ const [base, ledger, which] = process.argv.slice(2);
   // a 500 the checks answer themselves (failing, below) is not a failed request
   p.on('response', r => { if (r.status() >= 400 && r.headers()['x-check'] !== 'fallback') errors.push(r.status() + ' ' + r.url()); });
   // the page's background fetch of itself answers 500: the way to the
-  // fallback of a change made elsewhere, the note on a ledger page and a
-  // reload on the index; the page's own loads go through
+  // status a page says in place when it cannot read itself again; the
+  // page's own loads go through
   const failing = route => route.request().resourceType() === 'fetch'
     ? route.fulfill({status: 500, headers: {'x-check': 'fallback'}, body: 'refused by the check'}) : route.continue();
 
@@ -321,37 +321,49 @@ t('an open row draws its drop icon in its head line, as far from the edge as a c
   t('the drop icon\'s tip shows on keyboard focus, as a line, not a column',
     dt.shown && dt.wide && dt.lines <= 2 && dt.centred);
 
-  // a draft changed and left holds the reload, and says the ledger changed;
-  // the note is the fallback, reached here by a fetch of the page that fails
+  // a page that cannot read itself again (its fetch answers 500 here)
+  // stays as it is, draft and all, and says so in place: no reload, no
+  // note to press
+  const liveSays = () => p.evaluate(() => {
+    const l = document.querySelector('.live-state');
+    return l ? {kind: l.dataset.live, role: l.getAttribute('role'), text: l.textContent.trim(),
+                focus: l.contains(document.activeElement), inHead: !!l.closest('.receipt, .queue-summary')} : null;
+  });
   await p.route(base + page, failing);
   await p.evaluate(() => { document.querySelector('details.order-fold').open = true; });
   await p.fill('input[name="order"]', 'P3, P1');
   await p.click('h1');
   await p.evaluate(() => { window.__mark = 1; });
   touch();
-  await p.waitForTimeout(4500);
-  t('a draft survives a ledger change', await p.evaluate(() => window.__mark === 1
+  await p.waitForFunction(() => !!document.querySelector('.live-state'), null, {timeout: 6000}).catch(() => {});
+  t('a draft survives a ledger change the page cannot read, without a reload', await p.evaluate(() => window.__mark === 1
     && document.querySelector('input[name="order"]').value === 'P3, P1'));
-  t('"Ledger changed" is said', await p.locator('.stale-note').isVisible());
-  // V6: a ledger page being read never reloads by itself: it says so, and
-  // Refresh brings the reader back to the same place
+  // V6: a ledger page being read never reloads by itself: a fetch that
+  // fails is said in place, quietly, and goes once the page is read again
   await p.goto(base + page);
-  await p.evaluate(() => { window.__mark = 1; });
+  // the page's place under the reader: where a heading below the head
+  // stands in the window (the browser may scroll to keep it so when the
+  // status widens the head), once its pictures are in
+  await p.waitForTimeout(1500);
+  const reach = await p.evaluate(() => { scrollTo(0, 400); window.__mark = 1; return scrollY; });
+  const placed = () => p.evaluate(() => document.getElementById('flight').getBoundingClientRect().top);
+  const placeWas = await placed();
   touch();
-  await p.waitForTimeout(4500);
-  t('V6: a clean ledger page does not reload on a ledger change, and says so', await p.evaluate(() => window.__mark === 1)
-    && await p.locator('.stale-note').isVisible());
-  t('V6: the note is a polite status reading Ledger changed, button Refresh, no focus taken', await p.evaluate(() => {
-    const n = document.querySelector('.stale-note');
-    return n.getAttribute('role') === 'status' && /^Ledger changed/.test(n.textContent.trim())
-      && n.querySelector('button.a-refresh').textContent.trim() === 'Refresh' && !n.contains(document.activeElement);
-  }));
-  const reach = await p.evaluate(() => { scrollTo(0, 400); return scrollY; });
-  t('V6: the fixture page scrolls far enough to test', reach > 100);
-  await Promise.all([p.waitForNavigation(), p.click('.stale-note button.a-refresh')]);
-  await p.waitForTimeout(500);
-  t('V6: Refresh reloads and keeps the scroll position within 50 px', await p.evaluate(() => window.__mark === undefined)
-    && Math.abs(await p.evaluate(() => scrollY) - reach) <= 50);
+  await p.waitForFunction(() => !!document.querySelector('.live-state'), null, {timeout: 6000}).catch(() => {});
+  const said = await liveSays();
+  t('V6: a ledger page whose fetch fails stays (no navigation) and says "Live updates paused" in its head, a polite status, no focus taken',
+    await p.evaluate(() => window.__mark === 1) && !!said && said.kind === 'paused' && said.role === 'status'
+    && /^Live updates paused/.test(said.text) && !said.focus && said.inHead, JSON.stringify(said));
+  const placeNow = await placed();
+  t('V6: the page does not move under the reader (' + placeWas + ' -> ' + placeNow + ')', reach > 100 && Math.abs(placeNow - placeWas) <= 1);
+  t('no Refresh button and no Ledger changed note anywhere', await p.evaluate(() =>
+    !document.querySelector('.a-refresh, .stale-note') && !/Ledger changed/.test(document.body.textContent)));
+  await p.unroute(base + page, failing);
+  touch();
+  await p.waitForFunction(() => !document.querySelector('.live-state'), null, {timeout: 6000}).catch(() => {});
+  t('V6: the status goes by itself once the page is read again, still without a reload',
+    await p.evaluate(() => window.__mark === 1 && !document.querySelector('.live-state')));
+  await p.route(base + page, failing);
   // R7: with no choice picked Send is refused; a choice asking for a comment
   // opens its fold, says what to write and requires the text
   await p.goto(base + page);
@@ -363,19 +375,17 @@ t('an open row draws its drop icon in its head line, as far from the edge as a c
     return c.querySelector('details').open && /^Needed for B: /.test(n.textContent) && ta.required
       && ta.getAttribute('aria-describedby') === n.id && !document.querySelector('#q-O1 > form.say').checkValidity();
   }));
-  // R10: what was picked and typed survives the Refresh of the Ledger changed note
-  await p.fill('#q-O1 .choice:nth-of-type(2) textarea', 'the second host');
-  await p.click('h1');
-  touch();
-  await p.waitForTimeout(4500);
-  await Promise.all([p.waitForNavigation(), p.click('.stale-note button.a-refresh')]);
-  await p.waitForTimeout(500);
-  t('R10: after Refresh the choice and the comment are back, open, with a line saying so', await p.evaluate(() => {
+  // R10: what was picked and typed, kept for the tab, comes back on a reload
+  t('R10: after a reload the kept choice and comment are back, open, with a line saying so', await p.evaluate(() => {
+    const lid = location.pathname.split('/')[2];
+    sessionStorage.setItem('draft:' + lid + ':O1', JSON.stringify({radios: {choice: [...document.querySelectorAll('#q-O1 input[name="choice"]')][1].value},
+      texts: {[document.querySelectorAll('#q-O1 .choice textarea')[1].name]: 'the second host'}}));
+  }).then(async () => { await p.reload(); return p.evaluate(() => {
     const f = document.querySelector('#q-O1 > form.say'), n = f.querySelector('.draft-note');
     return f.querySelectorAll('input[name="choice"]')[1].checked && f.querySelectorAll('.choice textarea')[1].value === 'the second host'
       && f.querySelectorAll('.choice details')[1].open && n && n.getAttribute('role') === 'status'
       && /^Kept from before the refresh: your choice B and your comment, not sent yet\./.test(n.textContent);
-  }));
+  }); }));
   t('R10: a choice no longer offered is said, not restored', await p.evaluate(() => {
     const lid = location.pathname.split('/')[2];
     sessionStorage.setItem('draft:' + lid + ':O1', JSON.stringify({radios: {choice: 'Z = gone'}, texts: {}}));
@@ -395,8 +405,7 @@ t('an open row draws its drop icon in its head line, as far from the edge as a c
     return sessionStorage.getItem(key) === null;
   }));
   await p.unroute(base + page, failing);
-  // the index is a queue to glance at: when its rows cannot be drawn anew
-  // it still reloads quietly
+  // the index is a queue to glance at: a fetch of it that fails is said in place too
   await p.goto(base + '/');
   t('R5: a neutral id chip in the legend splits in gray: a pale letter, a solid number', await p.evaluate(() => {
     const lg = document.querySelector('#index-legend'); if (!lg) return false;
@@ -410,14 +419,18 @@ t('an open row draws its drop icon in its head line, as far from the edge as a c
   await p.evaluate(() => { window.__mark = 1; });
   touch();
   await p.waitForTimeout(4500);
-  t('V6: a clean index whose fetch fails reloads by itself', await p.evaluate(() => window.__mark === undefined));
+  const idxSaid = await liveSays();
+  t('V6: a clean index whose fetch fails stays (no navigation) and says "Live updates paused" beside its summary',
+    await p.evaluate(() => window.__mark === 1) && !!idxSaid && idxSaid.kind === 'paused' && idxSaid.inHead);
   // the stream pushes it: within 3 s, before the 3 s fallback poll could
   await p.goto(base + '/');
   await p.waitForTimeout(1500);
   await p.evaluate(() => { window.__mark = 1; });
   touch();
   await p.waitForTimeout(2500);
-  t('a clean index whose fetch fails reloads within 3 s while its EventSource is open', await p.evaluate(() => window.__mark === undefined));
+  t('a clean index whose fetch fails says so within 3 s while its EventSource is open, without a reload',
+    await p.evaluate(() => window.__mark === 1 && document.querySelector('.live-state')?.dataset.live === 'paused'));
+  await p.unroute(base + '/', failing);
   await p.unroute(base + '/', failing);
   // V7: a clean index draws its changed rows again in place, without a reload
   await p.goto(base + '/');
@@ -439,7 +452,7 @@ t('an open row draws its drop icon in its head line, as far from the edge as a c
   const what = () => /documented where the API is/.test(document.getElementById('piece-P1').textContent);
   await p.waitForFunction(what, null, {timeout: 6000}).catch(() => {});
   t('V7: a card changed elsewhere is drawn anew in place, without a reload or a note', await p.evaluate(what)
-    && await p.evaluate(() => window.__mark === 1 && !document.querySelector('.stale-note')));
+    && await p.evaluate(() => window.__mark === 1 && !document.querySelector('.live-state')));
   t('V7: a fold open elsewhere stays open', await p.evaluate(() => document.querySelector('details.done-fold[id$="-facts"]').open));
   run('undo');
   await p.waitForFunction(() => !/documented where the API is/.test(document.getElementById('piece-P1').textContent), null, {timeout: 6000}).catch(() => {});
@@ -454,7 +467,7 @@ t('an open row draws its drop icon in its head line, as far from the edge as a c
     const c = document.getElementById('p-P4'), l = c.querySelector('.changed-line');
     return !!l && l.getAttribute('role') === 'status' && /^Changed since you started/.test(l.textContent.trim())
       && document.getElementById('say-P4-word').value === 'my words, not sent' && !/on Friday/.test(c.textContent)
-      && !document.querySelector('.stale-note');
+      && !document.querySelector('.live-state');
   }));
   t('V7: its Update button is a 44 px target', await p.evaluate(() =>
     document.querySelector('#p-P4 .changed-line button').getBoundingClientRect().height >= 44));
@@ -509,7 +522,7 @@ t('an open row draws its drop icon in its head line, as far from the edge as a c
     await p.evaluate(() => {
       const c = window.__card;
       return c.isConnected && c.querySelector('.meta [data-age]').textContent === '5 min' && !c.querySelector('.changed-line')
-        && document.activeElement === c.querySelector('.drop-fold > summary') && !document.querySelector('.stale-note');
+        && document.activeElement === c.querySelector('.drop-fold > summary') && !document.querySelector('.live-state');
     }));
   run('restore', '--to', beforeAsk);
   // F2: focus alone does not hold a card: one changed elsewhere with focus
@@ -566,7 +579,7 @@ t('an open row draws its drop icon in its head line, as far from the edge as a c
   await p.waitForFunction(() => !document.querySelector('#flight + ul #piece-P2'), null, {timeout: 6000}).catch(() => {});
   t('V7: a piece dropped elsewhere leaves Unfinished for the record and its count drops, no note, no reload', await p.evaluate(w =>
     window.__mark === 1 && !document.querySelector('#flight + ul #piece-P2') && !!document.querySelector('details.done-fold #piece-P2')
-    && Number(document.querySelector('#flight .count').textContent) === w - 1 && !document.querySelector('.stale-note'), flightWas));
+    && Number(document.querySelector('#flight .count').textContent) === w - 1 && !document.querySelector('.live-state'), flightWas));
   run('undo');
 
   // W5: a stream lost for 10 s is shown, apart from the changed note, and
@@ -580,7 +593,7 @@ t('an open row draws its drop icon in its head line, as far from the edge as a c
   t('W5: a stream down for 10 s shows "Live updates paused" as a polite status, apart from the note', await p2.evaluate(() => {
     const l = document.querySelector('.receipt .live-state');
     return !!l && l.getAttribute('role') === 'status' && /Live updates paused/.test(l.textContent)
-      && !l.closest('.stale-note') && !document.querySelector('.stale-note') && !l.contains(document.activeElement);
+      && l.dataset.live === 'stream' && !l.contains(document.activeElement);
   }));
   await p2.unroute('**/events*');
   await p2.waitForTimeout(12000);
@@ -722,7 +735,7 @@ t('an open row draws its drop icon in its head line, as far from the edge as a c
     was.listed && was.count > 0 && now.count === was.count - 1 && now.tile === was.tile - 1 && !now.listed
     && now.step !== '#p-P4');
   await p.waitForTimeout(1600);
-  t('P80: the user\'s own send raises no "Ledger changed" note', await p.evaluate(() => !document.querySelector('.stale-note')));
+  t('P80: the user\'s own send raises no status and no navigation', await p.evaluate(() => !document.querySelector('.live-state')));
   await p.locator('#p-P4 > details.comment-fold > summary').click();
   await p.waitForSelector('#p-P4:not(.is-collapsed)');
   t('P80: Change opens the card again in place', await p.evaluate(() => {
@@ -731,8 +744,10 @@ t('an open row draws its drop icon in its head line, as far from the edge as a c
       && c.getBoundingClientRect().height > 130;
   }) && await idx() === at);
   rewind(sent);
-  // a change made by someone else while the send is out still shows the note
+  // a change made by someone else while the send is out is drawn in place
+  // from the page the send came back with
   await p.goto(base + page);
+  await p.evaluate(() => { window.__mark = 1; });
   await p.route('**/say', async route => {
     run('ask', '--title', 'Late question', 'anything else?', '--problem', 'asked meanwhile', '--risk', '5/10 — none',
       '--choices', 'A = a | B = b', '--recommend', 'A, fine', '--no-picture', 'text only');
@@ -741,8 +756,10 @@ t('an open row draws its drop icon in its head line, as far from the edge as a c
   });
   await p.locator('#p-P4 button[name="word"][value="commit"]').click();
   await p.waitForSelector('#p-P4.is-collapsed');
-  await p.waitForSelector('.stale-note', {timeout: 5000}).catch(() => {});
-  t('P80: an outside change made during the send still shows "Ledger changed"', await p.evaluate(() => !!document.querySelector('.stale-note')));
+  const late = () => [...document.querySelectorAll('section.waiting li[id^="q-"]')].some(c => /Late question/.test(c.textContent));
+  await p.waitForFunction(late, null, {timeout: 5000}).catch(() => {});
+  t('P80: an outside change made during the send is drawn in place, without a navigation', await p.evaluate(late)
+    && await p.evaluate(() => window.__mark === 1 && document.getElementById('p-P4').classList.contains('is-collapsed')));
   await p.unroute('**/say');
   rewind(sent);
   run('undo');
@@ -825,7 +842,7 @@ t('an open row draws its drop icon in its head line, as far from the edge as a c
     JSON.stringify([page + '/say-batch']) && since(sent) === 1);
   t('P25: after Send all the cards and the counts are drawn again', await p.evaluate(() =>
     document.getElementById('p-P4').classList.contains('is-receipt') && /drop asked/.test(document.getElementById('piece-P2').textContent)
-    && !document.querySelector('.tray-line') && !document.querySelector('.stale-note')));
+    && !document.querySelector('.tray-line') && !document.querySelector('.live-state')));
   rewind(sent);
   // R1: an item added while a batch is out stays in the tray when the batch lands; only what was sent leaves it
   await p.goto(base + page);
@@ -1174,7 +1191,7 @@ t('an open row draws its drop icon in its head line, as far from the edge as a c
   await p.waitForTimeout(4500);
   p.off('request', refetch);
   t('V8: a write to another ledger leaves the open ledger page\'s stamp, and the page is not fetched again',
-    await p.evaluate(s => window.__mark === 1 && document.body.dataset.stamp === s && !document.querySelector('.stale-note'), stampWas)
+    await p.evaluate(s => window.__mark === 1 && document.body.dataset.stamp === s && !document.querySelector('.live-state'), stampWas)
     && refetched.length === 0);
   // D1 and D3: while a send is out its button says Sending… and is held, the card's other submit
   // buttons wait and the drafts elsewhere stay editable; the head says how many sent entries are

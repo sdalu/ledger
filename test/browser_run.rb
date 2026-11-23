@@ -36,6 +36,7 @@ require_relative "support/builds_fixture"
 require_relative "support/choices_fixture"
 require_relative "support/gates_fixture"
 require_relative "support/groups_fixture"
+require_relative "support/live_fixture"
 require_relative "support/long_fixture"
 require_relative "support/loop_fixture"
 require_relative "support/meters_fixture"
@@ -196,7 +197,10 @@ module BrowserRun
         # run on a ledger of their own, once per browser, after the shared
         # checks, which read the index's first queue entry and must not meet
         # them; the risk and builds checks send words, which the next must
-        # not meet, so they are last, builds reading only its own ledger.
+        # not meet, so they are last, builds reading only its own ledger,
+        # and live, which reads only its own ledgers' pages and the
+        # index's rows. Each script is also given its ledger's address,
+        # for the checks that change it with bin/ledger.
         OWN = [["long", LongFixture, "long.cjs"],
                ["groups", GroupsFixture, "groups.cjs"],
                ["choices", ChoicesFixture, "choices.cjs"],
@@ -207,7 +211,8 @@ module BrowserRun
                ["meters", MetersFixture, "meters.cjs"],
                ["gates", GatesFixture, "gates.cjs"],
                ["risk", RiskFixture, "risk.cjs"],
-               ["builds", BuildsFixture, "builds.cjs"]].freeze
+               ["builds", BuildsFixture, "builds.cjs"],
+               ["live", LiveFixture, "live.cjs"]].freeze
 
         def initialize(core, browsers)
             @core = core
@@ -275,7 +280,7 @@ module BrowserRun
                 lid = Digest::SHA1.hexdigest(address)[0, 10]
                 system(env(sandbox, cookie), "node",
                        File.join(__dir__, "browser", script),
-                       "#{sandbox.base}/l/#{lid}", name)
+                       "#{sandbox.base}/l/#{lid}", name, address)
             end.all?
         end
 
