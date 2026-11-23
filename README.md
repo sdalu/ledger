@@ -521,20 +521,23 @@ left out). A row is the id and the title of the question or the
 piece in bold, a muted line "ledger · question" or "ledger · awaits
 commit, deploy" (with " · risk N/10" when it is rated), the wait when a
 time is known, and a link that opens the card: *Answer*, *Review WORD*
-(*Open* for an `other` word), the id in its accessible name. A ledger
+(*Open* for an `other` word), the title and the ledger in its accessible
+name. A ledger
 named `LEDGER-SFX.md` shows as `project · SFX` wherever its name does.
 Then the sessions' turn (answers sent and not read by the session yet,
 each named by its title, then ledger and id; questions being prepared)
 and a table of the ledgers, each with its state in words (*awaits*, then
 the words still owed, counted, then how many are sent; an
 `other` word's need on a line under its row), its changed time under
-its name, narrow enough for a phone. A ledger page has the questions as
+its name; a panel too narrow for the table scrolls it. A ledger page has the questions as
 a list beside it when the page is wide enough for both (waiting on you,
 sent, being prepared, then the other sections), above it otherwise;
 what waits on the user (questions to answer and words owed) is in one
 order on the page, the index queue's, the oldest wait first: the head's
 next step names the first, Waiting on you and the side list list them
-in that order, and a receipt's next card follows it;
+in that order, and a receipt's next card follows it (the page script adds
+an *Order* choice, *Oldest wait* or *Highest risk*, and a *Show* choice,
+*All*, *Risk 4+* or *Risk 7+*, above Waiting on you);
 each option of a question is a tile with what it does and costs, and
 each card after Send offers the next question. The note box sits under
 the Goal, folded; "Leave a note" opens it. The Goal section shows every
@@ -559,7 +562,9 @@ as returned, stalled or ready and not sent, nothing sent on it) is one
 row under Unfinished pieces (title, status, id, the links
 icon) that opens into its card; a link to `#piece-P<n>` opens it. Out,
 back and blocked pieces, and any with something to say, stay cards; a
-blocked piece says what blocks it straight under its title. A piece
+blocked piece says what blocks it straight under its title; a piece whose
+word is sent while it still awaits one shrinks to a line leading to its
+card in Sent. A piece
 out or back shows its gates as chips (`unit failed`, coloured by
 state, the time on hover), the detail of the last one failed under
 them, and its helper's report folded (*Report: DONE_WITH_CONCERNS*);
@@ -574,7 +579,8 @@ rated* for a piece in flight, unless it is planned or deferred and
 awaits no word), the assumptions it rests on (`rests on
 A1 (open), A2 (refuted)`, each chip leading to its row), its issues
 (`blocked`, `stalled 2 h`, `returned 2: depth, unrecorded`) and what it
-depends on (`serves D2`, `answered by P5`, `see F2`).
+depends on (`serves D2`, `answered by P5`, `see F2`), and on what decided it
+(`decided in X2, X5`, each linked to its row in the record).
 Under the head of every piece card and open row, one ties line says what
 it is tied to in id chips, each part left out when empty: `waits for`
 (a settled piece muted with a tick, an unsettled one with its status on
@@ -594,14 +600,18 @@ settled, each deferred condition). A stalled piece says so in the side
 list too (`out · stalled 2 h · with sonnet`).
 A question already answered counts as the session's turn, not the
 user's. Every request reads the journal. When its ledger changes (any
-ledger, for the index), the page shown fetches itself again and draws anew only the parts the
+ledger, for the index), which the server pushes over `/events` and the
+page also polls for (every 3 s while the stream is not open, every 30 s
+while it is), the page shown fetches itself again and draws anew only the parts the
 server now draws differently: on a ledger page the head, the cards, the
 section counts, the side list, the record folds and your messages; on
 the index its rows. The page does not move and the focus stays, and a
 fold keeps its open state. A part you hold (a form in it differing from
-what the server sent, the focus in it, its picture open, or an item of
-the tray from it) is left as it is and says *Changed since you started*
-with an *Update* button, which draws it anew and puts back what was
+what the server sent, its picture open, a send on it in flight or not
+yet confirmed, or an item of the tray from it; focus alone does not hold
+it, it follows the part drawn anew) is left as it is and says *Changed
+since you started*, naming up to three of the sections that differ, with
+an *Update* button, which draws it anew and puts back what was
 typed or chosen where its field still is. A change outside those parts
 (the goal, the note or the order form, a section coming or going), or a
 page that cannot be fetched, falls back: the index reloads itself
@@ -612,20 +622,21 @@ position and open folds, and puts back what was picked or typed in an
 answer form and not sent (kept in `sessionStorage` per ledger and item,
 a line on the card saying so; a choice no longer offered is said,
 nothing sent). When the live stream has been down for 10 seconds, a
-quiet *Live updates paused* status shows in the page head until it
-returns; the 3 s poll runs meanwhile. The user starts it; no hook does.
+quiet *Live updates paused — reconnecting* status shows in the page head
+until it returns; the 3 s poll runs meanwhile. The user starts it; no hook does.
 
 A ledger page reads, top to bottom and in the tab order: crumbs, the
 title, the goal's short line, the next step (the id, then `Your word:
 TITLE`, the words as icons and in text), *Details* folded, the tiles
-(Waiting on you, then Criteria, which links
-the met-criteria fold once all are met, and Work verified; Unfinished
-pieces only when some are; they share each row), Waiting on you, the side
+(Waiting on you, Unfinished pieces only when some are, then Criteria,
+which links the met-criteria fold once all are met, and Work verified;
+they share each row), Waiting on you, the side
 list folded as *Sections of this ledger*,
 then the Goal with the user's words folded and the criteria not met
-under it. With room (64 rem) the side
-list stands beside, Waiting still above the Goal, and both folds are
-open; the page script keeps each fold's own state for a narrow page. A
+under it. With room (a page wider than 60 rem) the side
+list stands beside, Waiting still above the Goal; in a window 64 rem
+wide or more both folds are open, and the page script keeps each fold's
+own state for a narrow one. A
 *Skip to waiting work* link comes first and shows on focus. A
 criterion's serving pieces are counted (`16 pieces: 15 verified, 1
 kept`), their links folded; the section of what was sent is *Sent,
@@ -645,9 +656,10 @@ user's words in double quotes and `` `code` `` are not read.
 
 Ledger text is rendered as the small part of Markdown it uses, on the
 server, from text escaped first: `**bold**`, `*italic*`, `` `code` ``,
-`[text](https://…)` and bare https links everywhere; paragraphs, `-`
-and `1.` lists, `>` quotes and fenced code in the Goal and the inbox
-entries. No HTML written in a ledger reaches the page, and no script
+`_italic_`, `[text](https://…)`, `[text](#anchor)` and bare http and
+https links everywhere; paragraphs, `-` and `1.` lists, `>` quotes and
+fenced code in the Goal's words, the inbox entries and the answers shown
+on a card. No HTML written in a ledger reaches the page, and no script
 library has to be trusted to sanitise it. `$…$` is left as written.
 
 What the page takes, all as inbox entries, of the four kinds
@@ -657,8 +669,11 @@ What the page takes, all as inbox entries, of the four kinds
 - **An answer** to each open question, which carries its case:
   `— problem:`, `— risk: N/10 — …` (rated 0 to 10, shown on the card's
   RAID line as a meter coloured by band), each option `X = what it does, what it
-  costs`, and `— recommend: X, why`, shown as labelled rows under the
-  question's title, the recommended option marked. `check` fails a
+  costs`, and `— recommend: X, why`, shown under the question's title:
+  the problem and the plan as labelled facets, the options as the form's
+  own choices, the recommended one marked *recommended* with its reason
+  (with `— items:`, an *Options* row and a *Recommended* row instead).
+  `check` fails a
   question without its problem and risk, or, once it can be answered,
   without described options and a recommendation (`open-described`).
   A piece carries the same `— problem:` and `— risk:`, and a
@@ -671,7 +686,9 @@ What the page takes, all as inbox entries, of the four kinds
   `notes`, and the server refuses an option the question does not
   offer. With `— items: x | y` it gets one row of options per item and
   a comment per item; the entry carries `picks` ({item: option}) and
-  `notes` by item. The ledger items a question names with `— see:
+  `notes` by item. Once the overall comment holds text, *Send comment
+  only* sends it alone as a comment on the question (below), leaving the
+  pick and the option comments in the form. The ledger items a question names with `— see:
   F2, C3` are spelled out under it, in a fold; ids are never guessed
   from its text, where a review's own "C3" would read as Constraint C3.
 - **Nothing**, for a question still being prepared: one whose `by:`
@@ -715,13 +732,15 @@ What the page takes, all as inbox entries, of the four kinds
   hook and *Your messages* show it as *picture asked for O3 (svg)*.
 - **A comment on a planned piece**, before it goes out, and with two or
   more planned, **a proposed order**, refused unless it names each
-  planned piece once. With script the order is a list of the pieces'
+  planned piece once and puts none before a piece it waits for (both
+  400). With script the order is a list of the pieces'
   titles, each with up and down buttons (44 px targets) that rewrite
   the comma field below it; the field stays, and is the whole form
   without script.
 - **A word on a piece** the ledger says awaits one (`— awaits: start`,
   on a planned or kept piece; `commit, deploy`, `other (what)`; the
-  words are start, commit, deploy, push, merge): its card under Waiting
+  words are start, commit, deploy, push, merge; an `other` word has a
+  *Done* button, its *what* shown above as *Needed:*): its card under Waiting
   on you reads problem first (head, problem and plan, its RAID line,
   then *What it covers* folded) and has
   a button per word, the one for all of them filled and first (no click
@@ -736,17 +755,19 @@ What the page takes, all as inbox entries, of the four kinds
   deploy 5, 3 more on a piece `--irreversible`, capped at 10; the
   combined button the highest of its words, `other (what)` none. The
   piece's evidence, when it has one, sits just above the buttons, with
-  a link to its row in the record. The
+  a link to its row in the record unless the piece is still in flight
+  (planned, deferred, blocked, back, out). The
   comment folds below the words with its own *Send comment* and
   *Quote selection*, named *Comment on P<n>*. An answer or a word
   is sent with `fetch` when the page has script: the answered card is
-  swapped in place for its receipt, collapsed to one row with *Change*
-  (a view transition), then the page scrolls smoothly to the next card
-  waiting, which takes the focus and pulses once; the head's next step,
-  the tiles, the side list and the Waiting count are redrawn from the
-  same answer (a change by someone else in it still shows *Ledger
-  changed*); *Change* opens the
-  card again where it stands; with reduced motion the same happens
+  swapped in place for its receipt, collapsed to one row with a fold
+  *Change your answer* (*Change your word* on a piece; a view
+  transition), then the page scrolls smoothly to the next card waiting
+  (as the Waiting view orders and filters them), which takes the focus
+  and pulses once; the head's next step, the tiles, the status line, the
+  side list and the Waiting count are redrawn from the same answer (a
+  change by someone else in it still shows *Ledger changed*); the fold
+  opens the card again where it stands; with reduced motion the same happens
   without transition, smooth scroll or pulse. While the send is out the
   pressed button reads *Sending…* (disabled, `aria-busy`) and the card's
   other submit buttons are disabled; drafts elsewhere stay editable, and
@@ -757,18 +778,23 @@ What the page takes, all as inbox entries, of the four kinds
   `POST /l/ID/waker`), and redrawn with the head.
   A send that leaves nothing waiting on the user ends the receipt with
   *Nothing left waiting on you in this ledger* (`role="status"`), which
-  takes the focus, *not read by the session yet* staying visible. A refusal, a failed fetch
-  or a card that did not become a receipt falls back to the plain form
-  post. Without script the send answers 303 to the next card waiting
+  takes the focus, *not read by the session yet* staying visible. A
+  refusal (a 4xx answer) falls back to the plain form post, whose page
+  shows it; a card that did not become a receipt goes to the page the
+  send came back with, at that card; a viewer that does not answer, or
+  fails (5xx), leaves the draft with *Delivery unconfirmed* and a
+  *Check* button, which reads the page again and lands the send if it
+  is there, else turns into *Retry*. Without script the send answers 303 to the next card waiting
   (`#p-P<n>`, `#q-O<n>`), to the answered card when none waits; a
   comment, a note or an order goes back to its own card or `#inbox`. A
   piece whose word is sent shows a receipt, *You asked: Commit + Deploy
   · sent HH:MM · not read by the session yet*, then a link to the next card waiting
-  or *Nothing left waiting on you in this ledger*. When two or more pieces wait and all
-  await the same words (none `other`), a bar under the Waiting heading
-  gives them all in one request (`POST /l/ID/say-all`: token, Origin and
-  Host as `/say`; refused with 409, sending nothing, if any no longer
-  awaits exactly those words): one word entry per piece. Any piece in
+  or *Nothing left waiting on you in this ledger*. Each set of two or
+  more pieces awaiting the same words (none `other`) gets a bar under
+  the Waiting heading, giving them all in one request (`POST
+  /l/ID/say-all`: token, Origin and Host as `/say`; refused with 409,
+  sending nothing, if any no longer awaits exactly those words or has a
+  word the session has not filed): one word entry per piece. Any piece in
   flight can also be dropped, as a request: a trash icon (a 44 px
   target) in its title opens a fold *Ask the session to drop P<n>
   without follow-up*, what it does, an optional reason, *Cancel* (back
@@ -788,9 +814,10 @@ What the page takes, all as inbox entries, of the four kinds
   *Drop P2 to tray*). Answers, notes, Close, Abandon, pictures
   asked and the order are still sent at once, and an answer form says
   so above its Send. A bar sticks to the page's foot
-  while the tray holds something: *N in the tray*, each item's id, kind
-  and text cut at one line with its *Remove*, then *Send all (N)* and
-  *Empty tray* (which asks again inside the bar). *Send all* posts the
+  while the tray holds something: *N in the tray* with *Send all (N)*
+  and *Empty tray* (which asks again inside the bar, *Yes, empty it* or
+  *Keep them*), then each item's id, kind and text cut at one line with
+  its *Remove*. *Send all* posts the
   whole tray in one request (`POST /l/ID/say-batch`: token, Origin and
   Host as `/say`, `items` the JSON list of the forms trayed); each item
   is checked by the rules of its own send, in the tray's order, an item
@@ -800,7 +827,8 @@ What the page takes, all as inbox entries, of the four kinds
   written: the answer, JSON, names each refused item with its reason
   (400 when any is malformed, else 409), the tray keeps them all and
   marks those. Sent, the tray empties and the cards, the head's next
-  step, the tiles, the side list and the Waiting count are drawn again.
+  step, the tiles, the status line, the side list and the Waiting count
+  are drawn again.
   The tray is kept per ledger across a reload; an item whose card is no
   longer on the page says so in the bar, and *Send all* waits until it
   is removed. Batch mode off, everything is sent at once as before.
@@ -815,8 +843,8 @@ What the page takes, all as inbox entries, of the four kinds
   it with `ledger close PATH --take N<n>`, closing the ledger and
   taking the entry in one event; a close refused takes nothing. With
   every criterion marked, no piece in flight and no question open, the
-  Remains section says *Ready for `bin/ledger close`* only when the
-  Close is offered; otherwise it says what the status line holds the
+  Remains section says *Ready for `bin/ledger close`* only while the
+  status line ends with `done: propose close`; otherwise it says what the status line holds the
   close on: *Not yet: an entry from you waits to be filed (N1).*, or
   *`bin/ledger check --final` still fails* when the line names nothing.
 - **The abandon of the ledger**, on any live ledger, after the Close
@@ -825,17 +853,22 @@ What the page takes, all as inbox entries, of the four kinds
   abandoning does (the pieces not finished dropped, the open questions
   closed, the history kept), takes an optional comment, and sends only
   with *Yes, abandon it*, the red button. The entry has `ref` `abandon`;
-  the server refuses a second, 409, while one waits to be filed. Sent,
+  the server refuses a second, 409, while one waits to be filed, and
+  one while a Close waits, when the fold is not drawn either. Sent,
   the head shows *abandon asked* with its receipt until a session files
   it with `ledger close PATH --abandon --take N<n>`.
 - **A note** per ledger.
 
-Every box has a *Quote last selection* button, hidden until text on
-the page has been selected: it goes in as a `>` quote, a blank line
-after it, so several quotes and comments leave as one entry; the
-button sits under the box it fills, in a row of its own, so Send stands
-alone. A question's choice is required: Send is refused with none
-picked, and a choice whose text says `in your comment` opens its
+Every box has a *Quote last selection* button (on a word card's comment
+it reads *Quote selection*), hidden until text on the page has been
+selected outside a form: it goes in as a `>` quote, a blank line
+after it, so several quotes and comments leave as one entry; on an
+answer, comment or note box the button sits under the box it fills, in
+a row of its own, so Send stands alone, and on the *Ask about* and
+*Request a picture* forms and a word card's comment it sits beside the
+send button. A question's choice is required: the form refuses Send with
+none picked (a question answered per item takes its picks, each
+optional), and a choice whose text says `in your comment` opens its
 comment on being picked, says what to write there and requires it.
 Every option keeps its comment fold; text written in the comment of an
 option that is not the one picked says *This option is not your
@@ -926,8 +959,9 @@ and nothing else. A frame in an opaque origin sends no session cookie,
 so a page signed in to the viewer draws its mockups from
 `/m/k/TOKEN/LID/NAME`: the files reach a frame through a short-lived
 signed path, good for an hour and for that one ledger, which the page's
-relative CSS, scripts and images inherit; a bad or expired key is a 404,
-and the plain `/m/LID/NAME` stays behind sign-in. Its pages run in an
+relative CSS, scripts and images inherit; a bad or expired key is a 404 for a
+caller with no session (one signed in is served the file as `/m/` serves
+it), and the plain `/m/LID/NAME` stays behind sign-in. Its pages run in an
 opaque origin, by a `sandbox` CSP that holds even when one is opened
 on its own, with no fetch, no form and no frame, so a mockup can
 neither read the viewer's token nor post to it.
@@ -1038,7 +1072,8 @@ user. On the network, sign-in is the authentication: name a `lan`
 network only where every device on it is the user's.
 
 The routes. Open to anyone: `GET /health` (answers `ok`), `/sign-in`,
-`/invite` and `/viewer.css`, with sesam's JSON routes. Behind the
+`/invite` and the files of `public/` (`/viewer.css`, `/viewer.js`), with
+sesam's JSON routes. Behind the
 sign-in: `/` (the index), `/l/ID` (a ledger's page; ID is ten hex
 digits), `/l/ID/why/P<n>` or `/l/ID/why/X<n>` (the links page of a piece
 or a decision: what led to it, what it led to; an id the ledger does not
@@ -1084,7 +1119,9 @@ NAME=alice` removes one with their passkeys and sessions.
 The viewer is pushed changes over server-sent events (`GET /events`): a
 page draws its changed parts anew, or falls back to the note or the
 reload, within about a second of a ledger write. The 3 s poll of `/stamp`
-remains as the fallback, slowed to 30 s while the stream is open. Both
+remains as the fallback, slowed to 30 s while the stream is open; a stream down for 10 s shows
+*Live updates paused — reconnecting* in the head, and the page opens it
+again after 2 s, doubling to 30 s. Both
 take an optional `lid`: a ledger page passes its own and watches that
 ledger's stamp alone, which its `data-stamp` carries too, so a write to
 another ledger leaves it untouched (a ledger closed or unknown answers a
@@ -1201,7 +1238,8 @@ Written:
   and `journal.db.before-prune-STAMP` (`STAMP` is `YYYYmmdd-HHMMSS`);
   one that exists is never overwritten.
 - **The viewer's own files**: `tmp/puma.pid` in the checkout (made by
-  `config/puma.rb`; `rake clean` removes `tmp`), and in the `tls_dir`
+  `config/puma.rb`; `rake clean` removes `tmp`, and so does `rake
+  clobber`, which adds nothing to it), and in the `tls_dir`
   setting's directory (mode 0700) `key.pem` and `cert.pem` from `rake
   tls:cert`, `root.pem` when the authority gives a root, `account.pem`
   of an `acme` authority and, for its answers, a `challenge/` directory
