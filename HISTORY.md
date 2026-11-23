@@ -49,29 +49,6 @@ component since deleted, has none, and this is not a changelog.
   (`lib/ledger/migrations/002_piece_returns.rb`).
 - **Evidence**: commit 2a47bc5.
 
-### A track record read from every event
-
-- **Tried**: `stats` counted the status changes it found in the
-  journal, undone ones included, and kept a group for pieces with no
-  route.
-- **Dropped**: an undone claim read as a return to planned, and an
-  undone return lost its `piece_returns` row but kept its status
-  change, so the record counted work the ledger had taken back. Only
-  events still in force count (`lib/ledger/stats/in_force.rb`). The
-  schema forbids a piece with neither route nor `kept`, so the group
-  for it was code that could not run, and it went.
-- **Evidence**: commit f2e0c8a.
-
-### A dropped piece holding back what waits on it
-
-- **Tried**: `ready` treated a dropped `after` piece as unfinished, so
-  a piece waiting on it stayed planned.
-- **Dropped**: a dropped piece settles like a verified or kept one
-  (docs/journal.md:872). The same change made a ready piece left
-  planned past a limit visible as unsent, since nothing said it had
-  never been sent out.
-- **Evidence**: commit 9916e4a.
-
 ## Hooks
 
 ### Every hook through the bundle
@@ -137,19 +114,6 @@ component since deleted, has none, and this is not a changelog.
   and posts once (`public/viewer.js:1043`).
 - **Evidence**: commit 5272bb0.
 
-### Browser checks sharing fixtures and fixed waits
-
-- **Tried**: the checks named their second ledgers and one question's
-  options the same for each browser, and the group chip's check waited
-  a fixed 300 ms for its tip.
-- **Dropped**: the second browser's run was refused on the shared
-  address and options, so every check after it went unrun; the names
-  now carry the browser (`test/browser/viewer.cjs`, commit e8d60a8).
-  Firefox showed the tip after the 300 ms at times, so the check waits
-  for the tip, up to 3 s (`test/browser/groups.cjs:46`, commit
-  a677e51).
-- **Evidence**: the two commits.
-
 ## Waker
 
 ### A resume that carries the session's flags
@@ -166,14 +130,6 @@ component since deleted, has none, and this is not a changelog.
   sessions on 2026-11-21).
 
 ## CLI and rake
-
-### `rake server` and `rake status`
-
-- **Tried**: short aliases for `server:start` and `server:status`.
-- **Dropped**: the tasks are named in full everywhere, and the aliases
-  now fail with "Don't know how to build task"
-  (`rakelib/server.rake:149`, the `server` namespace only).
-- **Evidence**: commit 2b6370b.
 
 ### A detached start from bundler's own copy of the environment
 
