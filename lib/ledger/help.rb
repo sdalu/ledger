@@ -24,9 +24,10 @@ module Ledger
         NOTES = <<~TEXT
             PATH is the ledger's address, the path its file would have
             (.claude/LEDGER.md or LEDGER-NAME.md); the journal holds it, nothing is
-            written there. Every writer but new, take, close, mockup, waker and purge
-            takes --dry-run, which prints the diff and writes nothing. In githook and
-            gate-stamp, PATH is a git repository's, and no ledger is written.
+            written there. Every writer but new, take, close, mockup, waker, purge and
+            prune-pictures takes --dry-run, which prints the diff and writes
+            nothing. In githook and gate-stamp, PATH is a git repository's, and no
+            ledger is written.
 
             ledger help WORD, or ledger WORD --help, gives the word's options.
 

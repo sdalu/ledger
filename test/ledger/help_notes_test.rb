@@ -17,6 +17,7 @@ class HelpNotesTest < CommandCase
         _, out, = cli("help")
         flat = out.gsub(/\s+/, " ")
         assert_includes flat, "Every writer but new, take, close, mockup, " \
-                              "waker and purge takes --dry-run"
+                              "waker, purge and prune-pictures takes " \
+                              "--dry-run"
     end
 end
